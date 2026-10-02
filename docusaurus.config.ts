@@ -75,25 +75,38 @@ const config: Config = {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'My Site',
-      logo: {
-        alt: 'My Site Logo',
-        src: 'img/logo.svg',
-      },
-      items: [
-        {
-          type: 'docSidebar',
-          sidebarId: 'tutorialSidebar',
-          position: 'left',
-          label: 'Tutorial',
+        title: 'Embedbits',
+        logo: {
+            alt: 'Embedbits',
+            src: 'img/logo.svg',
         },
-        {to: '/blog', label: 'Blog', position: 'left'},
-        {
-          href: 'https://github.com/facebook/docusaurus',
-          label: 'GitHub',
-          position: 'right',
-        },
-      ],
+        items: [
+            {
+                to: '/projects',
+                label: 'Projects',
+                position: 'left',
+            },
+            {
+                to: '/docs/intro',
+                label: 'Documentation',
+                position: 'left',
+            },
+            {
+                to: '/blog',
+                label: 'Articles',
+                position: 'left',
+            },
+            {
+                to: '/about',
+                label: 'About',
+                position: 'left',
+            },
+            {
+                href: 'https://github.com/Embedbits',
+                label: 'GitHub',
+                position: 'right',
+            },
+        ],
     },
     footer: {
       style: 'dark',
@@ -141,8 +154,13 @@ const config: Config = {
       copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
     },
     prism: {
-      theme: prismThemes.github,
-      darkTheme: prismThemes.dracula,
+        additionalLanguages: [
+            'c',
+            'cpp',
+            'bash',
+            'cmake',
+            'yaml',
+        ],
     },
   } satisfies Preset.ThemeConfig,
 };

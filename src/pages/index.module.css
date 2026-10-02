@@ -1,23 +1,195 @@
-/**
- * CSS files with the .module.css suffix will be treated as CSS modules
- * and scoped locally.
- */
+.hero {
+    border-bottom: 1px solid var(--ifm-color-emphasis-200);
+    background:
+        radial-gradient(
+            circle at 80% 20%,
+            rgba(37, 99, 235, 0.12),
+            transparent 30%
+        ),
+        var(--ifm-background-color);
+}
 
-.heroBanner {
-  padding: 4rem 0;
-  text-align: center;
-  position: relative;
-  overflow: hidden;
+.heroInner {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 110px 24px 120px;
+}
+
+.eyebrow,
+.sectionEyebrow {
+    margin-bottom: 18px;
+    color: var(--ifm-color-primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+}
+
+.hero h1 {
+    max-width: 950px;
+    margin: 0;
+    font-size: clamp(3rem, 7vw, 5.7rem);
+    line-height: 0.98;
+    letter-spacing: -0.055em;
+}
+
+.hero h1 span {
+    color: var(--ifm-color-emphasis-600);
+}
+
+.heroDescription {
+    max-width: 760px;
+    margin: 32px 0 0;
+    color: var(--ifm-color-emphasis-700);
+    font-size: 1.18rem;
+    line-height: 1.75;
+}
+
+.heroActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 38px;
+}
+
+.primaryButton,
+.secondaryButton {
+    border-radius: 8px;
+    font-weight: 600;
+    padding: 12px 20px;
+}
+
+.section {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 90px 24px;
+}
+
+.sectionHeader {
+    display: flex;
+    align-items: end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 30px;
+}
+
+.sectionHeader h2 {
+    margin: 0;
+    font-size: 2.3rem;
+    letter-spacing: -0.03em;
+}
+
+.viewAll {
+    font-weight: 600;
+}
+
+.projectGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.projectCard {
+    display: flex;
+    min-height: 240px;
+    flex-direction: column;
+    padding: 26px;
+    border: 1px solid var(--ifm-color-emphasis-200);
+    border-radius: 12px;
+    color: inherit;
+    background: var(--ifm-background-surface-color);
+    text-decoration: none;
+    transition:
+        border-color 160ms ease,
+        transform 160ms ease,
+        box-shadow 160ms ease;
+}
+
+.projectCard:hover {
+    color: inherit;
+    border-color: var(--ifm-color-primary);
+    text-decoration: none;
+    transform: translateY(-3px);
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.07);
+}
+
+.projectCard h3 {
+    margin: 0 0 12px;
+    font-size: 1.45rem;
+}
+
+.projectCard p {
+    flex: 1;
+    margin: 0;
+    color: var(--ifm-color-emphasis-700);
+    line-height: 1.65;
+}
+
+.projectCard span {
+    margin-top: 22px;
+    font-weight: 600;
+}
+
+.featureSection {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 24px 100px;
+    gap: 45px;
+}
+
+.feature {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 18px;
+}
+
+.featureNumber {
+    color: var(--ifm-color-primary);
+    font-family: var(--ifm-font-family-monospace);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.feature h3 {
+    margin: 0 0 8px;
+}
+
+.feature p {
+    margin: 0 0 12px;
+    color: var(--ifm-color-emphasis-700);
+    line-height: 1.65;
 }
 
 @media screen and (max-width: 996px) {
-  .heroBanner {
-    padding: 2rem;
-  }
+    .projectGrid,
+    .featureSection {
+        grid-template-columns: 1fr 1fr;
+    }
 }
 
-.buttons {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+@media screen and (max-width: 650px) {
+    .heroInner {
+        padding: 80px 20px 90px;
+    }
+
+    .section,
+    .featureSection {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .hero h1 {
+        font-size: 3rem;
+    }
+
+    .projectGrid,
+    .featureSection {
+        grid-template-columns: 1fr;
+    }
+
+    .sectionHeader {
+        align-items: start;
+        flex-direction: column;
+    }
 }

@@ -9,15 +9,15 @@ tags: [embedded, stm32]
 
 This is a test article for the new Embedbits website.
 
-The article can contain:
+The article can contain Markdown, code blocks, images, links, diagrams and React components.
 
-- Markdown
-- code blocks
-- images
-- links
-- diagrams
-- React components
+```c
+static int32_t Example_Init(void)
+{
+    int32_t result = -1;
 
-## More content
+    /* Initialization */
 
-This is the rest of the article.
+    return ( result );
+}
+```
