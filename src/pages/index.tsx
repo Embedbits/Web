@@ -19,28 +19,34 @@ const projects: Project[] = [
         href: '/docs/projects/stm-template/overview',
     },
     {
+        name: 'EmBi_Platform',
+        description:
+            'Setup scripts, CMake helpers, STM32CubeIDE templates and updater that tie a project together.',
+        href: '/docs/platform/embi-platform',
+    },
+    {
         name: 'BSP',
         description:
-            'Board Support Package architecture for portable embedded software and hardware abstraction.',
-        href: '/projects',
+            'Board Support Package with one branch per STM32 family: linker, startup, RAL and MCAL.',
+        href: '/docs/bsp/overview',
     },
     {
         name: 'RAL',
         description:
-            'Register and low-level hardware abstraction around vendor libraries and CMSIS.',
-        href: '/projects',
+            'Register abstraction layer around CMSIS and STM32 LL for a unified low-level interface.',
+        href: '/docs/bsp/ral/overview',
     },
     {
         name: 'MCAL',
         description:
-            'Microcontroller abstraction components designed for reusable embedded software stacks.',
-        href: '/projects',
+            'Peripheral drivers with a consistent API: GPIO, USART, I2C, ADC, DMA, NVIC, TIM and more.',
+        href: '/docs/bsp/mcal/overview',
     },
     {
-        name: 'Middlewares',
+        name: 'Artifacts',
         description:
-            'Reusable middleware components for logging, communication and application infrastructure.',
-        href: '/projects',
+            'Versioned build tools such as GCC, Ninja, Doxygen, Unity, CMock and Renode, fetched automatically.',
+        href: '/docs/artifacts/overview',
     },
 ];
 

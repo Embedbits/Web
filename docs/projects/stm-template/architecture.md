@@ -16,14 +16,14 @@ Contains reusable software components that are independent of a specific MCU per
 
 ## BSP
 
-The Board Support Package provides the hardware-specific implementation.
+The Board Support Package provides the hardware-specific implementation (see [BSP](../../bsp/overview.md)).
 
 The BSP is further divided into:
 
-- Linker
-- Startup
-- MCAL
-- RAL
+- [Linker](../../bsp/linker.md)
+- [Startup](../../bsp/startup.md)
+- [MCAL](../../bsp/mcal/overview.md)
+- [RAL](../../bsp/ral/overview.md)
 - HAL
 
 ## RAL

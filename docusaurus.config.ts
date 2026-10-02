@@ -7,7 +7,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'EmbedBits',
   tagline: 'Embedded software engineering',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/logo.svg',
 
   // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -19,10 +19,17 @@ const config: Config = {
 
   // GitHub pages deployment config.
   // If you aren't using GitHub pages, you don't need these.
-  organizationName: 'facebook', // Usually your GitHub org/user name.
-  projectName: 'docusaurus', // Usually your repo name.
+  organizationName: 'Embedbits',
+  projectName: 'Web',
+  trailingSlash: false,
 
   onBrokenLinks: 'throw',
+
+  markdown: {
+    // *.md is parsed as plain CommonMark (READMEs synced from other repositories
+    // contain raw <, { and HTML), *.mdx is parsed as MDX.
+    format: 'detect',
+  },
 
   // Even if you don't use internationalization, you can use this field to set
   // useful metadata like html lang. For example, if your site is Chinese, you
@@ -38,10 +45,7 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+          editUrl: 'https://github.com/Embedbits/Web/tree/main/',
         },
         blog: {
           showReadingTime: true,
@@ -49,10 +53,7 @@ const config: Config = {
             type: ['rss', 'atom'],
             xslt: true,
           },
-          // Please change this to your repo.
-          // Remove this to remove the "edit this page" links.
-          editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+          editUrl: 'https://github.com/Embedbits/Web/tree/main/',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -66,8 +67,6 @@ const config: Config = {
   ],
 
   themeConfig: {
-    // Replace with your project's social card
-    image: 'img/docusaurus-social-card.jpg',
     colorMode: {
       respectPrefersColorScheme: true,
     },
@@ -109,46 +108,32 @@ const config: Config = {
       style: 'dark',
       links: [
         {
-          title: 'Docs',
+          title: 'Documentation',
           items: [
-            {
-              label: 'Tutorial',
-              to: '/docs/intro',
-            },
+            {label: 'Introduction', to: '/docs/intro'},
+            {label: 'Platform', to: '/docs/platform/embi-platform'},
+            {label: 'BSP', to: '/docs/bsp/overview'},
+            {label: 'Artifacts', to: '/docs/artifacts/overview'},
+          ],
+        },
+        {
+          title: 'Embedbits',
+          items: [
+            {label: 'Projects', to: '/projects'},
+            {label: 'Articles', to: '/blog'},
+            {label: 'About', to: '/about'},
+            {label: 'Contact', to: '/contact'},
           ],
         },
         {
           title: 'Community',
           items: [
-            {
-              label: 'Stack Overflow',
-              href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-            },
-            {
-              label: 'Discord',
-              href: 'https://discordapp.com/invite/docusaurus',
-            },
-            {
-              label: 'X',
-              href: 'https://x.com/docusaurus',
-            },
-          ],
-        },
-        {
-          title: 'More',
-          items: [
-            {
-              label: 'Blog',
-              to: '/blog',
-            },
-            {
-              label: 'GitHub',
-              href: 'https://github.com/facebook/docusaurus',
-            },
+            {label: 'GitHub', href: 'https://github.com/Embedbits'},
+            {label: 'This website', href: 'https://github.com/Embedbits/Web'},
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} My Project, Inc. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} Embedbits. Built with Docusaurus.`,
     },
     prism: {
         additionalLanguages: [
@@ -157,6 +142,8 @@ const config: Config = {
             'bash',
             'cmake',
             'yaml',
+            'ini',
+            'diff',
         ],
     },
   } satisfies Preset.ThemeConfig,

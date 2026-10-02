@@ -1,16 +1,35 @@
+import type {ReactNode} from 'react';
 import Layout from '@theme/Layout';
 
-export default function Contact(): JSX.Element {
+export default function Contact(): ReactNode {
     return (
         <Layout
             title="Contact"
             description="Contact Embedbits"
         >
-            <main className="container margin-vert--lg">
+            <main className="container container--medium margin-vert--xl">
                 <h1>Contact</h1>
                 <p>
-                    Get in touch regarding projects, collaboration
-                    or embedded software development.
+                    Get in touch regarding projects, collaboration, commercial
+                    licensing or embedded software development.
+                </p>
+                <ul>
+                    <li>
+                        Email:{' '}
+                        <a href="mailto:nobody@embedbits.com">
+                            nobody@embedbits.com
+                        </a>
+                    </li>
+                    <li>
+                        GitHub:{' '}
+                        <a href="https://github.com/Embedbits">
+                            github.com/Embedbits
+                        </a>
+                    </li>
+                </ul>
+                <p>
+                    Contributions are welcome. Please open a pull request in the
+                    relevant repository.
                 </p>
             </main>
         </Layout>

@@ -4,15 +4,35 @@ sidebar_position: 1
 
 # Embedbits
 
-Welcome to Embedbits.
+Embedbits is a collection of embedded software projects, tools, documentation and articles
+focused on maintainable STM32 development.
 
-Embedbits is a collection of embedded software projects, tools,
-documentation and articles.
+The platform is split into independent repositories that are combined into a project as Git submodules.
 
-## Projects
+## Building blocks
 
-- STM Template
-- BSP
-- RAL
-- MCAL
-- Middlewares
+| Area | What it provides |
+|---|---|
+| [STM Template](./projects/stm-template/overview.md) | Project structure, CMake build system, host-based testing and CI. |
+| [Platform](./platform/embi-platform.md) | `EmBi_Platform` setup scripts, CMake helpers and project templates. |
+| [BSP](./bsp/overview.md) | Board Support Package: linker, startup, RAL and MCAL for each STM32 family. |
+| [Artifacts](./artifacts/overview.md) | Versioned build tools (GCC, Ninja, Doxygen, Unity, CMock, Renode, ...) downloaded by the Artifacts Handler. |
+
+## Layers
+
+```text
+Application
+Middlewares
+BSP
+├── MCAL      peripheral drivers (GPIO, USART, I2C, ...)
+├── RAL       unified access to CMSIS and STM32 LL
+├── Startup   reset handler, memory initialization
+└── Linker    linker script generation
+```
+
+## Where the content comes from
+
+The pages under Platform, BSP and Artifacts are generated from the `README.md` of the corresponding
+repository in the [Embedbits GitHub organization](https://github.com/Embedbits). They are synchronized
+automatically, so the repository README is always the source of truth. Use the **Edit this page**
+link on any of these pages to jump to the right README.

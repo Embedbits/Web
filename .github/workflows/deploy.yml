@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+  # Rebuild daily so documentation synced from the other Embedbits
+  # repositories (README.md files) stays up to date.
+  schedule:
+    - cron: '17 4 * * *'
+  # Manual run, also usable from other repositories via the API.
+  workflow_dispatch:
+  repository_dispatch:
+    types: [docs-updated]
 
 permissions:
   contents: read
@@ -27,6 +35,9 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Sync documentation from Embedbits repositories
+        run: npm run sync-docs
 
       - name: Build website
         run: npm run build
