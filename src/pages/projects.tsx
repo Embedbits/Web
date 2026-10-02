@@ -12,12 +12,6 @@ type Project = {
 
 const projects: Project[] = [
     {
-        name: 'STM Template',
-        description:
-            'Reusable infrastructure for embedded software projects based on CMake, STM32, host testing and CI.',
-        href: '/docs/projects/stm-template/overview',
-    },
-    {
         name: 'EmBi_Platform',
         description:
             'Setup scripts, CMake helpers, STM32CubeIDE templates and updater that tie a project together.',

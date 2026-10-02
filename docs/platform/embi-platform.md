@@ -19,7 +19,7 @@ This module contains:
 - **STM32CubeIDE project templates** – Ready-to-use project structures for STM32 microcontrollers.
 - **CMake helper scripts** – A collection of helper scripts that simplify integration with CMake-based build systems.
 - **Common utilities** – General-purpose tools that can be reused across RAL modules (e.g., hashing, path resolution, or configuration parsing).
-- **Updater** – Tool handling necessary EmBi_Platform (STM_Template) updates.
+- **Updater** – Tool handling necessary EmBi_Platform updates.
 
 ---
 
@@ -149,7 +149,7 @@ Updates a single, already-added middleware component to its **latest available v
 
 #### Option: `Update EmBi_Platform`
 
-Runs the Updater tool to check the currently integrated EmBi_Platform (STM_Template) version against the latest available release and applies the update, re-running any configuration steps that changed as a result.
+Runs the Updater tool to check the currently integrated EmBi_Platform version against the latest available release and applies the update, re-running any configuration steps that changed as a result.
 
 ---
 

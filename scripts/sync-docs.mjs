@@ -20,13 +20,23 @@ const IGNORE = new Set(['Web']);
 const DOCS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../docs');
 
 // Pages with a hand-picked title, location or sidebar position.
-// dir = folder under docs/, file = page name, position = sidebar order.
+// dir = folder under docs/, file = page name, position = sidebar order,
+// source = file in the repository (default README.md),
+// replace = [regex, replacement] pairs applied to the Markdown source.
 // Repositories that are not listed here are discovered automatically, see
 // discoverPages().
 const KNOWN_PAGES = [
   // Platform
-  {repo: 'EmBi_Platform', dir: 'platform', file: 'embi-platform', title: 'EmBi_Platform', position: 1},
+  {
+    repo: 'EmBi_Platform', dir: 'platform', file: 'embi-platform', title: 'EmBi_Platform', position: 1,
+    replace: [[/ \(STM_Template\)/g, '']],
+  },
   {repo: 'EmBi-ArtifactsHandler', dir: 'platform', file: 'artifacts-handler', title: 'Artifacts Handler', position: 2},
+  {
+    repo: 'EmBi_Platform', source: 'Coding_Style.md', dir: 'platform', file: 'coding-style', title: 'Coding Style', position: 3,
+    // The source links to a wiki page that does not exist in the repository.
+    replace: [[/\[[^\]]*File Organization\]\(\.\/File_Organization\)/, 'File Organization (separate wiki page)']],
+  },
 
   // BSP
   {repo: 'Bsp', dir: 'bsp', file: 'overview', title: 'BSP Overview', label: 'Overview', position: 1},
@@ -162,8 +172,9 @@ function rewriteLinks(md, repo) {
     .replace(/(\[[^\]]*\]\()([^)\s]+)(\))/g, (m, a, u, b) => (isRelative(u) ? a + blob + clean(u) + b : m));
 }
 
-function transform(md, repo) {
+function transform(md, repo, replace = []) {
   let body = md.replace(/\r\n/g, '\n').replace(/^﻿/, '').trim();
+  for (const [pattern, replacement] of replace) body = body.replace(pattern, replacement);
   body = body.replace(/^# .*\n+/, ''); // title comes from front matter
   body = dropSections(body, (h) => /table of contents|useful links/i.test(h));
   body = rewriteLinks(body, repo);
@@ -171,8 +182,8 @@ function transform(md, repo) {
   return body.trim() + '\n';
 }
 
-async function fetchReadme(repo) {
-  const res = await fetch(`https://raw.githubusercontent.com/${ORG}/${repo}/HEAD/README.md`);
+async function fetchReadme(repo, source = 'README.md') {
+  const res = await fetch(`https://raw.githubusercontent.com/${ORG}/${repo}/HEAD/${source}`);
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`${repo}: HTTP ${res.status}`);
   return res.text();
@@ -183,14 +194,14 @@ const written = new Set();
 const missing = [];
 await Promise.all(
   PAGES.map(async (p) => {
-    const readme = await fetchReadme(p.repo);
+    const readme = await fetchReadme(p.repo, p.source);
     if (readme === null) return missing.push(p.repo);
     const front = [
       '---',
       `title: ${JSON.stringify(p.title)}`,
       `sidebar_label: ${JSON.stringify(p.label ?? p.title)}`,
       `sidebar_position: ${p.position}`,
-      `custom_edit_url: https://github.com/${ORG}/${p.repo}/edit/HEAD/README.md`,
+      `custom_edit_url: https://github.com/${ORG}/${p.repo}/edit/HEAD/${p.source ?? 'README.md'}`,
       '---',
       '',
       `{/* ${GENERATED_MARKER} from ${ORG}/${p.repo}. Do not edit here. */}`,
@@ -201,7 +212,7 @@ await Promise.all(
     written.add(path.join(dir, `${p.file}.md`));
     // .md files are parsed as CommonMark (see markdown.format in docusaurus.config.ts),
     // so the MDX comment is replaced by a plain HTML comment.
-    await writeFile(path.join(dir, `${p.file}.md`), front.replace(/\{\/\*(.*)\*\/\}/, '<!--$1-->') + transform(readme, p.repo));
+    await writeFile(path.join(dir, `${p.file}.md`), front.replace(/\{\/\*(.*)\*\/\}/, '<!--$1-->') + transform(readme, p.repo, p.replace));
   }),
 );
 

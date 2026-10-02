@@ -1,6 +1,6 @@
-# Website
+# Embedbits Web
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Source of the [Embedbits](https://github.com/Embedbits) website, built with [Docusaurus](https://docusaurus.io/).
 
 ## Installation
 
@@ -28,19 +28,7 @@ This command generates static content into the `build` directory and can be serv
 
 ## Deployment
 
-Using SSH:
-
-```bash
-USE_SSH=true npm run deploy
-```
-
-Not using SSH:
-
-```bash
-GIT_USER=<Your GitHub username> npm run deploy
-```
-
-If you are using GitHub Pages for hosting, this command is a convenient way to build the website and push to the `gh-pages` branch.
+The site is deployed to GitHub Pages by `.github/workflows/deploy.yml` on every push to `main`.
 
 ## Documentation sync
 
