@@ -38,6 +38,8 @@ jobs:
 
       - name: Sync documentation from Embedbits repositories
         run: npm run sync-docs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Build website
         run: npm run build
