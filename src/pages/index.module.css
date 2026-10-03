@@ -12,7 +12,7 @@
 .heroInner {
     max-width: 1180px;
     margin: 0 auto;
-    padding: 110px 24px 120px;
+    padding: 110px 24px 64px;
 }
 
 .eyebrow,
@@ -45,8 +45,9 @@
     /* Aligned with the content of the hero (1180px minus its 24px side padding). */
     max-width: 1132px;
     margin: 0 auto;
-    padding: 30px 0 30px 24px;
+    padding: 10px 0 10px 24px;
     border-left: 4px solid var(--ifm-color-primary);
+    margin-bottom: 0;
     color: var(--ifm-color-emphasis-800);
     font-family: var(--ifm-font-family-monospace);
     font-size: 1rem;
@@ -83,7 +84,7 @@
 .section {
     max-width: 1180px;
     margin: 0 auto;
-    padding: 90px 24px;
+    padding: 56px 24px 90px;
 }
 
 .sectionHeader {
