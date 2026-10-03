@@ -1,6 +1,6 @@
 import type {ReactNode} from 'react';
 import Layout from '@theme/Layout';
-import ContactForm from '@site/src/components/ContactForm';
+import EmailReveal from '@site/src/components/EmailReveal';
 
 export default function Contact(): ReactNode {
     return (
@@ -15,15 +15,7 @@ export default function Contact(): ReactNode {
                     licensing or embedded software development.
                 </p>
 
-                <ContactForm
-                    fallback={
-                        <p>
-                            The contact form is not available right now. Please
-                            reach out through{' '}
-                            <a href="https://github.com/Embedbits">GitHub</a>.
-                        </p>
-                    }
-                />
+                <EmailReveal />
 
                 <p>
                     GitHub:{' '}

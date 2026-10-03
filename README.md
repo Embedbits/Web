@@ -57,14 +57,13 @@ npm run sync-docs
 - The deploy workflow runs the sync before every build: on push to `main`, daily, manually, and on
   `repository_dispatch` of type `docs-updated`.
 
-## Contact form
+## Contact page
 
-The Contact page sends messages through [Web3Forms](https://web3forms.com), so the owner's e-mail address is not on
-the website. Spam protection: a hidden honeypot field and Cloudflare Turnstile.
+The e-mail address on the Contact page is not part of the HTML. It is shown after the visitor passes a
+Cloudflare Turnstile check (`src/components/EmailReveal.tsx`, site key in `customFields.turnstileSiteKey` of
+`docusaurus.config.ts`; the site key is public by design). The domains of the site (`embedbits.github.io`, later
+`embedbits.com`) have to be allowed in the Turnstile widget settings in Cloudflare.
 
-1. Create a Web3Forms access key for the receiving address and, in its dashboard, enable Cloudflare Turnstile
-   with the secret key of a Turnstile widget for the site's domain.
-2. Fill in `customFields.contactForm` in `docusaurus.config.ts` (`web3formsAccessKey`, `turnstileSiteKey`).
-   Both values are public by design; restrict the access key to the domain in the Web3Forms dashboard.
-
-While `web3formsAccessKey` is empty, the page shows a note with a link to GitHub instead of the form (the e-mail address is deliberately not kept in the repository).
+The check runs in the browser and the address is only base64-encoded in the JavaScript bundle, which stops
+address-harvesting bots but not a determined attacker. A server-side check would need a small backend
+(e.g. a Cloudflare Worker).

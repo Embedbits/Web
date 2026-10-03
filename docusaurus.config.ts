@@ -67,12 +67,9 @@ const config: Config = {
   ],
 
   customFields: {
-    // Contact form (src/components/ContactForm.tsx), see README "Contact form".
-    // Both values are public by design; leave them empty to show the plain e-mail link instead.
-    contactForm: {
-      web3formsAccessKey: 'c9fe390c-5b30-44ba-9b02-e6268c36acb9',
-      turnstileSiteKey: '0x4AAAAAAFNAVWFYgqIsfGXz',
-    },
+    // Cloudflare Turnstile site key (public by design) for the e-mail check on the Contact page,
+    // see src/components/EmailReveal.tsx. Leave empty to disable the check.
+    turnstileSiteKey: '0x4AAAAAAFNAVWFYgqIsfGXz',
   },
 
   themeConfig: {
