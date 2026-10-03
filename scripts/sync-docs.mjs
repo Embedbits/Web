@@ -107,16 +107,23 @@ function apiHeaders() {
   return headers;
 }
 
-/** Lists the repositories of the organization (needs GITHUB_TOKEN in CI to avoid rate limits). */
+/**
+ * Lists the repositories of the account (needs GITHUB_TOKEN in CI to avoid rate limits).
+ * ORG can be an organization or a user account, the API has a separate endpoint for each.
+ */
 async function listRepos() {
-  const names = [];
-  for (let page = 1; ; page++) {
-    const res = await fetch(`https://api.github.com/orgs/${ORG}/repos?per_page=100&page=${page}`, {headers: apiHeaders()});
-    if (!res.ok) throw new Error(`organization listing: HTTP ${res.status}`);
-    const batch = await res.json();
-    names.push(...batch.filter((r) => !r.archived).map((r) => r.name));
-    if (batch.length < 100) return names;
+  for (const kind of ['orgs', 'users']) {
+    const names = [];
+    for (let page = 1; ; page++) {
+      const res = await fetch(`https://api.github.com/${kind}/${ORG}/repos?per_page=100&page=${page}`, {headers: apiHeaders()});
+      if (res.status === 404 && kind === 'orgs') break; // not an organization, try the user endpoint
+      if (!res.ok) throw new Error(`repository listing: HTTP ${res.status}`);
+      const batch = await res.json();
+      names.push(...batch.filter((r) => !r.archived).map((r) => r.name));
+      if (batch.length < 100) return names;
+    }
   }
+  throw new Error(`repository listing: ${ORG} not found`);
 }
 
 /** Lists the paths of all files in a repository. */
