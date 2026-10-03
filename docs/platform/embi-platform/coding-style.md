@@ -1,7 +1,7 @@
 ---
 title: "Coding Style"
 sidebar_label: "Coding Style"
-sidebar_position: 3
+sidebar_position: 1
 custom_edit_url: https://github.com/Embedbits/EmBi_Platform/edit/HEAD/Coding_Style.md
 ---
 

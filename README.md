@@ -35,6 +35,10 @@ The site is deployed to GitHub Pages by `.github/workflows/deploy.yml` on every 
 Pages under `docs/platform`, `docs/bsp` and `docs/artifacts` are generated from the `README.md` of the
 repositories in the [Embedbits organization](https://github.com/Embedbits). Do not edit them by hand.
 
+Every repository is scanned for further `README.md` files below its root. If there are any, the repository's main
+page becomes an expandable sidebar item (e.g. `EmBi_Platform`) and the other READMEs are listed beneath it. The
+sync needs the GitHub API for this (`GITHUB_TOKEN` is provided in CI); without it, existing pages are left untouched.
+
 ```bash
 npm run sync-docs
 ```
