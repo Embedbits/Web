@@ -721,7 +721,7 @@ The logger can be tested with a three-line function that captures the bytes. It 
 
 > High-level modules should not depend on low-level modules. Both should depend on abstractions. Abstractions should not depend on details.
 
-This is the principle that connects the other four. It is the one behind the layers from the article about [architecture design](/docs/architecture-design): the application must not know which register toggles a LED.
+This is the principle that connects the other four. It is the one behind the layers from the article about [design and architecture](/blog/design-architecture): the application must not know which register toggles a LED.
 
 ### In C++
 
