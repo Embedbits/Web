@@ -8,10 +8,33 @@
  * The generated pages are committed, so the site builds offline. Re-run the
  * script whenever a README changes. Do not edit generated pages by hand --
  * change the README in the source repository instead.
+ *
+ * Layout
+ * ------
+ * The sidebar mirrors the hierarchical repository names: `Bsp-Mcal-Exti` is the
+ * module Exti of the Mcal layer of the Bsp layer and ends up in
+ * docs/bsp/mcal/exti.md. A repository that has children (other repositories
+ * below its name or further README.md files in its tree) is written as
+ * index.md of a folder, which Docusaurus renders as an expandable category.
+ * Name segments without a repository of their own become plain categories.
+ *
+ * STM32 families
+ * --------------
+ * Repositories keep one branch per STM32 family (STM32G4, STM32H5, ...). Every
+ * page of such a repository starts with the families it supports (and the ones
+ * that exist in the organization but not here), and the pages of a layer get a
+ * table that shows which module supports which family.
+ *
+ * If anything needed for the layout cannot be loaded (GitHub API error, rate
+ * limit, ...) the whole sync is skipped and the committed pages stay untouched.
  */
+import {execFile} from 'node:child_process';
 import {mkdir, readdir, readFile, rm, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {promisify} from 'node:util';
+
+const run = promisify(execFile);
 
 const ORG = 'Embedbits';
 
@@ -19,126 +42,198 @@ const ORG = 'Embedbits';
 const IGNORE = new Set(['Web']);
 const DOCS = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../docs');
 
-// Pages with a hand-picked title, location or sidebar position.
-// dir = folder under docs/, file = page name, position = sidebar order,
-// source = file in the repository (default README.md),
-// replace = [regex, replacement] pairs applied to the Markdown source.
-// Repositories that are not listed here are discovered automatically, see
-// discoverPages().
-const KNOWN_PAGES = [
-  // Platform
-  {
-    repo: 'EmBi_Platform', dir: 'platform', file: 'embi-platform', title: 'EmBi_Platform', position: 1,
+// Position of a repository in the hierarchy when its name does not describe it.
+const PATHS = {
+  EmBi_Platform: ['Platform', 'EmBi_Platform'],
+  'EmBi-ArtifactsHandler': ['Platform', 'Artifacts-Handler'],
+};
+
+// First name segment -> segment used in the hierarchy (Artifact-gcc lives below Artifacts).
+const ALIASES = {Artifact: 'Artifacts'};
+
+// Sidebar order of sibling segments; everything else follows alphabetically.
+const ORDER = [
+  'Platform', 'Bsp', 'Artifacts',
+  'EmBi_Platform', 'Artifacts-Handler',
+  'Linker', 'Startup', 'Docs', 'Ral', 'Mcal',
+  'CMSIS', 'CMSIS_ST', 'RAL_ST',
+  'Core', 'Rcc', 'Gpio', 'Exti', 'Nvic', 'Tim', 'Usart', 'I2c', 'Spi', 'Adc', 'Dac', 'Crc', 'Rng', 'Iwdg',
+  'Dma', 'Gpdma', 'Dma2D',
+  'gcc', 'gcc_arm_none_eabi', 'ninja', 'doxygen', 'graphviz', 'python', 'ruby', 'unity', 'cmock', 'renode',
+  'probe_rs', 'u8g2',
+];
+
+// Sidebar labels that cannot be derived from the segment (see labelOf()).
+const LABELS = {
+  Bsp: 'BSP', Mcal: 'MCAL', Ral: 'RAL', 'Artifacts-Handler': 'Artifacts Handler', Core: 'Core',
+  ninja: 'Ninja', doxygen: 'Doxygen', graphviz: 'Graphviz', python: 'Python', ruby: 'Ruby', unity: 'Unity',
+  cmock: 'CMock', renode: 'Renode',
+};
+
+// Page titles of repositories that introduce a layer.
+const TITLES = {
+  Bsp: 'BSP Overview', 'Bsp-Mcal': 'MCAL Overview', 'Bsp-Ral': 'RAL Overview', Artifacts: 'Artifacts Overview',
+};
+
+// Per repository: `replace` = [regex, replacement] pairs applied to the README,
+// `files` = further Markdown files (not named README.md) that are documented below the README.
+const REPO_OPTIONS = {
+  EmBi_Platform: {
     replace: [[/ \(STM_Template\)/g, '']],
+    files: [
+      {
+        source: 'Coding_Style.md', file: 'coding-style', title: 'Coding Style',
+        // The source links to a wiki page that does not exist in the repository.
+        replace: [[/\[[^\]]*File Organization\]\(\.\/File_Organization\)/, 'File Organization (separate wiki page)']],
+      },
+    ],
   },
-  {repo: 'EmBi-ArtifactsHandler', dir: 'platform', file: 'artifacts-handler', title: 'Artifacts Handler', position: 2},
-  {
-    repo: 'EmBi_Platform', source: 'Coding_Style.md', dir: 'platform', file: 'coding-style', title: 'Coding Style', position: 3,
-    // The source links to a wiki page that does not exist in the repository.
-    replace: [[/\[[^\]]*File Organization\]\(\.\/File_Organization\)/, 'File Organization (separate wiki page)']],
-  },
+};
 
-  // BSP
-  {repo: 'Bsp', dir: 'bsp', file: 'overview', title: 'BSP Overview', label: 'Overview', position: 1},
-  {repo: 'Bsp-Linker', dir: 'bsp', file: 'linker', title: 'Linker', position: 2},
-  {repo: 'Bsp-Startup', dir: 'bsp', file: 'startup', title: 'Startup', position: 3},
-  {repo: 'Bsp-Docs', dir: 'bsp', file: 'docs-module', title: 'Docs Module', position: 4},
+// README.md files in these directories are never documented (dependencies, build output, ...).
+const EXCLUDED_DIR = /(^|\/)(\.[^/]+|node_modules|build|dist|out|third[_-]?party|external|vendor|submodules?)(\/|$)/i;
 
-  // RAL
-  {repo: 'Bsp-Ral', dir: 'bsp/ral', file: 'overview', title: 'RAL Overview', label: 'Overview', position: 1},
-  {repo: 'Bsp-Ral-CMSIS', dir: 'bsp/ral', file: 'cmsis', title: 'RAL CMSIS', label: 'CMSIS', position: 2},
-  {repo: 'Bsp-Ral-CMSIS_ST', dir: 'bsp/ral', file: 'cmsis-st', title: 'RAL CMSIS ST', label: 'CMSIS ST', position: 3},
-  {repo: 'Bsp-Ral-RAL_ST', dir: 'bsp/ral', file: 'ral-st', title: 'RAL ST', label: 'RAL ST', position: 4},
-
-  // MCAL
-  {repo: 'Bsp-Mcal', dir: 'bsp/mcal', file: 'overview', title: 'MCAL Overview', label: 'Overview', position: 1},
-  ...[
-    ['Core', 'Core'], ['Rcc', 'RCC'], ['Gpio', 'GPIO'], ['Exti', 'EXTI'], ['Nvic', 'NVIC'],
-    ['Tim', 'TIM'], ['Usart', 'USART'], ['I2c', 'I2C'], ['Adc', 'ADC'], ['Crc', 'CRC'],
-    ['Rng', 'RNG'], ['Iwdg', 'IWDG'], ['Dma', 'DMA'], ['Gpdma', 'GPDMA'],
-  ].map(([name, label], i) => ({
-    repo: `Bsp-Mcal-${name}`, dir: 'bsp/mcal/modules', file: name.toLowerCase(),
-    title: `${label} MCAL Module`, label, position: i + 1,
-  })),
-
-  // Artifacts
-  {repo: 'Artifacts', dir: 'artifacts', file: 'overview', title: 'Artifacts Overview', label: 'Overview', position: 1},
-  ...[
-    ['gcc', 'gcc'], ['gcc_arm_none_eabi', 'gcc-arm-none-eabi'], ['ninja', 'Ninja'], ['doxygen', 'Doxygen'],
-    ['graphviz', 'Graphviz'], ['python', 'Python'], ['ruby', 'Ruby'], ['unity', 'Unity'],
-    ['cmock', 'CMock'], ['renode', 'Renode'], ['probe_rs', 'probe-rs'], ['u8g2', 'u8g2'],
-  ].map(([name, label], i) => ({
-    repo: `Artifact-${name}`, dir: 'artifacts/tools', file: name.replace(/_/g, '-'),
-    title: `${label} Artifact`, label, position: i + 1,
-  })),
-];
-
-// Naming conventions used for automatically discovered repositories.
-// Discovered pages are placed after the known ones, in alphabetical order.
-const RULES = [
-  {prefix: 'Bsp-Mcal-', dir: 'bsp/mcal/modules', label: (n) => n.toUpperCase(), title: (l) => `${l} MCAL Module`},
-  {prefix: 'Bsp-Ral-', dir: 'bsp/ral', label: (n) => n.replace(/_/g, ' '), title: (l) => `RAL ${l}`},
-  {prefix: 'Artifact-', dir: 'artifacts/tools', label: (n) => n.replace(/_/g, '-'), title: (l) => `${l} Artifact`},
-];
+// Branches that name an STM32 family, e.g. STM32G4 (release branches such as STM32G4_1.x are not families).
+const FAMILY_BRANCH = /^STM32[A-Z]\d+$/i;
 
 const GENERATED_MARKER = 'Generated by scripts/sync-docs.mjs';
 
-/** Lists the repositories of the organization (needs GITHUB_TOKEN in CI to avoid rate limits). */
-async function listRepos() {
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+function apiHeaders() {
   const headers = {Accept: 'application/vnd.github+json', 'User-Agent': 'embedbits-sync-docs'};
   const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
   if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
+/** Lists the repositories of the organization (needs GITHUB_TOKEN in CI to avoid rate limits). */
+async function listRepos() {
   const names = [];
   for (let page = 1; ; page++) {
-    const res = await fetch(`https://api.github.com/orgs/${ORG}/repos?per_page=100&page=${page}`, {headers});
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const res = await fetch(`https://api.github.com/orgs/${ORG}/repos?per_page=100&page=${page}`, {headers: apiHeaders()});
+    if (!res.ok) throw new Error(`organization listing: HTTP ${res.status}`);
     const batch = await res.json();
     names.push(...batch.filter((r) => !r.archived).map((r) => r.name));
     if (batch.length < 100) return names;
   }
 }
 
-/** Returns the known pages plus pages for new repositories that match a naming rule. */
-async function discoverPages() {
-  let repos;
-  try {
-    repos = await listRepos();
-  } catch (err) {
-    console.warn(`Could not list ${ORG} repositories (${err.message}); using the known pages only.`);
-    return KNOWN_PAGES;
-  }
-  const known = new Set(KNOWN_PAGES.map((p) => p.repo));
-  const pages = [...KNOWN_PAGES];
-  const unmatched = [];
-  for (const repo of repos.sort((a, b) => a.localeCompare(b))) {
-    if (known.has(repo) || IGNORE.has(repo)) continue;
-    const rule = RULES.find((r) => repo.startsWith(r.prefix));
-    if (!rule) {
-      unmatched.push(repo);
-      continue;
-    }
-    const name = repo.slice(rule.prefix.length);
-    const label = rule.label(name);
-    const position = 100 + pages.filter((p) => p.dir === rule.dir).length;
-    pages.push({repo, dir: rule.dir, file: name.toLowerCase().replace(/_/g, '-'), title: rule.title(label), label, position});
-    console.log(`New repository found: ${repo} -> docs/${rule.dir}`);
-  }
-  if (unmatched.length) {
-    console.log(`Not documented (no naming rule, add to KNOWN_PAGES to include): ${unmatched.join(', ')}`);
-  }
-  // Repositories that were deleted, renamed or archived lose their page.
-  const gone = pages.filter((p) => !repos.includes(p.repo)).map((p) => p.repo);
-  if (gone.length) console.warn(`Repositories no longer in the organization, pages dropped: ${gone.join(', ')}`);
-  return pages.filter((p) => repos.includes(p.repo));
+/** Lists the paths of all files in a repository. */
+async function listFiles(repo) {
+  const res = await fetch(`https://api.github.com/repos/${ORG}/${repo}/git/trees/HEAD?recursive=1`, {headers: apiHeaders()});
+  if (res.status === 409) return []; // empty repository
+  if (!res.ok) throw new Error(`${repo} file list: HTTP ${res.status}`);
+  const tree = await res.json();
+  if (tree.truncated) throw new Error(`${repo} file list: truncated`);
+  return tree.tree.filter((e) => e.type === 'blob').map((e) => e.path);
 }
 
-/** Deletes generated pages whose source repository is gone or has no README any more. */
+/** Returns the STM32 families a repository has a branch for, e.g. ['STM32G4', 'STM32H5']. */
+async function listFamilies(repo) {
+  let stdout;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      ({stdout} = await run('git', ['ls-remote', '--heads', `https://github.com/${ORG}/${repo}`], {timeout: 60_000}));
+      break;
+    } catch (err) {
+      if (attempt === 3) throw new Error(`${repo} branch list: ${err.message.split('\n')[0]}`);
+      await new Promise((resolve) => setTimeout(resolve, 2000 * attempt));
+    }
+  }
+  return stdout
+      .split('\n')
+      .map((line) => line.split('\t')[1]?.replace('refs/heads/', ''))
+      .filter((b) => b && FAMILY_BRANCH.test(b))
+      .map((b) => b.toUpperCase())
+      .sort(naturalCompare);
+}
+
+/** Like Promise.all(items.map(fn)) but with at most `limit` calls running at the same time. */
+async function mapLimit(items, limit, fn) {
+  const results = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({length: Math.min(limit, items.length)}, async () => {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await fn(items[i]);
+      }
+    }),
+  );
+  return results;
+}
+
+function naturalCompare(a, b) {
+  return a.localeCompare(b, 'en', {numeric: true});
+}
+
+/** Returns the README.md files below the root of a repository as {dir, file}, sorted by directory. */
+function nestedReadmes(files) {
+  return files
+    .filter((f) => /\/README\.md$/i.test(f))
+    .map((file) => ({file, dir: file.slice(0, file.lastIndexOf('/'))}))
+    .filter(({dir}) => !EXCLUDED_DIR.test(dir))
+    .sort((a, b) => a.dir.localeCompare(b.dir));
+}
+
+/** Position of a repository in the documentation hierarchy, e.g. Bsp-Mcal-Exti -> [Bsp, Mcal, Exti]. */
+function segmentsOf(repo) {
+  if (PATHS[repo]) return PATHS[repo];
+  const parts = repo.split('-');
+  parts[0] = ALIASES[parts[0]] ?? parts[0];
+  return parts;
+}
+
+function labelOf(segments) {
+  const seg = segments[segments.length - 1];
+  if (LABELS[seg]) return LABELS[seg];
+  const parent = segments[segments.length - 2];
+  if (parent === 'Mcal' || parent === 'Ral') return seg.replace(/_/g, ' ').toUpperCase();
+  if (parent === 'Artifacts') return seg.replace(/_/g, '-');
+  return seg.replace(/_/g, ' ');
+}
+
+function titleOf(node) {
+  if (node.repo && TITLES[node.repo]) return TITLES[node.repo];
+  const parent = node.segments[node.segments.length - 2];
+  if (parent === 'Mcal') return `${node.label} MCAL Module`;
+  if (parent === 'Ral') return `RAL ${node.label}`;
+  if (parent === 'Artifacts') return `${node.label} Artifact`;
+  return node.label;
+}
+
+/** Builds the tree of pages from the repository names. */
+function buildTree(repos) {
+  const nodes = new Map(); // key (slugs joined with /) -> node
+  const get = (segments) => {
+    const key = segments.map(slug).join('/');
+    let node = nodes.get(key);
+    if (!node) {
+      node = {key, segments, label: labelOf(segments), repo: null, children: [], nested: [], files: []};
+      nodes.set(key, node);
+      if (segments.length > 1) get(segments.slice(0, -1)).children.push(node);
+    }
+    return node;
+  };
+  for (const info of repos) get(segmentsOf(info.repo)).repo = info.repo;
+  return {nodes, get};
+}
+
+/** Deletes generated pages that were not written this time (repository removed, README gone, layout changed). */
 async function removeStale(keep) {
   const walk = async (dir) => {
     for (const entry of await readdir(dir, {withFileTypes: true})) {
       const file = path.join(dir, entry.name);
-      if (entry.isDirectory()) await walk(file);
-      else if (entry.name.endsWith('.md') && !keep.has(file) && (await readFile(file, 'utf8')).includes(GENERATED_MARKER)) {
+      if (entry.isDirectory()) {
+        await walk(file);
+        if ((await readdir(file)).length === 0) await rm(file, {recursive: true});
+      } else if (keep.has(file)) {
+        continue;
+      } else if (entry.name === '_category_.json') {
+        await rm(file); // only this script writes category files
+        console.log(`Removed stale category ${path.relative(DOCS, file)}`);
+      } else if (entry.name.endsWith('.md') && (await readFile(file, 'utf8')).includes(GENERATED_MARKER)) {
         await rm(file);
         console.log(`Removed stale page ${path.relative(DOCS, file)}`);
       }
@@ -162,22 +257,23 @@ function dropSections(md, test) {
   return out.join('\n');
 }
 
-function rewriteLinks(md, repo) {
+function rewriteLinks(md, repo, baseDir = '') {
   const blob = `https://github.com/${ORG}/${repo}/blob/HEAD/`;
   const raw = `https://raw.githubusercontent.com/${ORG}/${repo}/HEAD/`;
   const isRelative = (u) => !/^([a-z][a-z0-9+.-]*:|#|\/\/)/i.test(u);
-  const clean = (u) => u.replace(/^\.\//, '');
+  // Resolves a link relative to the directory of the README it appears in.
+  const clean = (u) => path.posix.normalize(path.posix.join(baseDir, u)).replace(/^\.\//, '');
   return md
     .replace(/(!\[[^\]]*\]\()([^)\s]+)(\))/g, (m, a, u, b) => (isRelative(u) ? a + raw + clean(u) + b : m))
     .replace(/(\[[^\]]*\]\()([^)\s]+)(\))/g, (m, a, u, b) => (isRelative(u) ? a + blob + clean(u) + b : m));
 }
 
-function transform(md, repo, replace = []) {
+function transform(md, repo, replace = [], baseDir = '') {
   let body = md.replace(/\r\n/g, '\n').replace(/^﻿/, '').trim();
   for (const [pattern, replacement] of replace) body = body.replace(pattern, replacement);
   body = body.replace(/^# .*\n+/, ''); // title comes from front matter
   body = dropSections(body, (h) => /table of contents|useful links/i.test(h));
-  body = rewriteLinks(body, repo);
+  body = rewriteLinks(body, repo, baseDir);
   body = body.replace(/\n(\s*---\s*\n){2,}/g, '\n---\n').replace(/\n{3,}/g, '\n\n');
   return body.trim() + '\n';
 }
@@ -189,34 +285,176 @@ async function fetchReadme(repo, source = 'README.md') {
   return res.text();
 }
 
-const PAGES = await discoverPages();
-const written = new Set();
-const missing = [];
-await Promise.all(
-  PAGES.map(async (p) => {
-    const readme = await fetchReadme(p.repo, p.source);
-    if (readme === null) return missing.push(p.repo);
-    const front = [
-      '---',
-      `title: ${JSON.stringify(p.title)}`,
-      `sidebar_label: ${JSON.stringify(p.label ?? p.title)}`,
-      `sidebar_position: ${p.position}`,
-      `custom_edit_url: https://github.com/${ORG}/${p.repo}/edit/HEAD/${p.source ?? 'README.md'}`,
-      '---',
-      '',
-      `{/* ${GENERATED_MARKER} from ${ORG}/${p.repo}. Do not edit here. */}`,
-      '',
-    ].join('\n');
-    const dir = path.join(DOCS, p.dir);
-    await mkdir(dir, {recursive: true});
-    written.add(path.join(dir, `${p.file}.md`));
+const familyName = (f) => f.replace(/^STM32/i, '');
+
+/** One-line summary of the supported (and missing) families, shown at the top of a repository page. */
+function familyBanner(repo, families, allFamilies) {
+  if (!families.length) return '';
+  const link = (f) => `[${familyName(f)}](https://github.com/${ORG}/${repo}/tree/${f})`;
+  const missing = allFamilies.filter((f) => !families.includes(f));
+  const lines = [`**Supported STM32 families:** ${families.map(link).join(' · ')}`];
+  if (missing.length) lines.push(`**Not supported:** ${missing.map(familyName).join(', ')}`);
+  return lines.map((l) => `> ${l}`).join('  \n') + '\n\n';
+}
+
+/** Table with the family support of the direct children of a node. */
+function familyMatrix(node, infoOf, allFamilies, urlOf) {
+  const rows = node.children
+    .filter((c) => c.repo && infoOf(c.repo).families.length)
+    .sort(compareNodes);
+  if (!rows.length) return '';
+  const columns = allFamilies.filter((f) => rows.some((r) => infoOf(r.repo).families.includes(f)));
+  const lines = [
+    '',
+    '## Family support',
+    '',
+    `| | ${columns.map(familyName).join(' | ')} |`,
+    `|---|${columns.map(() => ':---:').join('|')}|`,
+    ...rows.map((r) => {
+      const supported = infoOf(r.repo).families;
+      return `| [${r.label}](${urlOf(r)}) | ${columns.map((f) => (supported.includes(f) ? '✅' : '—')).join(' | ')} |`;
+    }),
+    '',
+  ];
+  return lines.join('\n');
+}
+
+function orderIndex(node) {
+  const i = ORDER.indexOf(node.segments[node.segments.length - 1]);
+  return i === -1 ? 1000 : i + 10;
+}
+
+function compareNodes(a, b) {
+  return orderIndex(a) - orderIndex(b) || a.label.localeCompare(b.label, 'en', {numeric: true});
+}
+
+async function writePage(file, {title, label, position, editUrl}, body) {
+  const front = [
+    '---',
+    `title: ${JSON.stringify(title)}`,
+    `sidebar_label: ${JSON.stringify(label)}`,
+    `sidebar_position: ${position}`,
+    `custom_edit_url: ${editUrl}`,
+    '---',
+    '',
     // .md files are parsed as CommonMark (see markdown.format in docusaurus.config.ts),
-    // so the MDX comment is replaced by a plain HTML comment.
-    await writeFile(path.join(dir, `${p.file}.md`), front.replace(/\{\/\*(.*)\*\/\}/, '<!--$1-->') + transform(readme, p.repo, p.replace));
-  }),
-);
+    // so this is a plain HTML comment.
+    `<!-- ${GENERATED_MARKER}. Do not edit here. -->`,
+    '',
+  ].join('\n');
+  await mkdir(path.dirname(file), {recursive: true});
+  await writeFile(file, front + body);
+}
 
-await removeStale(written);
+async function main() {
+  // 1. Collect everything the layout depends on. Any failure skips the sync.
+  const repos = (await listRepos()).filter((r) => !IGNORE.has(r)).sort((a, b) => a.localeCompare(b));
+  const infos = await mapLimit(repos, 5, async (repo) => ({
+    repo,
+    readmes: nestedReadmes(await listFiles(repo)),
+    families: await listFamilies(repo),
+  }));
+  const infoOf = (repo) => infos.find((i) => i.repo === repo);
+  const allFamilies = [...new Set(infos.flatMap((i) => i.families))].sort(naturalCompare);
 
-console.log(`Synced ${PAGES.length - missing.length} pages.`);
-if (missing.length) console.log(`No README found for: ${missing.join(', ')}`);
+  // 2. Fetch the main README of every repository; repositories without one only act as categories.
+  const readmes = new Map();
+  const missing = [];
+  await Promise.all(
+    infos.map(async ({repo}) => {
+      const md = await fetchReadme(repo);
+      if (md === null) missing.push(repo);
+      else readmes.set(repo, md);
+    }),
+  );
+  const documented = infos.filter((i) => readmes.has(i.repo));
+
+  // 3. Build the tree and decide which nodes become folders.
+  const {nodes, get} = buildTree(documented);
+  for (const {repo, readmes: nested} of documented) {
+    const node = get(segmentsOf(repo));
+    node.nested = nested;
+    node.files = REPO_OPTIONS[repo]?.files ?? [];
+  }
+  const hasChildren = (n) => n.children.length > 0 || n.nested.length > 0 || n.files.length > 0;
+  const dirOf = (n) => path.join(DOCS, ...n.key.split('/'));
+  const fileOf = (n) => (hasChildren(n) ? path.join(dirOf(n), 'index.md') : `${dirOf(n)}.md`);
+  const urlOf = (n) => `/docs/${n.key}`;
+  for (const n of nodes.values()) n.title = titleOf(n);
+
+  const written = new Set();
+  const write = async (file, ...args) => {
+    written.add(file);
+    await writePage(file, ...args);
+  };
+
+  // 4. Write the pages.
+  for (const node of [...nodes.values()].sort((a, b) => a.key.localeCompare(b.key))) {
+    if (!node.repo) {
+      // Plain category without a page of its own.
+      const file = path.join(dirOf(node), '_category_.json');
+      await mkdir(dirOf(node), {recursive: true});
+      await writeFile(file, JSON.stringify({label: node.label, position: orderIndex(node)}) + '\n');
+      written.add(file);
+      continue;
+    }
+    const {repo} = node;
+    const info = infoOf(repo);
+    const options = REPO_OPTIONS[repo] ?? {};
+    const body =
+      familyBanner(repo, info.families, allFamilies) +
+      transform(readmes.get(repo), repo, options.replace) +
+      familyMatrix(node, infoOf, allFamilies, urlOf);
+    await write(
+      fileOf(node),
+      {
+        title: node.title, label: node.label, position: orderIndex(node),
+        editUrl: `https://github.com/${ORG}/${repo}/edit/HEAD/README.md`,
+      },
+      body,
+    );
+
+    // Further documentation of the same repository, listed below its main page.
+    const banner = familyBanner(repo, info.families, allFamilies);
+    let position = 200;
+    for (const f of node.files) {
+      const md = await fetchReadme(repo, f.source);
+      if (md === null) {
+        missing.push(`${repo}/${f.source}`);
+        continue;
+      }
+      await write(
+        path.join(dirOf(node), `${f.file}.md`),
+        {title: f.title, label: f.title, position: position++, editUrl: `https://github.com/${ORG}/${repo}/edit/HEAD/${f.source}`},
+        transform(md, repo, f.replace),
+      );
+    }
+    position = 300;
+    for (const {dir, file: source} of node.nested) {
+      const md = await fetchReadme(repo, source);
+      if (md === null) {
+        missing.push(`${repo}/${source}`);
+        continue;
+      }
+      // Prefer the first heading of the README over the bare directory name.
+      const heading = /^#\s+(.+?)\s*#*\s*$/m.exec(md.replace(/\r\n/g, '\n'));
+      const title = heading ? heading[1].replace(/[`*_]/g, '').trim() : dir;
+      await write(
+        path.join(dirOf(node), `${slug(dir)}.md`),
+        {title, label: title, position: position++, editUrl: `https://github.com/${ORG}/${repo}/edit/HEAD/${source}`},
+        banner + transform(md, repo, [], dir),
+      );
+    }
+  }
+
+  await removeStale(written);
+
+  console.log(`Synced ${written.size} pages.`);
+  if (missing.length) console.log(`No README found for: ${missing.join(', ')}`);
+}
+
+try {
+  await main();
+} catch (err) {
+  console.warn(`Documentation sync skipped, the committed pages stay as they are (${err.message}).`);
+}

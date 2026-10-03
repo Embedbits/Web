@@ -35,12 +35,24 @@ The site is deployed to GitHub Pages by `.github/workflows/deploy.yml` on every 
 Pages under `docs/platform`, `docs/bsp` and `docs/artifacts` are generated from the `README.md` of the
 repositories in the [Embedbits organization](https://github.com/Embedbits). Do not edit them by hand.
 
+The sidebar follows the hierarchical repository names: `Bsp-Mcal-Exti` is the module Exti of the Mcal layer of
+the Bsp layer and ends up in `docs/bsp/mcal/exti.md`. Name segments without a repository of their own become plain
+categories. Naming exceptions (`EmBi_Platform`, `EmBi-ArtifactsHandler`, `Artifact-*` below `Artifacts`) and labels
+are configured at the top of `scripts/sync-docs.mjs`.
+
+- A repository that has children (further repositories below its name or further `README.md` files in its tree)
+  becomes an expandable sidebar item and the others are listed beneath it.
+- Repositories keep one branch per STM32 family (`STM32G4`, `STM32H5`, ...). Each page starts with the families the
+  repository supports and the ones it does not, and layer pages (e.g. MCAL) get a family support table.
+- Needs the GitHub API (`GITHUB_TOKEN` is provided in CI) and `git`. If anything cannot be loaded the sync is
+  skipped and the committed pages stay as they are.
+
 ```bash
 npm run sync-docs
 ```
 
-- New repositories named `Bsp-Mcal-*`, `Bsp-Ral-*` or `Artifact-*` that have a README get a page automatically.
-- Other repositories (or custom titles/positions) are configured in `KNOWN_PAGES` in `scripts/sync-docs.mjs`.
+- Every new repository that has a README gets a page automatically, placed by its name.
+- Custom positions, labels and titles are configured at the top of `scripts/sync-docs.mjs`.
 - Pages of deleted, archived or README-less repositories are removed.
 - The deploy workflow runs the sync before every build: on push to `main`, daily, manually, and on
   `repository_dispatch` of type `docs-updated`.
