@@ -56,3 +56,15 @@ npm run sync-docs
 - Pages of deleted, archived or README-less repositories are removed.
 - The deploy workflow runs the sync before every build: on push to `main`, daily, manually, and on
   `repository_dispatch` of type `docs-updated`.
+
+## Contact form
+
+The Contact page sends messages through [Web3Forms](https://web3forms.com), so the owner's e-mail address is not on
+the website. Spam protection: a hidden honeypot field and Cloudflare Turnstile.
+
+1. Create a Web3Forms access key for the receiving address and, in its dashboard, enable Cloudflare Turnstile
+   with the secret key of a Turnstile widget for the site's domain.
+2. Fill in `customFields.contactForm` in `docusaurus.config.ts` (`web3formsAccessKey`, `turnstileSiteKey`).
+   Both values are public by design; restrict the access key to the domain in the Web3Forms dashboard.
+
+While `web3formsAccessKey` is empty, the page shows the plain e-mail link instead of the form.

@@ -1,5 +1,6 @@
 import type {ReactNode} from 'react';
 import Layout from '@theme/Layout';
+import ContactForm from '@site/src/components/ContactForm';
 
 export default function Contact(): ReactNode {
     return (
@@ -13,20 +14,26 @@ export default function Contact(): ReactNode {
                     Get in touch regarding projects, collaboration, commercial
                     licensing or embedded software development.
                 </p>
-                <ul>
-                    <li>
-                        Email:{' '}
-                        <a href="mailto:nobody@embedbits.com">
-                            nobody@embedbits.com
-                        </a>
-                    </li>
-                    <li>
-                        GitHub:{' '}
-                        <a href="https://github.com/Embedbits">
-                            github.com/Embedbits
-                        </a>
-                    </li>
-                </ul>
+
+                <ContactForm
+                    fallback={
+                        <ul>
+                            <li>
+                                Email:{' '}
+                                <a href="mailto:nobody@embedbits.com">
+                                    nobody@embedbits.com
+                                </a>
+                            </li>
+                        </ul>
+                    }
+                />
+
+                <p>
+                    GitHub:{' '}
+                    <a href="https://github.com/Embedbits">
+                        github.com/Embedbits
+                    </a>
+                </p>
                 <p>
                     Contributions are welcome. Please open a pull request in the
                     relevant repository.

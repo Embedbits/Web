@@ -66,6 +66,15 @@ const config: Config = {
     ],
   ],
 
+  customFields: {
+    // Contact form (src/components/ContactForm.tsx), see README "Contact form".
+    // Both values are public by design; leave them empty to show the plain e-mail link instead.
+    contactForm: {
+      web3formsAccessKey: '',
+      turnstileSiteKey: '',
+    },
+  },
+
   themeConfig: {
     colorMode: {
       respectPrefersColorScheme: true,
