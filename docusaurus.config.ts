@@ -71,7 +71,7 @@ const config: Config = {
     // Both values are public by design; leave them empty to show the plain e-mail link instead.
     contactForm: {
       web3formsAccessKey: '',
-      turnstileSiteKey: '',
+      turnstileSiteKey: '0x4AAAAAAFNAVWFYgqIsfGXz',
     },
   },
 
