@@ -17,14 +17,11 @@ export default function Contact(): ReactNode {
 
                 <ContactForm
                     fallback={
-                        <ul>
-                            <li>
-                                Email:{' '}
-                                <a href="mailto:nobody@embedbits.com">
-                                    nobody@embedbits.com
-                                </a>
-                            </li>
-                        </ul>
+                        <p>
+                            The contact form is not available right now. Please
+                            reach out through{' '}
+                            <a href="https://github.com/Embedbits">GitHub</a>.
+                        </p>
                     }
                 />
 

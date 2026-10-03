@@ -67,4 +67,4 @@ the website. Spam protection: a hidden honeypot field and Cloudflare Turnstile.
 2. Fill in `customFields.contactForm` in `docusaurus.config.ts` (`web3formsAccessKey`, `turnstileSiteKey`).
    Both values are public by design; restrict the access key to the domain in the Web3Forms dashboard.
 
-While `web3formsAccessKey` is empty, the page shows the plain e-mail link instead of the form.
+While `web3formsAccessKey` is empty, the page shows a note with a link to GitHub instead of the form (the e-mail address is deliberately not kept in the repository).

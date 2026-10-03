@@ -70,7 +70,7 @@ const config: Config = {
     // Contact form (src/components/ContactForm.tsx), see README "Contact form".
     // Both values are public by design; leave them empty to show the plain e-mail link instead.
     contactForm: {
-      web3formsAccessKey: '',
+      web3formsAccessKey: 'c9fe390c-5b30-44ba-9b02-e6268c36acb9',
       turnstileSiteKey: '0x4AAAAAAFNAVWFYgqIsfGXz',
     },
   },
