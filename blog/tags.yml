@@ -7,3 +7,18 @@ stm32:
   label: STM32
   permalink: /stm32
   description: STM32 microcontrollers
+
+architecture:
+  label: Architecture
+  permalink: /architecture
+  description: Software architecture and design
+
+c:
+  label: C
+  permalink: /c
+  description: Embedded C
+
+cpp:
+  label: C++
+  permalink: /cpp
+  description: C++ for embedded systems
