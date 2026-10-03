@@ -25,15 +25,33 @@
 }
 
 .hero h1 {
-    max-width: 950px;
     margin: 0;
-    font-size: clamp(3rem, 7vw, 5.7rem);
-    line-height: 0.98;
-    letter-spacing: -0.055em;
+    /* Two lines: "Building embedded software" / "without unnecessary complexity." */
+    font-size: clamp(1.1rem, 5.2vw, 3.6rem);
+    line-height: 1.08;
+    letter-spacing: -0.045em;
 }
 
 .hero h1 span {
     color: var(--ifm-color-emphasis-600);
+}
+
+.motto {
+    border-bottom: 1px solid var(--ifm-color-emphasis-200);
+    background: var(--ifm-background-surface-color);
+}
+
+.motto blockquote {
+    /* Aligned with the content of the hero (1180px minus its 24px side padding). */
+    max-width: 1132px;
+    margin: 0 auto;
+    padding: 30px 0 30px 24px;
+    border-left: 4px solid var(--ifm-color-primary);
+    color: var(--ifm-color-emphasis-800);
+    font-family: var(--ifm-font-family-monospace);
+    font-size: 1rem;
+    font-style: italic;
+    line-height: 1.7;
 }
 
 .heroDescription {
@@ -173,14 +191,19 @@
         padding: 80px 20px 90px;
     }
 
+    .hero h1 {
+        /* Keeps "without unnecessary complexity." on one line on phones. */
+        font-size: 4.7vw;
+    }
+
+    .motto blockquote {
+        margin: 0 20px;
+    }
+
     .section,
     .featureSection {
         padding-left: 20px;
         padding-right: 20px;
-    }
-
-    .hero h1 {
-        font-size: 3rem;
     }
 
     .projectGrid,

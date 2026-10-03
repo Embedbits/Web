@@ -106,6 +106,14 @@ export default function Home(): ReactNode {
                     </div>
                 </section>
 
+                <section className={styles.motto}>
+                    <blockquote>
+                        Always write your code, as if the guy, who ends up
+                        maintaining your code, will be a violent psychopath
+                        who knows where you live.
+                    </blockquote>
+                </section>
+
                 <section className={styles.section}>
                     <div className={styles.sectionHeader}>
                         <div>
