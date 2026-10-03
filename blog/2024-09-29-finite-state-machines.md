@@ -4,11 +4,14 @@ slug: finite-state-machines
 date: 2024-09-29T16:24:40
 authors: [Mr.Nobody]
 tags: [embedded]
+image: /img/blog/fsm-state-machine.png
 ---
 
 For embedded software development is propper design necessary. Microcontroller has to handle processing of application itself and communication with plenty of connected circuits through internal or external peripherals. The execution of application shall be as fast as possible. But that is really terrible explanation for anyone. In real world, the developer has to ensure optimal short logical path of code execution. Which means, that developer shall not check all the conditions during each main cycle. The one way of this optimization, is to correct nesting of conditions. This can be really difficult with increasing complexity of project. A lot of nested conditional statements can lead to unstability of code and making code less readable. The code readability is cruel necessary for future updates, or for maintenance of existing code. One of my beloved quote says:
 
 <!-- truncate -->
+
+![Excerpt of a state machine routine table in C](/img/blog/fsm-state-machine.png)
 
 > **Always code as if the guy, who end up maintaining your code will be a violent psychopath who knows where you live.**
 
