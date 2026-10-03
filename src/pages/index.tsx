@@ -108,9 +108,14 @@ export default function Home(): ReactNode {
 
                 <section className={styles.motto}>
                     <blockquote>
-                        Always write your code, as if the guy, who ends up
-                        maintaining your code, will be a violent psychopath
-                        who knows where you live.
+                        <span>
+                            Always write your code, as if the guy, who ends up
+                            maintaining your code,
+                        </span>{' '}
+                        <span>
+                            will be a violent psychopath who knows where you
+                            live.
+                        </span>
                     </blockquote>
                 </section>
 
