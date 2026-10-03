@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - main
-  # Rebuild daily so documentation synced from the other Embedbits
-  # repositories (README.md files) stays up to date.
+  # Check the other Embedbits repositories for README changes every 15 minutes.
+  # The site is only rebuilt and deployed when the synced documentation changed.
   schedule:
-    - cron: '17 4 * * *'
+    - cron: '*/15 * * * *'
   # Manual run, also usable from other repositories via the API.
   workflow_dispatch:
   repository_dispatch:
@@ -22,6 +22,9 @@ jobs:
   build:
     name: Build Docusaurus
     runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.decide.outputs.skip }}
+      docs_hash: ${{ steps.hash.outputs.value }}
 
     steps:
       - name: Checkout
@@ -41,10 +44,35 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - name: Hash the documentation
+        id: hash
+        run: echo "value=$(find docs -type f -print0 | sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      # A cache entry exists for every documentation state that was deployed.
+      - name: Look up the deployed documentation state
+        id: deployed
+        uses: actions/cache/restore@v4
+        with:
+          path: .docs-hash
+          key: docs-${{ steps.hash.outputs.value }}
+          lookup-only: true
+
+      - name: Decide whether to deploy
+        id: decide
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ] && [ "${{ steps.deployed.outputs.cache-hit }}" = "true" ]; then
+            echo "Documentation unchanged since the last deployment, nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build website
+        if: steps.decide.outputs.skip != 'true'
         run: npm run build
 
       - name: Upload Pages artifact
+        if: steps.decide.outputs.skip != 'true'
         uses: actions/upload-pages-artifact@v4
         with:
           path: build
@@ -52,6 +80,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
+    if: needs.build.outputs.skip != 'true'
 
     permissions:
       pages: write
@@ -67,3 +96,12 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+      - name: Remember the deployed documentation state
+        run: echo "${{ needs.build.outputs.docs_hash }}" > .docs-hash
+
+      - name: Save the deployed documentation state
+        uses: actions/cache/save@v4
+        with:
+          path: .docs-hash
+          key: docs-${{ needs.build.outputs.docs_hash }}
