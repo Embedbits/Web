@@ -22,25 +22,25 @@ const projects: Project[] = [
         name: 'BSP',
         description:
             'Board Support Package with one branch per STM32 family: linker, startup, RAL and MCAL.',
-        href: '/docs/bsp/overview',
+        href: '/docs/bsp',
     },
     {
         name: 'RAL',
         description:
             'Register abstraction layer around CMSIS and STM32 LL for a unified low-level interface.',
-        href: '/docs/bsp/ral/overview',
+        href: '/docs/bsp/ral',
     },
     {
         name: 'MCAL',
         description:
             'Peripheral drivers with a consistent API: GPIO, USART, I2C, ADC, DMA, NVIC, TIM and more.',
-        href: '/docs/bsp/mcal/overview',
+        href: '/docs/bsp/mcal',
     },
     {
         name: 'Artifacts',
         description:
             'Versioned build tools such as GCC, Ninja, Doxygen, Unity, CMock and Renode, fetched automatically.',
-        href: '/docs/artifacts/overview',
+        href: '/docs/artifacts',
     },
 ];
 

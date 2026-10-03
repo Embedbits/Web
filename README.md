@@ -35,9 +35,17 @@ The site is deployed to GitHub Pages by `.github/workflows/deploy.yml` on every 
 Pages under `docs/platform`, `docs/bsp` and `docs/artifacts` are generated from the `README.md` of the
 repositories in the [Embedbits organization](https://github.com/Embedbits). Do not edit them by hand.
 
-Every repository is scanned for further `README.md` files below its root. If there are any, the repository's main
-page becomes an expandable sidebar item (e.g. `EmBi_Platform`) and the other READMEs are listed beneath it. The
-sync needs the GitHub API for this (`GITHUB_TOKEN` is provided in CI); without it, existing pages are left untouched.
+The sidebar follows the hierarchical repository names: `Bsp-Mcal-Exti` is the module Exti of the Mcal layer of
+the Bsp layer and ends up in `docs/bsp/mcal/exti.md`. Name segments without a repository of their own become plain
+categories. Naming exceptions (`EmBi_Platform`, `EmBi-ArtifactsHandler`, `Artifact-*` below `Artifacts`) and labels
+are configured at the top of `scripts/sync-docs.mjs`.
+
+- A repository that has children (further repositories below its name or further `README.md` files in its tree)
+  becomes an expandable sidebar item and the others are listed beneath it.
+- Repositories keep one branch per STM32 family (`STM32G4`, `STM32H5`, ...). Each page starts with the families the
+  repository supports and the ones it does not, and layer pages (e.g. MCAL) get a family support table.
+- Needs the GitHub API (`GITHUB_TOKEN` is provided in CI) and `git`. If anything cannot be loaded the sync is
+  skipped and the committed pages stay as they are.
 
 ```bash
 npm run sync-docs

@@ -112,8 +112,8 @@ const config: Config = {
           items: [
             {label: 'Introduction', to: '/docs/intro'},
             {label: 'Platform', to: '/docs/platform/embi-platform'},
-            {label: 'BSP', to: '/docs/bsp/overview'},
-            {label: 'Artifacts', to: '/docs/artifacts/overview'},
+            {label: 'BSP', to: '/docs/bsp'},
+            {label: 'Artifacts', to: '/docs/artifacts'},
           ],
         },
         {
