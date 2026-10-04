@@ -22,3 +22,8 @@ cpp:
   label: C++
   permalink: /cpp
   description: C++ for embedded systems
+
+misra:
+  label: MISRA
+  permalink: /misra
+  description: MISRA C coding guidelines
