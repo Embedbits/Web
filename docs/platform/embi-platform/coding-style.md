@@ -127,7 +127,7 @@ Modbus_Transport.c
 ```
 
 > 🧩 The complete file organization structure is described in a separate wiki page:  
-> File Organization (separate wiki page)
+> [File Organization](/blog/file-organization-embedded-c)
 
 ---
 

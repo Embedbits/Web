@@ -76,15 +76,18 @@ const TITLES = {
 };
 
 // Per repository: `replace` = [regex, replacement] pairs applied to the README,
-// `files` = further Markdown files (not named README.md) that are documented below the README.
+// `files` = further Markdown files (not named README.md) that are documented below the README
+// (each with its own `replace` and `replaceAfter`).
 const REPO_OPTIONS = {
   EmBi_Platform: {
     replace: [[/ \(STM_Template\)/g, '']],
     files: [
       {
         source: 'Coding_Style.md', file: 'coding-style', title: 'Coding Style',
-        // The source links to a wiki page that does not exist in the repository.
-        replace: [[/\[[^\]]*File Organization\]\(\.\/File_Organization\)/, 'File Organization (separate wiki page)']],
+        // The source links to a wiki page that does not exist in the repository, the topic has an article.
+        // replaceAfter runs after the relative links were rewritten to GitHub URLs, so a site link stays a site link.
+        replace: [[/\[[^\]]*File Organization\]\(\.\/File_Organization\)/, 'FILE_ORGANIZATION_LINK']],
+        replaceAfter: [['FILE_ORGANIZATION_LINK', '[File Organization](/blog/file-organization-embedded-c)']],
       },
     ],
   },
@@ -275,12 +278,13 @@ function rewriteLinks(md, repo, baseDir = '') {
     .replace(/(\[[^\]]*\]\()([^)\s]+)(\))/g, (m, a, u, b) => (isRelative(u) ? a + blob + clean(u) + b : m));
 }
 
-function transform(md, repo, replace = [], baseDir = '') {
+function transform(md, repo, replace = [], baseDir = '', replaceAfter = []) {
   let body = md.replace(/\r\n/g, '\n').replace(/^﻿/, '').trim();
   for (const [pattern, replacement] of replace) body = body.replace(pattern, replacement);
   body = body.replace(/^# .*\n+/, ''); // title comes from front matter
   body = dropSections(body, (h) => /table of contents|useful links/i.test(h));
   body = rewriteLinks(body, repo, baseDir);
+  for (const [pattern, replacement] of replaceAfter) body = body.replace(pattern, replacement);
   body = body.replace(/\n(\s*---\s*\n){2,}/g, '\n---\n').replace(/\n{3,}/g, '\n\n');
   return body.trim() + '\n';
 }
@@ -433,7 +437,7 @@ async function main() {
       await write(
         path.join(dirOf(node), `${f.file}.md`),
         {title: f.title, label: f.title, position: position++, editUrl: `https://github.com/${ORG}/${repo}/edit/HEAD/${f.source}`},
-        transform(md, repo, f.replace),
+        transform(md, repo, f.replace, '', f.replaceAfter),
       );
     }
     position = 300;
