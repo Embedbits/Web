@@ -32,3 +32,8 @@ testing:
   label: Testing
   permalink: /testing
   description: Testing of embedded software
+
+cmake:
+  label: CMake
+  permalink: /cmake
+  description: CMake build systems for embedded software
