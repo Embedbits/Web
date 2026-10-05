@@ -27,3 +27,8 @@ misra:
   label: MISRA
   permalink: /misra
   description: MISRA C coding guidelines
+
+testing:
+  label: Testing
+  permalink: /testing
+  description: Testing of embedded software
