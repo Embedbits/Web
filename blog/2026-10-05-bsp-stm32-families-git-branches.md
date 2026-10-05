@@ -10,7 +10,7 @@ STM32 is not one microcontroller, it is a dozen families: the G4, the H5, the U5
 
 <!-- truncate -->
 
-All the numbers below are from the state of the repositories on 5 October 2026, measured with a small script that you will find at the end of the section about the costs.
+All the numbers below are from the repositories on 5 October 2026, measured with a small script that you will find at the end of the section about the costs. A word about the date: at that moment **STM32F4 is the only family with a complete release** of the BSP, and the release of the others (U5 first) was just being done. So the numbers show a platform in the middle of a migration, not the final state, and that is what makes them interesting. Run the script again after the release and compare.
 
 ## Four ways to support many families
 
@@ -44,24 +44,24 @@ The vendor driver package follows the same scheme. The RAL has branches `STM32<f
 
 ## Where the differences really are
 
-I wanted to know how much of the code is actually different between the families, so I compared the branches. Here is the GPIO module, `Bsp-Mcal-Gpio`, on the branches of the three families. The numbers are the changed lines (added plus removed) in each file:
+I wanted to know how much of the code is actually different between the families, so I compared the branches. Here is the GPIO module, `Bsp-Mcal-Gpio`, with the released STM32F4 as the reference. The numbers are the changed lines (added plus removed) in each file:
 
 ```text
-file          STM32G4 vs STM32H5    STM32G4 vs STM32U5
-Gpio.c        176                   3
-Gpio.h        5                     5
-Gpio_Port.h   3                     3
-Gpio_Types.h  30                    47
+file               STM32F4 vs STM32G4   STM32F4 vs STM32H5   STM32F4 vs STM32U5
+Gpio.c             306                  142                  303
+Gpio.h             5                    0                    0
+Gpio_Port.h        3                    0                    0
+Gpio_Types.h       35                   5                    28
 ```
 
-The public interface, `Gpio_Port.h`, differs in three lines, and all three are the text of a comment. `Gpio.c` of G4 and U5 differs in three lines, again only a comment. The *implementation of the module is the same*, although these are two different families. How is that possible? The difference was moved out of the module, to the lowest layer. The RAL has a `Port` folder with one header for every peripheral, and the whole difference between the families in `Stm32_gpio.h` is this:
+The public interface, `Gpio_Port.h`, is **identical** on the F4 and the H5 and differs in three lines of a comment on the G4 and the U5. The G4 and the U5 are close to each other (their `Gpio.c` differs in three lines, again only a comment): they are the older generation of the module that is waiting for the release. Why is the *code of the module* so similar across two different families? Because the difference was moved out of the module, to the lowest layer. The RAL has a `Port` folder with one header for every peripheral, and the whole difference between the families in `Stm32_gpio.h` is this:
 
 ```diff
 -#include "stm32g4xx_ll_gpio.h"              /* GPIO peripheral access layer   */
 +#include "stm32u5xx_ll_gpio.h"              /* GPIO peripheral access layer   */
 ```
 
-One line. The MCAL module includes `Stm32_gpio.h` and never knows which vendor driver is behind it. The same is true for the other peripherals I compared (`Stm32_rcc.h`, `Stm32_usart.h`, `Stm32_tim.h`): two differing lines in 32. That is the whole idea of a layered architecture, applied to the question of the families.
+One line. The MCAL module includes `Stm32_gpio.h` and never knows which vendor driver is behind it. The same is true for the other peripherals I compared between the G4 and the U5 (`Stm32_rcc.h`, `Stm32_usart.h`, `Stm32_tim.h`): two differing lines in 32. That is the whole idea of a layered architecture, applied to the question of the families.
 
 What does differ are the **sets of peripherals**. The `Port` folder of the G4 has headers for the HRTIM and the DMAMUX, which the U5 does not have, and the U5 has the caches, the PKA, the SDMMC and the low-power GPIO, which the G4 does not have. A module for a peripheral that a family does not have is simply not present in its branch, and that is where the *family support* table on the page about the [MCAL](/docs/bsp/mcal) comes from.
 
@@ -96,22 +96,24 @@ and, in the types, a port that does not exist is mapped to the value `GPIO_PORT_
 
 ## What it costs: the drift
 
-The weakness of the branches is that they live their own lives. A fix that is done in one branch is not in the others, unless somebody takes it there. Look at the same module again. `Gpio.c` of the H5 differs from the one of the G4 in 176 lines, and the cause is not the hardware. The H5 branch has a refined initialization (the output level is set *before* the pin mode is switched to output, so the pin does not glitch), documented parameters and a **folder with the unit tests and the integration tests**, which the G4 and the U5 do not have. It looks like simply the newer version of the module. Another module shows how far this can go. The public interface of the USART in `Usart_Port.h`:
+The weakness of the branches is that they live their own lives. A fix that is done in one branch is not in the others, unless somebody takes it there. The measurement above shows two *generations* of the same module at the same time. The released F4 (and the H5, which follows it) has a refined initialization of the GPIO (the output level is set *before* the pin mode is switched to output, so the pin does not glitch), documented parameters and a `Tests` folder with the **unit tests and the integration tests**. The G4 and the U5 do not have any of that yet. The public interface of the USART in `Usart_Port.h` shows it even better:
 
-| Branch | Public functions | Only here |
+| Branch | Public functions | Compared to the F4 |
 |---|---|---|
-| STM32G4 | 82 | 12 (`Usart_StartTransmit`, `Usart_StopTransmit`, `Usart_Set_TransmitBytes`, the `Usart_Set_...IsrCallback` functions, ...) |
-| STM32H5 | 79 | 9 (`Usart_Set_TxStart`, `Usart_Set_RxStart`, `Usart_Set_DataConfig`, `Usart_Get_TxState`, ...) |
-| STM32U5 | 83 | compared to the H5: the DMA functions (`Usart_Set_DmaTxStart`, `Usart_Init_Dma`, ...) and the ISR callbacks, but not the `Usart_Set_TxStart` family |
+| STM32F4 (released) | 79 | the reference |
+| STM32H5 | 79 | the same set of functions, the header differs in 2 lines |
+| STM32G4 | 82 | 12 functions that the F4 does not have (`Usart_StartTransmit`, `Usart_Set_TransmitBytes`, ...) and 9 that it has and the G4 does not (`Usart_Set_TxStart`, `Usart_Set_DataConfig`, ...) |
+| STM32U5 | 83 | 13 functions only on the U5, 9 only on the F4 |
 
-The three families have three different USART interfaces at this moment, so a code written against one of them does not compile on the others. This is not a bug in the approach, it is a normal state of a platform that is being developed: the new design was done on one family first. But it shows the price. The promise "the same BSP interface for all families" is true for the GPIO and the EXTI (their ports differ in comments only), and not yet for the USART.
+At this moment, a code that is written against the interface of the F4 compiles on the H5 and does not compile on the G4 and the U5. This is not a flaw of the approach, it is the normal state of a platform in the middle of a release. But it shows the price: the promise "the same BSP interface for all families" is true for a family only **after its branch has been released**, and the time between the release of the first family and of the last one is the period in which the branches drift away from each other. During it nobody should write an application for the family that is not ready.
 
 ### How to keep the drift under control
 
-1. **Have a reference branch and a list of what is ported.** One family leads, the others follow, and the status is visible: that is the table of the family support on the MCAL page, extended with "the same version of the interface".
-2. **Measure the drift.** The script below compares one module on several branches and prints the number of the changed lines per file. Zero or a comment means "the same", a big number is the work that is waiting. It takes a second and fits into a CI job.
-3. **Let one test suite check all branches.** The unit tests that now exist only on the H5 branch are the specification of the module. If the same `Test_Gpio.c` has to pass on every family branch, the interface cannot silently diverge. The article about the [unit testing](/blog/unit-testing-unity-cmock) shows how such a test is built.
-4. **Keep the difference at the bottom.** Everything that can be moved to the `Port` headers of the RAL (a single `#include`, as shown above) is a difference that does not need to be maintained per branch. The more code is *identical*, the easier it is to take a fix from one branch to another (`git cherry-pick`).
+1. **Have a reference branch and a list of what is ported.** One family leads (here the F4), the others follow, and the status is visible: that is the table of the family support on the MCAL page, extended with "the same version of the interface as the reference".
+2. **Make the release one operation.** A release script that goes through all the modules of one family (the way the U5 release is being done) is better than a hand-made merge: the family is either ready as a whole, or it is not.
+3. **Measure the drift.** The script below compares one module on several branches and prints the number of the changed lines per file. Zero or a comment means "the same", a big number is the work that is waiting. It takes a second and fits into a CI job.
+4. **Let one test suite check all branches.** The unit tests that exist on the F4 (and the H5) are the specification of the module. If the same `Test_Gpio.c` has to pass on every family branch, the interface cannot silently diverge. The article about the [unit testing](/blog/unit-testing-unity-cmock) shows how such a test is built.
+5. **Keep the difference at the bottom.** Everything that can be moved to the `Port` headers of the RAL (a single `#include`, as shown above) is a difference that does not need to be maintained per branch. The more code is *identical*, the easier it is to take a fix from one branch to another (`git cherry-pick`).
 
 ```sh title="branch-drift.sh"
 #!/usr/bin/env bash
@@ -131,12 +133,12 @@ done
 
 files="$(git -C "$work" ls-tree -r --name-only "origin/${branches[0]}" | grep -E '\.(c|h)$' || true)"
 
-printf '%-22s' "file"
+printf '%-44s' "file"
 for ((i = 1; i < ${#branches[@]}; i++)); do printf '%-24s' "${branches[0]} vs ${branches[i]}"; done
 printf '\n'
 
 for file in $files; do
-    printf '%-22s' "$file"
+    printf '%-44s' "$file"
     for ((i = 1; i < ${#branches[@]}; i++)); do
         changed="$(git -C "$work" diff --numstat "origin/${branches[0]}" "origin/${branches[i]}" -- "$file" | awk '{print $1 + $2}')"
         printf '%-24s' "${changed:-0}"
@@ -146,20 +148,23 @@ done
 rm -rf "$work"
 ```
 
-Used on the three branches of the GPIO module:
+Used on the branches of the GPIO module (the table above is its output):
 
 ```bash
-./branch-drift.sh https://github.com/Embedbits/Bsp-Mcal-Gpio STM32G4 STM32H5 STM32U5
+./branch-drift.sh https://github.com/Embedbits/Bsp-Mcal-Gpio STM32F4 STM32G4 STM32H5 STM32U5
 ```
 
 For the other modules the picture is different, and that is useful to know before you plan the work:
 
 ```text
-Exti.c           494   266      Exti_Port.h     0   0      Exti_Types.h    24   13
-Usart.c         4053  2073      Usart_Port.h   53  41      Usart_Types.h 1020  484
+file             F4 vs G4   F4 vs H5   F4 vs U5
+Exti_Port.h      0          0          0
+Exti.c           586        538        682
+Usart_Port.h     55         2          28
+Usart.c          3734       2301       3927
 ```
 
-The EXTI has an unchanged public header and a different implementation (the peripherals differ, the interface does not), the USART differs everywhere.
+The EXTI has an unchanged public header on all the branches and a different implementation (the peripherals differ, the interface does not). The USART differs in the interface of the G4 and the U5 and in a big part of the implementation, which is a measure of how much work the release of those two is.
 
 ## Which approach to choose
 
