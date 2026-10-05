@@ -153,11 +153,11 @@ static void <Module>_State_3_Leave(void);
 
 /** holds the current state of the state machine */
 static <module>_SM_States_t       <module>_SM_ActualState
-                                            = APPCORE_HANDLER_STATE_1;
+                                            = <MODULE>_STATE_1;
 
 /** holds the desired next state */
 static <module>_SM_States_t       <module>_SM_NewState
-                                            = APPCORE_HANDLER_STATE_1;
+                                            = <MODULE>_STATE_1;
 
 /* ========================= EXPORTED FUNCTIONS ============================= */
 
@@ -242,7 +242,7 @@ static void <Module>_HandleStateTransition(void)
             { <Module>_State_3_Entry,
               <Module>_State_3_Execute,
               <Module>_State_3_CheckLeave,
-              <Module>_State_2_Leave       }  }
+              <Module>_State_3_Leave       }  }
     };
 
     /* Check if the state is in valid range of available modes, if no set the default/error state. */
