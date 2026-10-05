@@ -47,316 +47,146 @@ So lets start with AI generated meaningless description:
 
 But what does it mean? In simple way, the Mealy finite stae machine is checking the conditions for required state ***before*** the actual state execution. The Moore state machine is checking the conditions ***after*** the actual state execution.
 
-But what the state represent? Imagine a light bulb which can be turned on and off by pressing a button. For handling of this behavior, our state machine would need only two states. One state which activates the actuator, and another state which this actuator deactivates.Really simple, isnt it? But what in complex systems? Well, you need a simple implementation which is applicable for varia
+But what the state represent? Imagine a light bulb which can be turned on and off by pressing a button. For handling of this behavior, our state machine would need only two states. One state which activates the actuator, and another state which this actuator deactivates.Really simple, isnt it? But what in complex systems? Well, you need a simple implementation which is applicable for various situations. That is what the template below does.
 
 During my work at automotive industry, we have faced with my colleague [Jan Sima](https://www.linkedin.com/in/jano-sima/) the problems with Finite State Machines designs. There has been plenty of different styles but none of them had sufficient functionality to reach stability and clean design. So we decided to design own template. With permission of Jan, i am publishing the template of our Finite State Machine under MIT license.
 
+
+## Download the template
+
+The template is published under the MIT license. Everything is plain text, so you can read it before you download it:
+
+| File | What it is |
+| --- | --- |
+| [FsmTemplate.c](pathname:///Web/downloads/fsm/FsmTemplate.c) | The template in **C** (C99), one file with the states, the table of the routines and the stubs |
+| [FsmTemplate.hpp](pathname:///Web/downloads/fsm/FsmTemplate.hpp) and [FsmTemplate.cpp](pathname:///Web/downloads/fsm/FsmTemplate.cpp) | The template in **C++** (C++17), a class with one state machine inside |
+| [Fsm.hpp](pathname:///Web/downloads/fsm/Fsm.hpp) | The header-only engine for the C++ version (no heap, no exceptions, no RTTI) |
+| [fsm-instantiate.sh](pathname:///Web/downloads/fsm/fsm-instantiate.sh) | A small script that replaces the names, `fsm-instantiate.sh Button FsmTemplate.c src/` creates `src/Button.c` |
+
+The names in angle brackets are replaced by the name of your module: `<Module>` becomes `Button`, `<module>` becomes `button` and `<MODULE>` becomes `BUTTON`.
+
+## How it works
+
+It is a Moore machine. Every state has four routines and the machine calls them in the same order on every run:
+
+1. **Entry**: called once, when the state is entered.
+2. **Execute**: called on every run, here is the work of the state.
+3. **CheckLeave**: called on every run after Execute. This is the **only** place where a new state is requested.
+4. **Leave**: called once, when the state is left.
+
+The whole engine is one function. This is the C version:
+
 ```c
-/*
- * Copyright (c) 2024 Marek Petrinec, Jan Sima
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- *
- */
-
-/**
- * \file <name of file> (CAUTION file name is case sensitive! e.g. myCode.c)
- * \ingroup <module name> (reference to the software architecture, optional)
- * \brief <short description> (displayed in overview)
- * <Description about the purpose of this file>
- *
- */
-
-/* ============================= INCLUDES =================================== */
-#include "myDir\myHeader.h"                     /* Self include               */
-/* ============================== TYPEDEFS ================================== */
-
-/** Define the module specific states */
-typedef enum
-{
-    <MODULE>_STATE_1 = 0u, /**< Description state 1 */
-    <MODULE>_STATE_2,      /**< Description state 2 */
-    <MODULE>_STATE_3       /**< Description state 3 */
-}   <module>_SM_States_t;
-
-/** Function pointer datatype to be used for the entry, execution and checkLeave routines
- *  used by the state machine  */
-typedef void (*<module>_SM_PtrToRoutine_t)(void);
-
-
-/** Structure data type that integrates the function pointers to entry,
- *  execution and checkLeave routines of one state. */
-typedef struct
-{
-    <module>_SM_PtrToRoutine_t entry;      /**< Entry part of state */
-    <module>_SM_PtrToRoutine_t execute;    /**< Execute part of state */
-    <module>_SM_PtrToRoutine_t checkLeave; /**< Check leave part of state */
-	  <module>_SM_PtrToRoutine_t leave;      /**< Leave part of state */
-}   <module>_SM_Routines_t;
-
-
-/** Structure data type that links the function pointers of entry,
- *  execute and checkLeave routines to its specific state */
-typedef struct
-{
-    <module>_SM_States_t   state;   /**< State ID (name) */
-    <module>_SM_Routines_t routine; /**< Routines list for current state ID */
-}   <module>_SM_StateLinkedRoutines_t;
-
-/* ======================== FORWARD DECLARATIONS ============================ */
-
-/* State machine transition handler */
-static void <Module>_HandleStateTransition(void);
-
-/* Short description of state */
-static void <Module>_State_1_Entry(void);
-static void <Module>_State_1_Execute(void);
-static void <Module>_State_1_CheckLeave(void);
-static void <Module>_State_1_Leave(void);
-
-/* Short description of state */
-static void <Module>_State_2_Entry(void);
-static void <Module>_State_2_Execute(void);
-static void <Module>_State_2_CheckLeave(void);
-static void <Module>_State_2_Leave(void);
-
-/* Short description of state */
-static void <Module>_State_3_Entry(void);
-static void <Module>_State_3_Execute(void);
-static void <Module>_State_3_CheckLeave(void);
-static void <Module>_State_3_Leave(void);
-
-
-/* ========================== SYMBOLIC CONSTANTS ============================ */
-
-/* =============================== MACROS =================================== */
-
-/* ========================== EXPORTED VARIABLES ============================ */
-
-/* =========================== LOCAL VARIABLES ============================== */
-
-/** holds the current state of the state machine */
-static <module>_SM_States_t       <module>_SM_ActualState
-                                            = <MODULE>_STATE_1;
-
-/** holds the desired next state */
-static <module>_SM_States_t       <module>_SM_NewState
-                                            = <MODULE>_STATE_1;
-
-/* ========================= EXPORTED FUNCTIONS ============================= */
-
-/**
- * \brief Initialization of Moore Finite-State Machine
- *
- * <Detailed description>
- *
- * \pre <Needed preconditions> (optional)
- *
- * \par Used global variables
- * - \ref <module>_SM_NewState               (out): State machine new state request variable.
- * - \ref <module>_SM_ActualState            (out): State machine actual state variable.
- *
- * \return void
- */
-void <Module>_Init(void)
-{
-    <module>_SM_ActualState = <MODULE>_STATE_1;
-    <module>_SM_NewState    = <MODULE>_STATE_1;
-}
-
-/* ================================ TASKS =================================== */
-
-/**
- * \brief Task callback
- *
- * <Detailed description>
- *
- * \pre <Needed preconditions> (optional)
- *
- * \par Used global variables
- * - \ref <module>_SM_NewState               (out): State machine new state request variable.
- * - \ref <module>_SM_ActualState            (out): State machine actual state variable.
- *
- * \return void
- */
-void <Module>_Task(void)
-{
-
-}
-
-/* =========================== LOCAL FUNCTIONS ============================== */
-
-/**
- * \brief Finite-State Machine - cyclic run function
- *
- * <Detailed description: Function is running in 100ms task >
- *
- * INFO: The state machine must contain only state machine code! Inside of the
- *       state machine no check/specific function has to be implemented. This
- *       has to be done in Execute or CheckLeave function.
- *       Entry function has to be used only for preparing the states for actually
- *       set new function.
- *
- * \pre <Needed preconditions> (optional)
- *
- * \par Used global variables
- * - \ref <module>_SM_NewState    (in,out): State machine new state request variable.
- * - \ref <module>_SM_ActualState (in,out): State machine actual state variable.
- *
- * \return void
- */
 static void <Module>_HandleStateTransition(void)
 {
-    /* This array must have the same order as the state enum! */
-    static const <module>_SM_StateLinkedRoutines_t stateRoutines [] =
+    /* A corrupted actual state must not index outside of the table: start again from the default state. */
+    if (<MODULE>_STATE_COUNT <= <module>_SM_ActualState)
     {
-        { <MODULE>_STATE_1,
-            { <Module>_State_1_Entry,
-              <Module>_State_1_Execute,
-              <Module>_State_1_CheckLeave,
-              <Module>_State_1_Leave       }  },
+        <module>_SM_ActualState = <MODULE>_STATE_1;
+        <module>_SM_NewState    = <MODULE>_STATE_1;
 
-        { <MODULE>_STATE_2,
-            { <Module>_State_2_Entry,
-              <Module>_State_2_Execute,
-              <Module>_State_2_CheckLeave,
-              <Module>_State_2_Leave       }  },
-
-        { <MODULE>_STATE_3,
-            { <Module>_State_3_Entry,
-              <Module>_State_3_Execute,
-              <Module>_State_3_CheckLeave,
-              <Module>_State_3_Leave       }  }
-    };
-
-    /* Check if the state is in valid range of available modes, if no set the default/error state. */
-    if( <MODULE>_STATE_3 < <module>_SM_NewState )
+        <Module>_CallRoutine(<module>_SM_StateRoutines[<module>_SM_ActualState].entry);
+    }
+    else
     {
-        /* In case of an invalid input status, switch to default/error state. */
+        /* Actual state is in the valid range */
+    }
+
+    /* Execute function shall be used for main execution of actual state */
+    <Module>_CallRoutine(<module>_SM_StateRoutines[<module>_SM_ActualState].execute);
+
+    /* CheckLeave function shall be used for check leave condition of actual state */
+    <Module>_CallRoutine(<module>_SM_StateRoutines[<module>_SM_ActualState].checkLeave);
+
+    /* In case of an invalid request (made in checkLeave), switch to the default/error state. */
+    if (<MODULE>_STATE_COUNT <= <module>_SM_NewState)
+    {
         <module>_SM_NewState = <MODULE>_STATE_1;
     }
     else
     {
-        /* Requested state is in valid range */
+        /* Requested state is in the valid range */
     }
 
-    /* Execute function shall be used for main execution of actual state */
-    stateRoutines[<module>_SM_ActualState].routine.execute();
-
-    /* CheckLeave function shall be used for check leave condition of actual state */
-    stateRoutines[<module>_SM_ActualState].routine.checkLeave();
-
-    /* Entry function shall be executed only in case if the state has to be changed to another state */
+    /* Leave and entry functions shall be executed only in case if the state has to be changed to another state */
     if (<module>_SM_ActualState != <module>_SM_NewState)
     {
-        stateRoutines[<module>_SM_ActualState].routine.leave();
+        <Module>_CallRoutine(<module>_SM_StateRoutines[<module>_SM_ActualState].leave);
 
         <module>_SM_ActualState = <module>_SM_NewState;
 
-        stateRoutines[<module>_SM_ActualState].routine.entry();
+        <Module>_CallRoutine(<module>_SM_StateRoutines[<module>_SM_ActualState].entry);
     }
     else
     {
         /* No new state required */
     }
 }
+```
 
-/*----------------------------------------------------------------------------*/
-/*----------------------- Start of state machine functions -------------------*/
-/*----------------------------------------------------------------------------*/
+Because a transition is requested only in `CheckLeave`, the entry and the leave of a state are executed always as a pair, in a known order, and the outputs depend only on the state. A routine that is not needed can be `NULL` (`nullptr` in C++) and it is skipped.
 
-/**
- * \brief <Short description> (optional)
- *
- * <Detailed description>
- *
- * \pre <Needed preconditions> (optional)
- *
- *
- * \par Used global variables
- * - \ref var1 (in): <usage> (delete if not used)
- * - \ref var2 (out): <usage> (delete if not used)
- * - \ref var3 (in,out): <usage> (delete if not used)
- *
- */
-static void <Module>_State_1_Entry(void)
+## What was fixed
+
+The first version of the template that I published here had a few mistakes. I went through it again, built it and ran it against a test that records the order of the calls. These are the changes:
+
+- The initial value of the state variables was a leftover name from another project (`APPCORE_HANDLER_STATE_1` instead of `<MODULE>_STATE_1`).
+- The last row of the table used `State_2_Leave` instead of `State_3_Leave`. The code compiled and called the wrong routine when the third state was left. The table is now indexed by the state (`[<MODULE>_STATE_3] = { ... }`), so the position of a row cannot be confused.
+- `Init` did not run the entry routine of the first state.
+- The state numbers were not checked. A corrupted actual state or a request of a nonexistent state indexed outside of the table. Both are checked now and the machine falls back to the first state, which is the safe one. The request is checked **after** `CheckLeave`, because that is the place where it is made. My first fix of this checked it before, and the test caught that, which is a nice proof of why such a test is worth it.
+- A routine with the `NULL` pointer is skipped instead of crashing.
+- A missing forward declaration, and a header comment that turned into nonsense after the names were replaced.
+
+## The C++ version
+
+In C++ the same pattern is a class. The state is an `enum class`, the routines are private member functions and the table is `constexpr`:
+
+```cpp
+class Button
 {
-    /* function body */
-}
+public:
+    enum class State : std::uint8_t { Idle = 0u, Pressed, Count };
 
+    void Init() noexcept;
+    void Task() noexcept;
+    State GetState() const noexcept { return stateMachine.GetState(); }
 
-/**
- * \brief <Short description> (optional)
- *
- * <Detailed description>
- *
- * \pre <Needed preconditions> (optional)
- *
- *
- * \par Used global variables
- * - \ref var1 (in): <usage> (delete if not used)
- * - \ref var2 (out): <usage> (delete if not used)
- * - \ref var3 (in,out): <usage> (delete if not used)
- *
- */
-static void <Module>_State_1_Execute(void)
-{
-    /* function body */
-}
+private:
+    using Machine = fsm::StateMachine<Button, State, static_cast<std::size_t>(State::Count)>;
 
+    void IdleEntry();   void IdleExecute();   void IdleCheckLeave();   void IdleLeave();
+    void PressedEntry(); /* ... */
 
- /**
- * \brief <Short description> (optional)
- *
- * <Detailed description>
- *
- * \pre <Needed preconditions> (optional)
- *
- *
- * \par Used global variables
- * - \ref var1 (in): <usage> (delete if not used)
- * - \ref var2 (out): <usage> (delete if not used)
- * - \ref var3 (in,out): <usage> (delete if not used)
- *
- */
-static void <Module>_State_1_CheckLeave(void)
-{
-    /* function body */
-}
+    static constexpr Machine::Table MakeTable() noexcept;
+    static const Machine::Table table;
+    Machine stateMachine;
+};
+```
 
+A request is `stateMachine.RequestState(State::Pressed)` in a `CheckLeave` routine. The row of the table has to belong to its state, and this is checked at **compile time** with a `static_assert`, so the mistake from the first version cannot even be built. There is no heap, no exception and no RTTI, so it fits the usual embedded and MISRA-like restrictions. The C++ version was compiled with `-Wall -Wextra -Wconversion -pedantic -fno-exceptions -fno-rtti` and ran under the address and undefined behavior sanitizers with the same scenarios as the C version: the order of the calls, a request, an invalid request, a corrupted state and the skipped `NULL` routines.
 
- /**
- * \brief <Short description> (optional)
- *
- * <Detailed description>
- *
- * \pre <Needed preconditions> (optional)
- *
- *
- * \par Used global variables
- * - \ref var1 (in): <usage> (delete if not used)
- * - \ref var2 (out): <usage> (delete if not used)
- * - \ref var3 (in,out): <usage> (delete if not used)
- *
- */
-static void <Module>_State_1_Leave(void)
-{
-    /* function body */
-}
+The second part of this series, [a button with debounce and long press](/blog/fsm-in-practice-button), shows the template in a real module.
+
+## License
+
+```text
+Copyright (c) 2024 Marek Petrinec, Jan Sima
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
