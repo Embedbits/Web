@@ -16,7 +16,7 @@ The principles were collected by Robert C. Martin ("Uncle Bob") in the early 200
 
 All of them answer one question: **how do I write code that survives change?** Not code that works today, but code that can be extended, tested and maintained by the guy from the quote on the front page, who knows where you live.
 
-The C++ examples use classes and virtual functions because that is how the principles were originally explained. The C examples follow [my coding style](/docs/platform/embi-platform/coding-style): `Module_Function` names, `_t` types and variables with meaningful names. All examples in this article were compiled (`gcc -std=c11 -Wall -Wextra -pedantic` and `g++ -std=c++17`) and run with a small unit test, including the "bad" ones.
+The C++ examples use classes and virtual functions because that is how the principles were originally explained. The C examples follow [my coding style](/docs/platform/embi-platform/coding-style): `Module_Function` names, `_t` types and variables with meaningful names. One exception for the sake of the length: I use the plain `uint8_t`, `uint32_t` and `float` where a real project would use its own typedefs (`temperature_t`, `voltage_t`), which the coding style requires. All examples in this article were compiled (`gcc -std=c11 -Wall -Wextra -pedantic` and `g++ -std=c++17`) and run with a small unit test, including the "bad" ones.
 
 ### What a class really is
 

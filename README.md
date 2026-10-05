@@ -55,10 +55,13 @@ npm run sync-docs
 - Custom positions, labels and titles are configured at the top of `scripts/sync-docs.mjs`.
 - Pages of deleted, archived or README-less repositories are removed.
 - The deploy workflow runs the sync before every build: on push to `main`, manually, on
-  `repository_dispatch` of type `docs-updated` and every 15 minutes. The scheduled run only builds and deploys when
-  the synced documentation changed (a hash of `docs/` is remembered in the Actions cache), so a README change in
-  any repository reaches the site within about 15 minutes. Scheduled workflows are paused by GitHub after 60 days
-  without repository activity; any commit or a manual run re-enables them.
+  `repository_dispatch` of type `docs-updated` and on a schedule (cron every 15 minutes). The scheduled run only
+  builds and deploys when the synced documentation changed (a hash of `docs/` is remembered in the Actions cache).
+  GitHub delays and thins out scheduled workflows, in practice they run every few hours, so a README change in
+  another repository reaches the site within hours, not minutes. For an immediate update, send a
+  `repository_dispatch` of type `docs-updated` to this repository from the other one (needs a token with write
+  access to this repository). Scheduled workflows are paused by GitHub after 60 days without repository activity;
+  any commit or a manual run re-enables them.
 
 ## Contact page
 

@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - main
-  # Check the other Embedbits repositories for README changes every 15 minutes.
+  # Check the other Embedbits repositories for README changes. The cron asks for every 15 minutes,
+  # GitHub usually runs it less often (every few hours).
   # The site is only rebuilt and deployed when the synced documentation changed.
   schedule:
     - cron: '*/15 * * * *'
