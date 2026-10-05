@@ -67,7 +67,7 @@ npm run sync-docs
 
 The e-mail address on the Contact page is not part of the HTML. It is shown after the visitor passes a
 Cloudflare Turnstile check (`src/components/EmailReveal.tsx`, site key in `customFields.turnstileSiteKey` of
-`docusaurus.config.ts`; the site key is public by design). The domains of the site (`embedbits.github.io`, later
+`docusaurus.config.ts`; the site key is public by design). The domains of the site (`embedbits.cz`, later
 `embedbits.com`) have to be allowed in the Turnstile widget settings in Cloudflare.
 
 The check runs in the browser and the address is only base64-encoded in the JavaScript bundle, which stops

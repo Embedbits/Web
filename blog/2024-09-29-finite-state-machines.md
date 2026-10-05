@@ -58,10 +58,10 @@ The template is published under the MIT license. Everything is plain text, so yo
 
 | File | What it is |
 | --- | --- |
-| [FsmTemplate.c](pathname:///Web/downloads/fsm/FsmTemplate.c) | The template in **C** (C99), one file with the states, the table of the routines and the stubs |
-| [FsmTemplate.hpp](pathname:///Web/downloads/fsm/FsmTemplate.hpp) and [FsmTemplate.cpp](pathname:///Web/downloads/fsm/FsmTemplate.cpp) | The template in **C++** (C++17), a class with one state machine inside |
-| [Fsm.hpp](pathname:///Web/downloads/fsm/Fsm.hpp) | The header-only engine for the C++ version (no heap, no exceptions, no RTTI) |
-| [fsm-instantiate.sh](pathname:///Web/downloads/fsm/fsm-instantiate.sh) | A small script that replaces the names, `fsm-instantiate.sh Button FsmTemplate.c src/` creates `src/Button.c` |
+| [FsmTemplate.c](pathname:///downloads/fsm/FsmTemplate.c) | The template in **C** (C99), one file with the states, the table of the routines and the stubs |
+| [FsmTemplate.hpp](pathname:///downloads/fsm/FsmTemplate.hpp) and [FsmTemplate.cpp](pathname:///downloads/fsm/FsmTemplate.cpp) | The template in **C++** (C++17), a class with one state machine inside |
+| [Fsm.hpp](pathname:///downloads/fsm/Fsm.hpp) | The header-only engine for the C++ version (no heap, no exceptions, no RTTI) |
+| [fsm-instantiate.sh](pathname:///downloads/fsm/fsm-instantiate.sh) | A small script that replaces the names, `fsm-instantiate.sh Button FsmTemplate.c src/` creates `src/Button.c` |
 
 The names in angle brackets are replaced by the name of your module: `<Module>` becomes `Button`, `<module>` becomes `button` and `<MODULE>` becomes `BUTTON`.
 
