@@ -274,7 +274,9 @@ function rewriteLinks(md, repo, baseDir = '') {
   // Resolves a link relative to the directory of the README it appears in.
   const clean = (u) => path.posix.normalize(path.posix.join(baseDir, u)).replace(/^\.\//, '');
   return md
-    .replace(/(!\[[^\]]*\]\()([^)\s]+)(\))/g, (m, a, u, b) => (isRelative(u) ? a + raw + clean(u) + b : m))
+    .replace(/(!\[[^\]]*\]\()([^)\s]+)((?:\s+(?:"[^"]*"|'[^']*'))?\))/g, (m, a, u, b) => (isRelative(u) ? a + raw + clean(u) + b : m))
+    // reference definitions: [id]: relative/path.png
+    .replace(/^(\s{0,3}\[(?!\^)[^\]]+\]:\s*)([^\s<>]+)/gm, (m, a, u) => (isRelative(u) ? a + blob + clean(u) : m))
     .replace(/(\[[^\]]*\]\()([^)\s]+)(\))/g, (m, a, u, b) => (isRelative(u) ? a + blob + clean(u) + b : m));
 }
 

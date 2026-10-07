@@ -29,6 +29,11 @@ const config: Config = {
     // *.md is parsed as plain CommonMark (READMEs synced from other repositories
     // contain raw <, { and HTML), *.mdx is parsed as MDX.
     format: 'detect',
+    hooks: {
+      // READMEs synced from other repositories can reference images that do not exist in the copy.
+      // That must not break the build of the whole site, so it is only a warning.
+      onBrokenMarkdownImages: 'warn',
+    },
   },
 
   // Even if you don't use internationalization, you can use this field to set
