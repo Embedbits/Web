@@ -4,22 +4,22 @@ sidebar_position: 1
 
 # Embedbits
 
-Embedbits is a collection of embedded software projects, tools, documentation and articles
-focused on maintainable STM32 development.
+Embedbits — це збірка проєктів embedded-софту, інструментів, документації та статей,
+присвячених підтримуваній розробці під STM32.
 
-The platform is split into independent repositories that are combined into a project as Git submodules.
+Платформа поділена на незалежні репозиторії, які об'єднуються в проєкт як Git submodules.
 
-## Building blocks
+## Будівельні блоки
 
-| Area | What it provides |
+| Область | Що вона надає |
 |---|---|
-| [Platform](./platform/embi-platform/index.md) | `EmBi_Platform` setup scripts, CMake helpers and project templates. |
-| [Coding Style](./platform/embi-platform/coding-style.md) | Naming, formatting and documentation rules used across all Embedbits code. |
-| [Design & Architecture](/blog/design-architecture) | How to split embedded software into modules and abstraction layers (RAL, MCAL, HAL, BSP). |
-| [BSP](./bsp/index.md) | Board Support Package: linker, startup, RAL and MCAL for each STM32 family. |
-| [Artifacts](./artifacts/index.md) | Versioned build tools (GCC, Ninja, Doxygen, Unity, CMock, Renode, ...) downloaded by the Artifacts Handler. |
+| [Платформа](./platform/embi-platform/index.md) | Скрипти налаштування `EmBi_Platform`, допоміжні засоби CMake та шаблони проєктів. |
+| [Стиль кодування](./platform/embi-platform/coding-style.md) | Правила іменування, форматування та документування, що застосовуються в усьому коді Embedbits. |
+| [Дизайн та архітектура](/blog/design-architecture) | Як розділити embedded-софт на модулі та рівні абстракції (RAL, MCAL, HAL, BSP). |
+| [BSP](./bsp/index.md) | Board Support Package: linker, startup, RAL і MCAL для кожної родини STM32. |
+| [Артефакти](./artifacts/index.md) | Версіоновані інструменти збірки (GCC, Ninja, Doxygen, Unity, CMock, Renode, ...), які завантажує Artifacts Handler. |
 
-## Layers
+## Рівні
 
 ```text
 Application
@@ -31,9 +31,9 @@ BSP
 └── Linker    linker script generation
 ```
 
-## Where the content comes from
+## Звідки береться контент
 
-The pages under Platform, BSP and Artifacts are generated from the `README.md` of the corresponding
-repository in the [Embedbits GitHub organization](https://github.com/Embedbits). They are synchronized
-automatically, so the repository README is always the source of truth. Use the **Edit this page**
-link on any of these pages to jump to the right README.
+Сторінки в розділах «Платформа», BSP та «Артефакти» генеруються з `README.md` відповідного
+репозиторію в [організації Embedbits на GitHub](https://github.com/Embedbits). Вони синхронізуються
+автоматично, тож README репозиторію завжди є джерелом істини. Скористайтеся посиланням **Редагувати цю сторінку**
+на будь-якій із цих сторінок, щоб перейти до потрібного README.

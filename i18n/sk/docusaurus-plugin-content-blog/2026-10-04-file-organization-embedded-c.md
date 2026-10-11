@@ -1,20 +1,20 @@
 ---
-title: "File organization in embedded C: how a folder becomes a module"
+title: "Organizácia súborov v embedded C: ako sa z priečinka stane modul"
 slug: file-organization-embedded-c
 date: 2026-10-04T14:00:00
 authors: [Mr.Nobody]
 tags: [embedded, architecture, c]
 ---
 
-My [coding style](/docs/platform/embi-platform/coding-style) says that file names start with the module name and that "the complete file organization is described elsewhere". This is the elsewhere.
+Môj [coding style](/docs/platform/embi-platform/coding-style) hovorí, že názvy súborov začínajú názvom modulu a že „kompletná organizácia súborov je popísaná inde". Toto je to „inde".
 
-C has no `private`, no namespaces and no packages. Once the code is split into files, the files and the build system are the **only** tools you have to say what belongs together, what is public and what is nobody else's business. So the file organization is not a matter of taste, it is a part of the design. This article describes how I organize an embedded project on three levels: the project, the module and the single file.
+Jazyk C nemá `private`, menné priestory ani balíky. Keď sa kód rozdelí do súborov, súbory a build systém sú **jediné** nástroje, ktorými môžete povedať, čo patrí k sebe, čo je verejné a čo nikoho iného nezaujíma. Organizácia súborov preto nie je vec vkusu, ale súčasť návrhu. Tento článok popisuje, ako organizujem embedded projekt na troch úrovniach: projekt, modul a jednotlivý súbor.
 
 <!-- truncate -->
 
-## Level 1: the project
+## Úroveň 1: projekt
 
-A project created with EmBi_Platform has the same layout every time:
+Projekt vytvorený pomocou EmBi_Platform má vždy rovnaké rozloženie:
 
 ```text
 Project_root/
@@ -38,19 +38,19 @@ Project_root/
 └── CMakeLists.txt        project root build file
 ```
 
-Every folder answers one question, and the answer is the reason why the code lives there.
+Každý priečinok odpovedá na jednu otázku a odpoveď je dôvodom, prečo kód žije práve tam.
 
-**Application** is what makes the product different from every other product on the same MCU. It has its own inner layers, and their names are the levels of the "tree" from the [article about architecture](/blog/design-architecture): `AppMain` starts everything, `AppCore` is the top of the tree with the logic of the whole device, `AppFun` contains the individual functionalities, `AppComp` the low level components they are built from and `AppCom` the communication with the outside world. The calls go from the top to the bottom, never the other way.
+**Application** je to, čo odlišuje produkt od každého iného produktu na rovnakom MCU. Má vlastné vnútorné vrstvy a ich názvy sú úrovne „stromu" z [článku o architektúre](/blog/design-architecture): `AppMain` všetko spúšťa, `AppCore` je vrchol stromu s logikou celého zariadenia, `AppFun` obsahuje jednotlivé funkcionality, `AppComp` nízkoúrovňové komponenty, z ktorých sú postavené, a `AppCom` komunikáciu s vonkajším svetom. Volania idú zhora nadol, nikdy opačne.
 
-**Middlewares** have two places for every component, and this is on purpose. `ThirdParty/FreeRTOS` is the vendor code, checked out as a Git submodule in a version that you choose, and you **never edit it**. Everything that is yours (the port layer, the configuration) lives next to it in `Middlewares/FreeRTOS`, and it is not overwritten when you switch the vendor code to another version. When the vendor releases a fix, you update a submodule and not a patched copy.
+**Middlewares** majú pre každý komponent dve miesta a je to zámer. `ThirdParty/FreeRTOS` je kód od výrobcu, stiahnutý ako Git submodul vo verzii, ktorú si vyberiete, a **nikdy ho neupravujete**. Všetko, čo je vaše (port layer, konfigurácia), žije vedľa neho v `Middlewares/FreeRTOS` a neprepíše sa, keď prepnete kód výrobcu na inú verziu. Keď výrobca vydá opravu, aktualizujete submodul, nie upravenú kópiu.
 
-**Bsp** is described in the [BSP documentation](/docs/bsp), the short version is: `Ral` knows the registers, `Mcal` the peripherals and `Hal` the board. Each STM32 family has its own branch of the BSP, so the folders look the same for every MCU.
+**Bsp** je popísaný v [dokumentácii BSP](/docs/bsp), stručne: `Ral` pozná registre, `Mcal` periférie a `Hal` dosku. Každá rodina STM32 má vlastnú vetvu BSP, takže priečinky vyzerajú pre každý MCU rovnako.
 
-**EmBi_Platform** and **STM32CubeIDE** are tools. They do not end up in the binary, and the IDE project is generated, so it can be thrown away and created again.
+**EmBi_Platform** a **STM32CubeIDE** sú nástroje. Do binárneho súboru sa nedostanú a projekt IDE je generovaný, takže sa dá zahodiť a vytvoriť znova.
 
-## Level 2: the module
+## Úroveň 2: modul
 
-A module is a folder with a fixed set of files. You do not have to create them by hand, the platform generates them (see the end of the article), and the result looks like this:
+Modul je priečinok s pevnou sadou súborov. Nemusíte ich vytvárať ručne, platforma ich vygeneruje (pozrite koniec článku) a výsledok vyzerá takto:
 
 ```text
 Temperature/
@@ -62,15 +62,15 @@ Temperature/
 └── Temperature_Filter.c     (a component, see below)
 ```
 
-| File | Role | Who may include it |
+| Súbor | Úloha | Kto ho smie includovať |
 |---|---|---|
-| `Temperature_Types.h` | Public types, enumerations and macros | everybody |
-| `Temperature_Port.h` | Public functions: the **only** entry point of the module | everybody |
-| `Temperature.h` | Internal types and functions shared by the files of the module | only the module itself |
-| `Temperature.c` | Implementation | (a source file) |
-| `CMakeLists.txt` | Creates the static library `Temperature_Lib` | the build |
+| `Temperature_Types.h` | Verejné typy, enumerácie a makrá | každý |
+| `Temperature_Port.h` | Verejné funkcie: **jediný** vstupný bod modulu | každý |
+| `Temperature.h` | Interné typy a funkcie zdieľané súbormi modulu | iba samotný modul |
+| `Temperature.c` | Implementácia | (zdrojový súbor) |
+| `CMakeLists.txt` | Vytvára statickú knižnicu `Temperature_Lib` | build |
 
-The idea is that a user of the module reads **two** files and nothing else. The first one are the types (the generated file also contains the version type and the usual enumerations for the request and function states, I trimmed it here to what the example needs):
+Myšlienka je taká, že používateľ modulu číta **dva** súbory a nič iné. Prvým sú typy (vygenerovaný súbor obsahuje aj typ verzie a bežné enumerácie pre stavy požiadaviek a funkcií, tu som ho zredukoval na to, čo príklad potrebuje):
 
 ```c title="Temperature_Types.h"
 /**
@@ -98,7 +98,7 @@ typedef enum
 #endif /* TEMPERATURE_TEMPERATURE_TYPES_H */
 ```
 
-The second one is the port, which is the whole interface of the module. Everything that is not here does not exist for the others:
+Druhým je port, čo je celé rozhranie modulu. Všetko, čo tu nie je, pre ostatných neexistuje:
 
 ```c title="Temperature_Port.h"
 /**
@@ -131,7 +131,7 @@ temperature_RequestState_t Temperature_Get_Value( temperature_Value_t * const va
 #endif /* TEMPERATURE_TEMPERATURE_PORT_H */
 ```
 
-The internal header has the data and the functions that the files of the module need to share, and that nobody outside should ever see:
+Interný header obsahuje dáta a funkcie, ktoré súbory modulu potrebujú zdieľať a ktoré by nikto zvonku nikdy nemal vidieť:
 
 ```c title="Temperature.h"
 /**
@@ -162,7 +162,7 @@ temperature_Value_t Temperature_Filter_Apply( temperature_Value_t rawValue );
 #endif /* TEMPERATURE_TEMPERATURE_H */
 ```
 
-And the implementation uses all of it:
+A implementácia to všetko používa:
 
 ```c title="Temperature.c"
 #include "Temperature.h"
@@ -197,11 +197,11 @@ temperature_RequestState_t Temperature_Get_Value( temperature_Value_t * const va
 }
 ```
 
-Notice that the state is `static` in the `.c` file. There is no global variable, so there is no `extern` (which my coding style prohibits). The only way to the data is the function `Temperature_Get_Value()`, a getter that also tells the caller whether the value is valid.
+Všimnite si, že stav je `static` v súbore `.c`. Neexistuje žiadna globálna premenná, takže nie je ani `extern` (ktorý môj coding style zakazuje). Jediná cesta k dátam je funkcia `Temperature_Get_Value()`, getter, ktorý volajúcemu zároveň povie, či je hodnota platná.
 
-### The build system makes the file the encapsulation
+### Build systém robí zo súboru zapuzdrenie
 
-"Include only the port" would be just a wish if nothing enforced it. The `CMakeLists.txt` of every module does. It builds a static library and **copies only the public headers** to a separate folder in the build directory. That folder is the only one that the users of the library get on their include path:
+„Includuj iba port" by bolo len prianie, keby to nič nevynucovalo. `CMakeLists.txt` každého modulu to vynucuje. Zostaví statickú knižnicu a **do samostatného priečinka v build adresári skopíruje iba verejné headery**. Tento priečinok je jediný, ktorý používatelia knižnice dostanú do svojej include cesty:
 
 ```cmake title="CMakeLists.txt"
 # Source files list for current library generation
@@ -241,7 +241,7 @@ target_include_directories( Temperature_Lib
 )
 ```
 
-(This is a simplified version of the template that the platform generates, which also handles the dependencies between the libraries and the Doxygen paths.) Now the application only links `Temperature_Lib`:
+(Toto je zjednodušená verzia šablóny, ktorú platforma generuje a ktorá rieši aj závislosti medzi knižnicami a cesty pre Doxygen.) Aplikácia teraz iba linkuje `Temperature_Lib`:
 
 ```c title="AppMain.c"
 #include <stdio.h>
@@ -261,23 +261,23 @@ int main(void)
 }
 ```
 
-I tried what happens if the application includes the internal header of the module, and the compiler says what you want it to say:
+Vyskúšal som, čo sa stane, ak aplikácia includuje interný header modulu, a kompilátor povie presne to, čo od neho chcete:
 
 ```text
 AppMain_Cheat.c:1:10: fatal error: Temperature.h: No such file or directory
 ```
 
-The folder with the public headers in the build directory contains exactly two files: `Temperature_Port.h` and `Temperature_Types.h`.
+Priečinok s verejnými headermi v build adresári obsahuje presne dva súbory: `Temperature_Port.h` a `Temperature_Types.h`.
 
-**An honest warning:** it is the protection of the build system, not of the language. If somebody writes `#include "../../Middlewares/Temperature/Temperature.h"`, it compiles without a complaint (I tried that too). The cure is cheap: reject relative paths with `..` in the includes in the CI.
+**Čestné upozornenie:** je to ochrana build systému, nie jazyka. Ak niekto napíše `#include "../../Middlewares/Temperature/Temperature.h"`, skompiluje sa to bez sťažností (aj to som vyskúšal). Liek je lacný: v CI odmietnite relatívne cesty s `..` v include.
 
 ```bash
 grep -rEn '#include "[^"]*\.\./' Application Middlewares/*/ && exit 1
 ```
 
-### When the module grows: components
+### Keď modul rastie: komponenty
 
-A module with a thousand lines in one file is the next problem. The answer is a **component**: another pair of files `Module_Component.c/.h` in the same folder. In the example above it is the filter:
+Modul s tisíckou riadkov v jednom súbore je ďalší problém. Odpoveďou je **komponent**: ďalšia dvojica súborov `Module_Component.c/.h` v tom istom priečinku. V príklade vyššie je to filter:
 
 ```c title="Temperature_Filter.c"
 #include "Temperature.h"
@@ -291,11 +291,11 @@ temperature_Value_t Temperature_Filter_Apply( temperature_Value_t rawValue )
 }
 ```
 
-The component header is internal as well (it is not in the list of the public headers), so the component can be exchanged or split without anyone noticing. The user of the module still sees the same two files. The rule that the file name starts with the module name makes the component visible in every file list, and the function name `Temperature_Filter_Apply()` tells where to find it.
+Header komponentu je tiež interný (nie je v zozname verejných headerov), takže komponent možno vymeniť alebo rozdeliť bez toho, aby si to niekto všimol. Používateľ modulu stále vidí tie isté dva súbory. Pravidlo, že názov súboru začína názvom modulu, robí komponent viditeľným v každom zozname súborov a názov funkcie `Temperature_Filter_Apply()` prezrádza, kde ju hľadať.
 
-## Level 3: inside a file
+## Úroveň 3: vnútri súboru
 
-Every `.c` and `.h` file generated by the platform has the same skeleton with a banner for each section, in the same order:
+Každý súbor `.c` a `.h` vygenerovaný platformou má rovnakú kostru s bannerom pre každú sekciu, v rovnakom poradí:
 
 ```c
 /**
@@ -317,47 +317,47 @@ Every `.c` and `.h` file generated by the platform has the same skeleton with a 
 /* ================================ TASKS =================================== */
 ```
 
-It looks like a decoration, and it is a map. When you open a file that you have never seen, you know that the local variables are in the fifth section and the interrupt handlers in the tenth, and you do not have to read the file to find them. The headers have the same idea, wrapped in an include guard and in `extern "C"` for the C++ users:
+Vyzerá to ako dekorácia, ale je to mapa. Keď otvoríte súbor, ktorý ste nikdy nevideli, viete, že lokálne premenné sú v piatej sekcii a obsluhy prerušení v desiatej, a nemusíte súbor čítať, aby ste ich našli. Headery majú rovnakú myšlienku, zabalenú do include guardu a do `extern "C"` pre používateľov C++:
 
-- the guard has the form `MODULE_FILE_H`, for example `TEMPERATURE_TEMPERATURE_PORT_H`,
-- the Doxygen header (`\file`, `\ingroup`, `\brief`) is on the top of every file, so the documentation of the module is generated from the same folder,
-- the includes are ordered `<system>`, then the project, then the module.
+- guard má tvar `MODULE_FILE_H`, napríklad `TEMPERATURE_TEMPERATURE_PORT_H`,
+- hlavička Doxygen (`\file`, `\ingroup`, `\brief`) je na začiatku každého súboru, takže dokumentácia modulu sa generuje z toho istého priečinka,
+- includy sú zoradené `<systémové>`, potom projektové, potom modulové.
 
-## One name in all places
+## Jeden názov na všetkých miestach
 
-The strength of this organization is that the name of the module is the same everywhere, so you can guess a name without looking it up:
+Sila tejto organizácie spočíva v tom, že názov modulu je všade rovnaký, takže názov možno uhádnuť bez toho, aby ste ho museli hľadať:
 
-| What | Example |
+| Čo | Príklad |
 |---|---|
-| Folder | `Temperature/` |
-| Library in CMake | `Temperature_Lib` |
-| Files | `Temperature.c`, `Temperature_Port.h`, `Temperature_Types.h` |
-| Functions | `Temperature_Init()`, `Temperature_Get_Value()` |
-| Types | `temperature_Value_t`, `temperature_RequestState_t` |
-| Macros and enumerators | `TEMPERATURE_REQUEST_OK` |
+| Priečinok | `Temperature/` |
+| Knižnica v CMake | `Temperature_Lib` |
+| Súbory | `Temperature.c`, `Temperature_Port.h`, `Temperature_Types.h` |
+| Funkcie | `Temperature_Init()`, `Temperature_Get_Value()` |
+| Typy | `temperature_Value_t`, `temperature_RequestState_t` |
+| Makrá a enumerátory | `TEMPERATURE_REQUEST_OK` |
 | Include guard | `TEMPERATURE_TEMPERATURE_PORT_H` |
 
-If you see `Gpio_Set_PinLevel()` in a stack trace, you know that it is in the folder `Gpio`, in the library `Gpio_Lib` and that its types start with `gpio_`.
+Ak vo výpise zásobníka volaní uvidíte `Gpio_Set_PinLevel()`, viete, že je v priečinku `Gpio`, v knižnici `Gpio_Lib` a že jej typy začínajú `gpio_`.
 
-### The same lifecycle for every module
+### Rovnaký životný cyklus pre každý modul
 
-The generated module comes with the four functions that every module has: `Get_ModuleVersion()`, `Init()`, `Deinit()` and `Task()`. `Init` sets up the module and handles its own failures, `Task` is called periodically from the main loop or from a scheduler. The consequence is that the code on top (`AppMain`) can treat all modules in the same way, and a new module does not need a new concept.
+Vygenerovaný modul prichádza so štyrmi funkciami, ktoré má každý modul: `Get_ModuleVersion()`, `Init()`, `Deinit()` a `Task()`. `Init` modul nastaví a vyrieši vlastné zlyhania, `Task` sa volá periodicky z hlavnej slučky alebo zo schedulera. Dôsledkom je, že kód na vrchole (`AppMain`) môže so všetkými modulmi zaobchádzať rovnako a nový modul nepotrebuje nový koncept.
 
-## Creating a module
+## Vytvorenie modulu
 
-You do not create these files by hand. The project tools of the platform (the *Create module* entry of the menu, described on the page [Project tools](/docs/platform/embi-platform/cmake-helpertools)) ask for the name and the location, and generate the folder with all the files above and the `CMakeLists.txt`. The *Add component* entry adds a `Module_Component.c/.h` pair to an existing module. A module that was generated once is never overwritten, so it is safe to run the tool again.
+Tieto súbory nevytvárate ručne. Projektové nástroje platformy (položka menu *Create module*, popísaná na stránke [Project tools](/docs/platform/embi-platform/cmake-helpertools)) sa spýtajú na názov a umiestnenie a vygenerujú priečinok so všetkými súbormi vyššie a `CMakeLists.txt`. Položka *Add component* pridá dvojicu `Module_Component.c/.h` do existujúceho modulu. Raz vygenerovaný modul sa nikdy neprepíše, takže nástroj možno bezpečne spustiť znova.
 
-## The rules in a short form
+## Pravidlá v skratke
 
-1. One module is one folder, and it has its own library.
-2. Other modules include **only** `Module_Port.h` and `Module_Types.h`.
-3. Internal headers are not in the list of public headers.
-4. The data is `static` in the `.c` file, access goes through functions. No `extern` variables.
-5. The file name begins with the module name, and so does every function, type and macro.
-6. Vendor code is never edited. Your changes live in the handler folder next to it.
-7. The calls go down in the layers, never up.
-8. Everything in a file is in its section, in the same order.
+1. Jeden modul je jeden priečinok a má vlastnú knižnicu.
+2. Ostatné moduly includujú **iba** `Module_Port.h` a `Module_Types.h`.
+3. Interné headery nie sú v zozname verejných headerov.
+4. Dáta sú `static` v súbore `.c`, prístup ide cez funkcie. Žiadne `extern` premenné.
+5. Názov súboru začína názvom modulu, rovnako ako každá funkcia, typ a makro.
+6. Kód výrobcu sa nikdy neupravuje. Vaše zmeny žijú v priečinku handlera vedľa neho.
+7. Volania idú vo vrstvách nadol, nikdy nahor.
+8. Všetko v súbore je vo svojej sekcii, v rovnakom poradí.
 
-None of these rules is clever. The point is that all of them are the same in all modules, so after you have read one module, you know how to read all the others. That is also the reason why the platform generates the files: a convention that takes work to follow is a convention that is not followed.
+Žiadne z týchto pravidiel nie je vychytené. Ide o to, že všetky sú rovnaké vo všetkých moduloch, takže keď si prečítate jeden modul, viete, ako čítať všetky ostatné. To je aj dôvod, prečo platforma súbory generuje: konvencia, ktorej dodržiavanie si vyžaduje prácu, je konvencia, ktorá sa nedodržiava.
 
-The same ideas, from a different point of view, are in the articles about [SOLID principles](/blog/solid-principles-c-cpp) (the port header is the interface that other modules depend on) and about [MISRA C](/blog/misra-c-rules-in-practice) (several of the rules are much easier to follow when the code is organized like this).
+Rovnaké myšlienky, z iného pohľadu, nájdete v článkoch o [princípoch SOLID](/blog/solid-principles-c-cpp) (port header je rozhranie, na ktorom ostatné moduly závisia) a o [MISRA C](/blog/misra-c-rules-in-practice) (niekoľko pravidiel sa dodržiava oveľa ľahšie, keď je kód takto organizovaný).

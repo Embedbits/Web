@@ -1,20 +1,20 @@
 ---
-title: "Interrupts and main(): how to share data safely"
+title: "Переривання та main(): як безпечно ділити дані"
 slug: interrupts-and-main-shared-data
 date: 2026-10-06T14:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, stm32]
 ---
 
-An interrupt handler and the main loop are two programs that run in the same memory and do not know about each other. The C compiler does not know that the interrupt exists, and the CPU does not know that two variables belong together. The programmer is the only one who knows, and the bugs that follow are the worst kind: they appear once in a thousand runs, they disappear when you attach the debugger and they never appear in the code review, because the code looks right.
+Обробник переривання та головний цикл - це дві програми, що працюють в одній пам'яті й нічого не знають одна про одну. Компілятор C не знає, що переривання існує, а CPU не знає, що дві змінні пов'язані між собою. Знає лише програміст, а помилки, які з цього випливають, найгірші з можливих: вони трапляються раз на тисячу запусків, зникають, коли підключаєш налагоджувач, і ніколи не з'являються на code review, бо код виглядає правильно.
 
-This article goes through the three problems of the shared data, one by one, with the code that **fails**, and then shows the patterns that work. The experiments run on a Cortex-M4 (in QEMU, on a model of an STM32F4 board) or on a PC, and the outputs are real.
+Ця стаття розбирає три проблеми спільних даних, одну за одною, на коді, який **не працює**, а потім показує шаблони, які працюють. Експерименти виконувалися на Cortex-M4 (у QEMU, на моделі плати STM32F4) або на PC, а виводи - справжні.
 
 <!-- truncate -->
 
-## Problem 1: the compiler does not see the interrupt
+## Проблема 1: компілятор не бачить переривання
 
-The simplest communication between an interrupt and the main loop is a flag. The interrupt sets it, the main loop waits for it:
+Найпростіша комунікація між перериванням і головним циклом - прапорець. Переривання його встановлює, головний цикл на нього чекає:
 
 ```c title="main.c (a part)"
 #ifdef USE_VOLATILE
@@ -43,7 +43,7 @@ int main(void)
 }
 ```
 
-This is the whole program, and with the optimization `-O2` it **never finishes**. I ran it in QEMU with the SysTick as the interrupt source (the interrupt fires and sets the flag), and compared the version with and without `volatile`:
+Це вся програма, і з оптимізацією `-O2` вона **ніколи не завершується**. Я запустив її в QEMU з SysTick як джерелом переривання (переривання спрацьовує й встановлює прапорець) і порівняв версію з `volatile` та без нього:
 
 ```text
 --- without volatile
@@ -52,7 +52,7 @@ This is the whole program, and with the optimization `-O2` it **never finishes**
 the interrupt was seen
 ```
 
-Why? Look at what the compiler generated for the loop in the first version:
+Чому? Подивіться, що компілятор згенерував для циклу в першій версії:
 
 ```text
  8000062:  ldrb  r3, [r1, #0]       @ read the flag once
@@ -60,7 +60,7 @@ Why? Look at what the compiler generated for the loop in the first version:
  8000066:  b.n   8000066            @ zero: jump to itself, forever
 ```
 
-The compiler reasons about the code of `main()` alone, and in that code nobody writes to `dataReady`. So the value cannot change, it is enough to read it once, and the loop becomes an infinite loop. Exactly what you asked for, from its point of view. With `volatile` the compiler has to read the variable from the memory at every pass:
+Компілятор міркує лише про код `main()`, а в цьому коді в `dataReady` ніхто не пише. Отже, значення не може змінитися, його достатньо прочитати один раз, і цикл стає нескінченним. З його точки зору - саме те, що ви просили. З `volatile` компілятор мусить читати змінну з пам'яті на кожному проході:
 
 ```text
  8000062:  ldrb  r3, [r2, #0]       @ read the flag in every pass
@@ -68,11 +68,11 @@ The compiler reasons about the code of `main()` alone, and in that code nobody w
  8000066:  beq.n 8000062
 ```
 
-The lesson: **every variable that is shared between an interrupt and the main code has to be `volatile`.** The same is true for every register of a peripheral, which is the reason why the register definitions in the CMSIS headers are `volatile`. Keep in mind that this works in the debug build (`-O0`) without it, and fails in the release build, which is why the bug is found late.
+Урок: **кожна змінна, яку діляться переривання й основний код, має бути `volatile`.** Те саме стосується кожного регістра периферії, і саме тому визначення регістрів у заголовках CMSIS є `volatile`. Пам'ятайте, що без цього в debug-збірці (`-O0`) усе працює, а в release-збірці ламається, тому помилку знаходять пізно.
 
-## Problem 2: `volatile` does not make it atomic
+## Проблема 2: `volatile` не робить операцію атомарною
 
-`volatile` says "read and write the memory every time". It does not say "all at once". The innocent line `counter++` is three instructions:
+`volatile` каже «читай і пиши пам'ять щоразу». Воно не каже «усе одразу». Невинний рядок `counter++` - це три інструкції:
 
 ```text
 Increment_Plain:
@@ -82,16 +82,16 @@ Increment_Plain:
    str   r3, [r2, #0]       @ 3. store it back
 ```
 
-If the interrupt arrives between the load and the store, and the interrupt also increments the counter, then one of the two increments is **lost**: the main code stores the old value plus one over the value that the interrupt has just stored. The timeline:
+Якщо переривання надходить між завантаженням і записом, і переривання також інкрементує лічильник, то один із двох інкрементів **губиться**: основний код записує старе значення плюс один поверх значення, яке щойно записало переривання. Часова послідовність:
 
-| Step | Main code | Interrupt | Counter |
+| Крок | Основний код | Переривання | Лічильник |
 |---|---|---|---|
-| 1 | loads 5 | | 5 |
-| 2 | | loads 5, adds 1, stores 6 | 6 |
-| 3 | adds 1 (it has 5 in the register) | | 6 |
-| 4 | stores 6 | | **6, should be 7** |
+| 1 | завантажує 5 | | 5 |
+| 2 | | завантажує 5, додає 1, записує 6 | 6 |
+| 3 | додає 1 (у регістрі має 5) | | 6 |
+| 4 | записує 6 | | **6, мало бути 7** |
 
-I wanted to show it on the Cortex-M4 too, and it did not work: in 200 000 increments with an interrupt every few instructions, QEMU lost nothing. That is probably because QEMU checks for the interrupts between the blocks of the translated code, so one never lands between the `ldr` and the `str`. It is a useful reminder that **a simulator does not prove the absence of a race condition**: the real MCU can interrupt after every instruction. The same race, in a place where it is easy to reproduce, is two threads on a PC:
+Я хотів показати це і на Cortex-M4, але не вийшло: у 200 000 інкрементів із перериванням кожні кілька інструкцій QEMU нічого не втратив. Імовірно, тому що QEMU перевіряє переривання між блоками транслюваного коду, тож жодне ніколи не потрапляє між `ldr` і `str`. Це корисне нагадування, що **симулятор не доводить відсутності race condition**: справжній MCU може перервати після кожної інструкції. Той самий race у місці, де його легко відтворити, - це два потоки на PC:
 
 ```c title="host_race.c"
 #include <pthread.h>
@@ -136,17 +136,17 @@ plain counter   2652421 (lost 1347579)
 atomic counter  4000000 (lost 0)
 ```
 
-A third of all increments is lost, and the results differ from run to run. The thread on a PC and the interrupt on an MCU are in this respect the same thing: a second flow of control that can strike between two instructions. The same applies to everything that is bigger than the word of the CPU: a 64-bit timestamp or a structure with two fields can be read half old and half new (*torn read*).
+Третина всіх інкрементів губиться, а результати відрізняються від запуску до запуску. Потік на PC і переривання на MCU в цьому сенсі - одне й те саме: другий потік керування, який може вдарити між двома інструкціями. Те саме стосується всього, що більше за слово CPU: 64-бітова часова мітка або структура з двох полів може бути прочитана наполовину старою, наполовину новою (*torn read*).
 
-## Three ways to solve it
+## Три способи розв'язання
 
-### 1. One writer for every variable (the best one)
+### 1. Один записувач на кожну змінну (найкращий)
 
-The most robust solution is to design the data so that **every variable is written by one side only**. The interrupt writes the flag, the main code only reads it and does not clear it (or the other way around). Without two writers there is nothing to lose. If both sides need to change the same thing, they should not share it: each one has its own variable (the counter of the interrupts is `isrCalls`, the counter of the main code is a different one), and the sum is made by the reader.
+Найнадійніше рішення - спроєктувати дані так, щоб **кожна змінна записувалася лише однією стороною**. Переривання записує прапорець, основний код лише читає його й не скидає (або навпаки). Без двох записувачів нема чого губити. Якщо обом сторонам потрібно змінювати те саме, вони не повинні це ділити: у кожної своя змінна (лічильник переривань - `isrCalls`, лічильник основного коду - інший), а суму рахує читач.
 
-### 2. A critical section
+### 2. Критична секція
 
-When two writers are unavoidable, the interrupts are disabled for the time of the operation. The correct way is to **save the state and restore it**, and not to enable the interrupts at the end blindly, because the function may have been called with the interrupts already disabled:
+Коли двох записувачів уникнути не можна, переривання вимикаються на час операції. Правильний спосіб - **зберегти стан і відновити його**, а не вмикати переривання наприкінці наосліп, бо функцію могли викликати з уже вимкненими перериваннями:
 
 ```text
 Increment_CriticalSection:
@@ -158,11 +158,11 @@ Increment_CriticalSection:
    msr   PRIMASK, r1        @ restore the state, as it was
 ```
 
-The price is the latency: during the section no interrupt can run. So the section has to be as short as a few instructions, and without a function call, a loop or a wait inside.
+Ціна - затримка (latency): під час секції жодне переривання не може виконатися. Тому секція має бути короткою, як кілька інструкцій, і без виклику функції, циклу чи очікування всередині.
 
-### 3. An atomic operation
+### 3. Атомарна операція
 
-For a single word (a counter, a flag with a count) the processor has the instructions `LDREX` and `STREX`: the store succeeds only if nothing touched the address since the load, and when it does not, the loop repeats. The compiler generates them for you from the standard operation:
+Для одного слова (лічильник, прапорець із лічильником) процесор має інструкції `LDREX` та `STREX`: запис вдається лише якщо ніхто не торкався адреси після завантаження, а якщо торкався - цикл повторюється. Компілятор генерує їх за вас зі стандартної операції:
 
 ```text
 Increment_Atomic:
@@ -173,11 +173,11 @@ Increment_Atomic:
    bne.n Increment_Atomic   @ somebody did: try again
 ```
 
-in C it is one line, `__atomic_fetch_add(&counter, 1u, __ATOMIC_RELAXED)` (or `atomic_fetch_add()` from `<stdatomic.h>`). It does not disable the interrupts, so it does not add the latency. It works for a single variable; for two variables that belong together it does not help.
+у C це один рядок, `__atomic_fetch_add(&counter, 1u, __ATOMIC_RELAXED)` (або `atomic_fetch_add()` з `<stdatomic.h>`). Він не вимикає переривання, тож не додає затримки. Він працює для однієї змінної; для двох змінних, що належать одна одній, не допомагає.
 
-## The pattern that is used the most: a ring buffer
+## Найуживаніший шаблон: кільцевий буфер
 
-The most common thing that an interrupt gives to the main code is a stream of data: the bytes received by the UART, the samples of the ADC. The interrupt cannot process them (it has to be short), so it puts them in a **queue**, and the main code takes them out in a quiet moment. This is the producer-consumer problem with *one producer* (the interrupt) and *one consumer* (the main code), and for this exact case a ring buffer needs **no lock**:
+Найпоширеніше, що переривання передає основному коду, - потік даних: байти, прийняті UART, відліки АЦП. Переривання не може їх обробляти (воно має бути коротким), тому кладе їх у **чергу**, а основний код забирає їх у спокійний момент. Це задача виробник-споживач з *одним виробником* (переривання) та *одним споживачем* (основний код), і саме для цього випадку кільцевий буфер **не потребує блокування**:
 
 ```c title="Ring.h"
 #ifndef RING_H
@@ -235,20 +235,20 @@ static inline bool Ring_Pop(ring_t *ring, uint32_t *item)
 #endif
 ```
 
-Why is it correct?
+Чому це правильно?
 
-- `head` is written **only by the producer** and `tail` **only by the consumer**. There is no variable with two writers, so no update can be lost: this is the first solution above, built into the structure.
-- The counters are free-running (they are never reset). The number of items is `head - tail`, and thanks to the unsigned arithmetic it is correct even after the counters overflow. With the size a power of two, the position is a simple mask instead of a division.
-- The **order** matters: the producer writes the item and **after that** publishes it by moving `head` (`memory_order_release`), and the consumer reads `head` first (`memory_order_acquire`) and only then the item. On a single Cortex-M core the order in which the compiler writes is the only thing that matters, and the atomics keep it. On an MCU with two cores (some of the STM32H7 have two) or with a cache, the same code is still correct, which is the reason to write it in this form and not with a `volatile` that happens to work.
-- The producer does not wait. A full buffer means "drop the item and count it", because an interrupt cannot wait for anybody. The counter of the drops tells you in the test that the buffer is too small.
+- `head` записує **лише виробник**, а `tail` - **лише споживач**. Немає змінної з двома записувачами, тож жодне оновлення не може загубитися: це перше рішення вище, вбудоване в структуру.
+- Лічильники вільно біжать (free-running) і ніколи не скидаються. Кількість елементів - це `head - tail`, і завдяки беззнаковій арифметиці вона правильна навіть після переповнення лічильників. Якщо розмір - степінь двійки, позиція отримується простою маскою замість ділення.
+- **Порядок** має значення: виробник записує елемент і **після цього** публікує його зсувом `head` (`memory_order_release`), а споживач спершу читає `head` (`memory_order_acquire`) і лише потім елемент. На одному ядрі Cortex-M важливий лише порядок, у якому компілятор записує, і атомарні операції його зберігають. На MCU з двома ядрами (деякі STM32H7 мають два) або з кешем той самий код усе ще правильний, і це причина писати його в такій формі, а не з `volatile`, який «якось працює».
+- Виробник не чекає. Повний буфер означає «відкинь елемент і порахуй це», бо переривання не може ні на кого чекати. Лічильник відкинутих у тесті каже вам, що буфер замалий.
 
-I tested it two ways. On a PC with two threads, a producer and a consumer, pass 20 million items through a buffer of 16 slots:
+Я перевірив це двома способами. На PC з двома потоками, виробником і споживачем, пропускаємо 20 мільйонів елементів через буфер на 16 слотів:
 
 ```text
 items 20000000, order errors 0
 ```
 
-and on the Cortex-M4 in QEMU: the SysTick interrupt is the producer and `main()` is the consumer, with 5000 items:
+і на Cortex-M4 у QEMU: переривання SysTick - виробник, а `main()` - споживач, 5000 елементів:
 
 ```text
 items received  5000
@@ -256,26 +256,26 @@ order errors    0
 full buffer hits 0
 ```
 
-The first test is the harder one (the two threads really run in parallel on two cores), the second one is the real situation of an MCU. It is also a perfect candidate for the unit test on a PC, as in the article about [unit testing with Unity and CMock](/blog/unit-testing-unity-cmock): the module is independent of the hardware.
+Перший тест жорсткіший (два потоки справді виконуються паралельно на двох ядрах), другий - справжня ситуація MCU. Це також ідеальний кандидат для модульного тесту на PC, як у статті про [модульне тестування з Unity та CMock](/blog/unit-testing-unity-cmock): модуль не залежить від hardware.
 
-## Rules for the interrupt handlers
+## Правила для обробників переривань
 
-1. **Short.** Read the register, save the data, set the flag, clear the pending flag, return. The processing is done in the main code.
-2. **No waiting, no allocation, no `printf`.** Nothing that blocks, takes a long time or calls a function that is not safe to call from an interrupt (it is *non-reentrant*, if it uses a static buffer inside).
-3. **Everything shared is `volatile` or atomic**, and every variable has a defined writer.
-4. **Do not share more than you must.** A flag or a queue between the sides, and not a structure of ten fields.
-5. **Think about the priority.** An interrupt of a higher priority can interrupt another interrupt. A variable shared between two interrupts has the same problem as one shared with the main code.
+1. **Короткі.** Прочитати регістр, зберегти дані, встановити прапорець, скинути pending-прапорець, повернутися. Обробка виконується в основному коді.
+2. **Без очікування, без виділення пам'яті, без `printf`.** Нічого, що блокує, триває довго або викликає функцію, небезпечну для виклику з переривання (вона *нереентерабельна*, якщо всередині використовує статичний буфер).
+3. **Усе спільне - `volatile` або атомарне**, і в кожної змінної визначений записувач.
+4. **Не діліть більше, ніж потрібно.** Прапорець або черга між сторонами, а не структура з десяти полів.
+5. **Думайте про пріоритет.** Переривання вищого пріоритету може перервати інше переривання. Змінна, спільна для двох переривань, має ту саму проблему, що й спільна з основним кодом.
 
-In the Embedbits BSP, the peripheral modules (e.g. USART) have a polling, an interrupt and a DMA variant of the data handling, and the interrupt variant is exactly this: a handler on the MCAL level that takes the data from the peripheral and passes it to the application through a buffer, while the `Task` of the module runs in the main loop and does the processing.
+У Embedbits BSP модулі периферії (наприклад, USART) мають варіанти обробки даних polling, interrupt і DMA, і варіант з перериваннями - саме це: обробник на рівні MCAL, який бере дані з периферії та передає їх застосунку через буфер, тоді як `Task` модуля працює в головному циклі й виконує обробку.
 
-## Summary
+## Підсумок
 
-| The problem | The symptom | The cure |
+| Проблема | Симптом | Лікування |
 |---|---|---|
-| The compiler does not see the interrupt | Works with `-O0`, an endless loop with `-O2` | `volatile` on every shared variable |
-| `counter++` is not atomic | A count that is sometimes too small | One writer per variable, a critical section or `atomic_fetch_add` |
-| More than a word | Half old, half new value | A critical section, or a sequence number, or a queue |
-| A stream of data | Lost or mixed bytes | A ring buffer with one producer and one consumer |
-| The test passes in the simulator | A bug in the field | Remember that the simulator interrupts in different places than the MCU |
+| Компілятор не бачить переривання | Працює з `-O0`, нескінченний цикл з `-O2` | `volatile` на кожній спільній змінній |
+| `counter++` не атомарний | Лічильник, який іноді замалий | Один записувач на змінну, критична секція або `atomic_fetch_add` |
+| Більше за слово | Наполовину старе, наполовину нове значення | Критична секція, або порядковий номер, або черга |
+| Потік даних | Втрачені або змішані байти | Кільцевий буфер з одним виробником і одним споживачем |
+| Тест проходить у симуляторі | Помилка в полі | Пам'ятайте, що симулятор перериває в інших місцях, ніж MCU |
 
-The three kinds of code in this article had one thing in common: they all *looked* right.
+Три види коду в цій статті мали одну спільну рису: усі вони *виглядали* правильно.

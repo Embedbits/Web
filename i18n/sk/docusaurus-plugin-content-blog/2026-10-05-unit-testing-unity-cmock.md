@@ -1,34 +1,34 @@
 ---
-title: "Unit testing embedded C on your PC with Unity and CMock"
+title: "Unit testovanie embedded C na vašom PC s Unity a CMock"
 slug: unit-testing-unity-cmock
 date: 2026-10-05T10:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, testing]
 ---
 
-"Embedded software cannot be unit tested, you need the hardware." I hear it often, and it is true for exactly one kind of code: the code that touches the registers. All the rest, the state machines, the protocol parsers, the control logic, the conversion of the values, is plain C that compiles on your PC. And on your PC it runs in milliseconds, without a debugger, without a cable and without flashing.
+„Embedded softvér sa nedá unit testovať, potrebujete hardvér." Počúvam to často a platí to presne pre jeden druh kódu: pre kód, ktorý sa dotýka registrov. Všetko ostatné, stavové automaty, parsery protokolov, riadiaca logika, prevod hodnôt, je obyčajné C, ktoré sa skompiluje na vašom PC. A na vašom PC beží v milisekundách, bez debuggera, bez kábla a bez flashovania.
 
-This article shows how to test a module with [Unity](https://github.com/ThrowTheSwitch/Unity) (the test framework) and [CMock](https://github.com/ThrowTheSwitch/CMock) (the generator of mocks), from the design that makes it possible to the CMake file that builds it. Everything was built and run, and the output below is the real one.
+Tento článok ukazuje, ako otestovať modul pomocou [Unity](https://github.com/ThrowTheSwitch/Unity) (testovací framework) a [CMock](https://github.com/ThrowTheSwitch/CMock) (generátor mockov), od návrhu, ktorý to umožňuje, až po súbor CMake, ktorý to zostaví. Všetko bolo zostavené a spustené a výstup nižšie je skutočný.
 
 <!-- truncate -->
 
-## What you need to test, and what you need to remove
+## Čo potrebujete testovať a čo musíte odstrániť
 
-A unit test runs one module in isolation. The module under test calls the lower layer (the BSP, a driver, another module), and **that** is the problem: the lower layer needs hardware. The solution is not to give the module a simulated hardware, but to replace the whole lower layer with something the test controls. That something is a **mock**: a function with the same signature as the real one, which does not do anything real. It only remembers how it was called and returns what the test told it to return.
+Unit test spúšťa jeden modul izolovane. Testovaný modul volá nižšiu vrstvu (BSP, ovládač, iný modul) a **to** je problém: nižšia vrstva potrebuje hardvér. Riešením nie je dať modulu simulovaný hardvér, ale nahradiť celú nižšiu vrstvu niečím, čo test ovláda. Tým niečím je **mock**: funkcia s rovnakou signatúrou ako skutočná, ktorá nerobí nič skutočné. Len si pamätá, ako bola zavolaná, a vracia to, čo jej test povedal vrátiť.
 
-This works only if the module has a place where the lower layer can be replaced. In the article about [SOLID principles](/blog/solid-principles-c-cpp) there was the *link-time injection*: the module calls a function that is declared in a header (`Bsp_Thermostat.h`), and the build system decides which source file implements it. On the target it is the real BSP, in the unit test it is the mock. This is the same principle as the architecture from the article about [design and architecture](/blog/design-architecture): when the layers have clean interfaces, every layer can be tested without the layers below.
+Funguje to iba vtedy, ak má modul miesto, kde sa dá nižšia vrstva nahradiť. V článku o [princípoch SOLID](/blog/solid-principles-c-cpp) bola *link-time injection*: modul volá funkciu deklarovanú v headeri (`Bsp_Thermostat.h`) a build systém rozhoduje, ktorý zdrojový súbor ju implementuje. Na cieľovom zariadení je to skutočné BSP, v unit teste je to mock. Je to rovnaký princíp ako architektúra z článku o [návrhu a architektúre](/blog/design-architecture): keď majú vrstvy čisté rozhrania, každú vrstvu možno testovať bez vrstiev pod ňou.
 
-## The tools
+## Nástroje
 
-- **Unity** is a framework with assertions (`TEST_ASSERT_TRUE`, `TEST_ASSERT_EQUAL_UINT8`, `TEST_ASSERT_EQUAL_FLOAT`, `TEST_ASSERT_EQUAL_MEMORY` and many more) and a small script that generates the `main()` with the list of the tests from your test file, so you never have to register a test by hand. It is a few C files that are compiled together with the test.
-- **CMock** reads a header file and generates the mock of every function in it: `MockBsp_Thermostat.c/.h`. It is written in Ruby, but only the *generator* is, the generated mock is plain C.
-- **Ruby** is needed for the two generators, which run at build time. It does not end up in the tested code.
+- **Unity** je framework s asercami (`TEST_ASSERT_TRUE`, `TEST_ASSERT_EQUAL_UINT8`, `TEST_ASSERT_EQUAL_FLOAT`, `TEST_ASSERT_EQUAL_MEMORY` a mnohé ďalšie) a malým skriptom, ktorý z vášho testovacieho súboru vygeneruje `main()` so zoznamom testov, takže nikdy nemusíte registrovať test ručne. Je to niekoľko súborov v C, ktoré sa kompilujú spolu s testom.
+- **CMock** prečíta header a vygeneruje mock každej funkcie v ňom: `MockBsp_Thermostat.c/.h`. Je napísaný v Ruby, ale iba *generátor*, vygenerovaný mock je obyčajné C.
+- **Ruby** je potrebné pre oba generátory, ktoré bežia pri builde. Do testovaného kódu sa nedostane.
 
-In the Embedbits platform these three are artifacts (`unity`, `cmock` and `ruby`), so the project does not depend on what is installed on the PC of the developer. The versions are in `ArtifactsConfig.txt` (the syntax is `<artifact_name>;<binary_version>;<handler_version>`). In this article I used Unity 2.6.1 and CMock 2.6.0 with plain CMake, so that the example works everywhere.
+V platforme Embedbits sú tieto tri artefakty (`unity`, `cmock` a `ruby`), takže projekt nezávisí od toho, čo je nainštalované na PC vývojára. Verzie sú v `ArtifactsConfig.txt` (syntax je `<artifact_name>;<binary_version>;<handler_version>`). V tomto článku som použil Unity 2.6.1 a CMock 2.6.0 s obyčajným CMake, aby príklad fungoval všade.
 
-## The module under test
+## Testovaný modul
 
-A thermostat with a hysteresis. It reads the temperature from the BSP and switches a heater on below 20 °C and off above 22 °C. If the sensor does not answer, it switches the heater off, because a heater without a measurement is a fire. The interface to the hardware is a header with two functions:
+Termostat s hysterézou. Číta teplotu z BSP, pod 20 °C zapne ohrievač a nad 22 °C ho vypne. Ak senzor neodpovedá, ohrievač vypne, pretože ohrievač bez merania je požiar. Rozhranie k hardvéru je header s dvoma funkciami:
 
 ```c title="Bsp_Thermostat.h"
 #ifndef BSP_THERMOSTAT_H
@@ -46,7 +46,7 @@ void Bsp_Set_Heater(bool on);
 #endif
 ```
 
-The public port of the module and its implementation:
+Verejný port modulu a jeho implementácia:
 
 ```c title="Thermostat_Port.h"
 #ifndef THERMOSTAT_THERMOSTAT_PORT_H
@@ -108,11 +108,11 @@ bool Thermostat_Is_HeaterOn(void)
 }
 ```
 
-The module does not include any hardware header, it does not know STM32 and it can be compiled with the compiler of your PC. This is the first test of the design: if it does not compile, it is not separated enough.
+Modul neincluduje žiadny hardvérový header, nepozná STM32 a dá sa skompilovať kompilátorom vášho PC. Toto je prvý test návrhu: ak sa nekompiluje, nie je dostatočne oddelený.
 
-## The test
+## Test
 
-The test file includes the header of the module under test and the header of the **mock**, which does not exist yet. It is generated from `Bsp_Thermostat.h` during the build.
+Testovací súbor includuje header testovaného modulu a header **mocku**, ktorý zatiaľ neexistuje. Generuje sa z `Bsp_Thermostat.h` počas buildu.
 
 ```c title="test_Thermostat.c"
 #include "unity.h"
@@ -189,25 +189,25 @@ void test_HeaterSwitchesOffWhenSensorFails(void)
 }
 ```
 
-Let us read it from the top.
+Prečítajme si to zhora.
 
-- `setUp()` is called by Unity before every test. The module keeps its state in a `static` variable, so each test starts with `Thermostat_Init()`, and `Bsp_Set_Heater_Expect(false)` tells the mock that the initialization switches the heater off. Without this reset the tests would depend on each other and on their order.
-- `Sensor_Returns()` is a helper that says "the next call of `Bsp_Get_Celsius()` returns `true` and sets the value to this temperature". `_ExpectAnyArgsAndReturn` means "I do not care about the pointer", and `_ReturnThruPtr_celsius` fills the output parameter.
-- Each test is a short story in three parts: the sensor says something, the module is run (`Thermostat_Task()`), the result is checked. The expectation `Bsp_Set_Heater_Expect(true)` is also an assertion: if the module calls the function with another value, or does not call it, the test fails.
-- The third test shows the strength of mocks. Inside the hysteresis band nothing is expected, and that is the assertion: the mock fails the test as soon as the module calls `Bsp_Set_Heater()`.
+- `setUp()` volá Unity pred každým testom. Modul drží svoj stav v `static` premennej, takže každý test začína s `Thermostat_Init()` a `Bsp_Set_Heater_Expect(false)` hovorí mocku, že inicializácia vypne ohrievač. Bez tohto resetu by testy závisli jeden od druhého a od svojho poradia.
+- `Sensor_Returns()` je pomocná funkcia, ktorá hovorí „ďalšie volanie `Bsp_Get_Celsius()` vráti `true` a nastaví hodnotu na túto teplotu". `_ExpectAnyArgsAndReturn` znamená „na ukazovateli mi nezáleží" a `_ReturnThruPtr_celsius` vyplní výstupný parameter.
+- Každý test je krátky príbeh o troch častiach: senzor niečo povie, modul sa spustí (`Thermostat_Task()`), výsledok sa skontroluje. Očakávanie `Bsp_Set_Heater_Expect(true)` je zároveň aserciou: ak modul zavolá funkciu s inou hodnotou alebo ju nezavolá, test zlyhá.
+- Tretí test ukazuje silu mockov. V pásme hysterézy sa neočakáva nič a to je aserica: mock zlyhá test hneď, ako modul zavolá `Bsp_Set_Heater()`.
 
-A trap that is worth knowing: `_ReturnThruPtr_celsius(&value)` does not copy the value in the moment of the call, it remembers the **pointer** and reads the value when the module calls the mock. If `value` is a local variable of the helper, it is gone by then. The first version of the example for this article had the helper written this way, and the result was four failed tests with a message that looks like a bug in the module:
+Úskalie, ktoré stojí za to poznať: `_ReturnThruPtr_celsius(&value)` nekopíruje hodnotu v okamihu volania, zapamätá si **ukazovateľ** a hodnotu prečíta, keď modul zavolá mock. Ak je `value` lokálna premenná pomocnej funkcie, v tom čase už neexistuje. Prvá verzia príkladu pre tento článok mala pomocnú funkciu napísanú takto a výsledkom boli štyri zlyhané testy so správou, ktorá vyzerá ako chyba v module:
 
 ```text
 test_HeaterSwitchesOnBelowLowerLimit:FAIL: Expected 1 Was 0. Function Bsp_Set_Heater
 Argument on. Function called with unexpected argument value.
 ```
 
-The module was correct, the variable was garbage. That is why the example has the `static float sensorCelsius` with the comment.
+Modul bol správny, premenná bola nezmysel. Preto má príklad `static float sensorCelsius` s komentárom.
 
-## The build
+## Build
 
-Two generators and one executable. CMake runs the generators before the compilation, and a change of a header regenerates the mock:
+Dva generátory a jeden spustiteľný súbor. CMake spúšťa generátory pred kompiláciou a zmena headera mock vygeneruje znova:
 
 ```yaml title="cmock.yml"
 :cmock:
@@ -260,7 +260,7 @@ target_compile_options(${TEST_NAME} PRIVATE -Wall -Wextra)
 add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 ```
 
-The configuration of CMock (`cmock.yml`) has only the list of the plugins: `ignore`, `expect_any_args` and `return_thru_ptr`, which give the `_Ignore`, `_ExpectAnyArgs` and `_ReturnThruPtr_` functions that the test above uses. The `mock_path` is relative to the folder where the generator runs, which is the build directory.
+Konfigurácia CMock (`cmock.yml`) obsahuje iba zoznam pluginov: `ignore`, `expect_any_args` a `return_thru_ptr`, ktoré dávajú funkcie `_Ignore`, `_ExpectAnyArgs` a `_ReturnThruPtr_`, ktoré používa test vyššie. `mock_path` je relatívna k priečinku, v ktorom generátor beží, čo je build adresár.
 
 ```bash
 cmake -S . -B build
@@ -279,11 +279,11 @@ test_Thermostat.c:61:test_HeaterSwitchesOffWhenSensorFails:PASS
 OK
 ```
 
-Notice what is *not* in the executable: no startup code, no linker script, no HAL, no ST header. Only the module, the mock, the test and the framework. It builds in a couple of seconds and runs in milliseconds, so it can run on every save and on every commit.
+Všimnite si, čo v spustiteľnom súbore *nie je*: žiadny startup kód, žiadny linker script, žiadne HAL, žiadny header od ST. Iba modul, mock, test a framework. Zostaví sa za pár sekúnd a beží v milisekundách, takže môže bežať pri každom uložení a pri každom commite.
 
-## Does the test really test something?
+## Testuje test naozaj niečo?
 
-A test that cannot fail is worth nothing. The cheapest check is a **mutation**: break the code on purpose and see whether a test notices. I changed the upper limit from 22 °C to 20 °C, which removes the hysteresis:
+Test, ktorý nemôže zlyhať, nemá žiadnu hodnotu. Najlacnejšia kontrola je **mutácia**: zámerne pokaziť kód a pozrieť sa, či si to niektorý test všimne. Zmenil som horný limit z 22 °C na 20 °C, čím sa odstráni hysteréza:
 
 ```text
 test_HeaterSwitchesOnBelowLowerLimit:PASS
@@ -294,32 +294,32 @@ test_HeaterSwitchesOffWhenSensorFails:PASS
 4 Tests 1 Failures 0 Ignored
 ```
 
-The hysteresis test caught the bug, and the message says what happened: the module called `Bsp_Set_Heater()` when it should not. It is a good habit to do it once for every new test.
+Test hysterézy chybu zachytil a správa hovorí, čo sa stalo: modul zavolal `Bsp_Set_Heater()`, keď nemal. Je dobrým zvykom urobiť to raz pre každý nový test.
 
-## What to mock and what not
+## Čo mockovať a čo nie
 
-- **Mock the boundary of the module, not its insides.** The mock replaces the interface of the lower layer (here `Bsp_Thermostat.h`). Do not mock your own helper functions in the same module: the test then describes how the code is written and breaks with every refactoring, even when the behavior is the same.
-- **Test through the public port.** The test includes `Thermostat_Port.h` and nothing else of the module. If you need the internal header to test something, it is a sign that the module has two responsibilities. Read the article about [file organization](/blog/file-organization-embedded-c) for how the public and the internal files are separated.
-- **One behavior, one test.** The name says what is expected (`HeaterSwitchesOffWhenSensorFails`), so a red test tells you what is broken before you open it.
-- **The same pattern works in every layer.** A module of the application is tested with the mock of the BSP interface, a module of the MCAL with the mock of the RAL port. In every case the layer below is replaced and the layer under test is real.
-- **Call order.** CMock can check that the calls of different mocks happen in a given order (the option `:enforce_strict_ordering`). It is useful for initialization sequences, but use it only where the order is a requirement and not an accident of the implementation.
+- **Mockujte hranicu modulu, nie jeho vnútro.** Mock nahrádza rozhranie nižšej vrstvy (tu `Bsp_Thermostat.h`). Nemockujte vlastné pomocné funkcie v tom istom module: test potom popisuje, ako je kód napísaný, a rozbije sa pri každom refaktoringu, aj keď je správanie rovnaké.
+- **Testujte cez verejný port.** Test includuje `Thermostat_Port.h` a nič iné z modulu. Ak potrebujete interný header na otestovanie niečoho, je to znamenie, že modul má dve zodpovednosti. Ako sa oddeľujú verejné a interné súbory, si prečítajte v článku o [organizácii súborov](/blog/file-organization-embedded-c).
+- **Jedno správanie, jeden test.** Názov hovorí, čo sa očakáva (`HeaterSwitchesOffWhenSensorFails`), takže červený test vám povie, čo je pokazené, skôr než ho otvoríte.
+- **Rovnaký vzor funguje v každej vrstve.** Modul aplikácie sa testuje s mockom rozhrania BSP, modul MCAL s mockom portu RAL. V každom prípade sa vrstva pod ním nahradí a testovaná vrstva je skutočná.
+- **Poradie volaní.** CMock vie skontrolovať, že volania rôznych mockov prebehnú v danom poradí (voľba `:enforce_strict_ordering`). Je užitočné pri inicializačných sekvenciách, ale použite ho len tam, kde je poradie požiadavkou a nie náhodou implementácie.
 
-## What the host test cannot tell you
+## Čo vám host test nepovie
 
-I do not want to sell the host tests as everything. They do not find:
+Nechcem predávať host testy ako všetko. Nenájdu:
 
-- the **timing**, the interrupts and the race conditions between them,
-- the **registers**: that the pin really goes high, that the peripheral clock was switched on. That is the job of the code in the RAL and the MCAL and it needs a simulator or the real hardware,
-- the **differences between the PC and the MCU**: the width of `int`, the alignment, the optimizer of the target compiler. The tests on the PC show the logic is right, not that the firmware is.
+- **časovanie**, prerušenia a race condition medzi nimi,
+- **registre**: že pin naozaj prejde do vysokej úrovne, že hodiny periférie boli zapnuté. To je úloha kódu v RAL a MCAL a vyžaduje si to simulátor alebo skutočný hardvér,
+- **rozdiely medzi PC a MCU**: šírku `int`, zarovnanie, optimalizátor cieľového kompilátora. Testy na PC ukazujú, že logika je správna, nie že je správny firmvér.
 
-That is why the host tests are the bottom of the pyramid: many, fast, and they run on every commit. Above them are a simulator (for example Renode) and the hardware tests, which are fewer and slower and cover what the PC cannot.
+Preto sú host testy základňou pyramídy: veľa, rýchle a bežia pri každom commite. Nad nimi sú simulátor (napríklad Renode) a hardvérové testy, ktorých je menej, sú pomalšie a pokrývajú to, čo PC nevie.
 
-## Summary
+## Zhrnutie
 
-1. Design the module so that everything under it is behind a header (the *seam*).
-2. Let CMock generate the mock from that header, and Unity the runner from the test file.
-3. Build one small executable for the PC: the module, the mock, the test, the framework.
-4. Write the tests as stories: the mock says what the world looks like, the module acts, the assertion checks the result.
-5. Break the code once on purpose to see that the test fails.
+1. Navrhnite modul tak, aby všetko pod ním bolo za headerom (*seam*).
+2. Nechajte CMock vygenerovať mock z toho headera a Unity runner z testovacieho súboru.
+3. Zostavte jeden malý spustiteľný súbor pre PC: modul, mock, test, framework.
+4. Píšte testy ako príbehy: mock hovorí, ako vyzerá svet, modul koná, aserica kontroluje výsledok.
+5. Raz zámerne pokazte kód, aby ste videli, že test zlyhá.
 
-The whole example is about 150 lines of code, and the next time somebody asks you whether the thermostat really switches the heater off when the sensor fails, you do not need a heater. You run `ctest`.
+Celý príklad má asi 150 riadkov kódu a keď sa vás nabudúce niekto opýta, či termostat naozaj vypne ohrievač, keď senzor zlyhá, nepotrebujete ohrievač. Spustíte `ctest`.

@@ -1,49 +1,49 @@
 ---
-title: "Finite state machines in practice: a button with debounce and long press"
+title: "Konečné automaty v praxi: tlačidlo s debounce a dlhým stlačením"
 slug: fsm-in-practice-button
 date: 2026-10-06T10:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, architecture]
 ---
 
-In the [first article about finite state machines](/blog/finite-state-machines) I gave you the template and ended with "to be continued". This is the continuation, and the best way to continue a theory is a problem. I chose the one that every embedded project has and that nobody gets right on the first try: **a push button**.
+V [prvom článku o konečných automatoch](/blog/finite-state-machines) som vám dal šablónu a skončil som slovami „pokračovanie nabudúce“. Toto je to pokračovanie a najlepší spôsob, ako pokračovať v teórii, je problém. Vybral som taký, ktorý má každý embedded projekt a ktorý nikto nespraví správne na prvý pokus: **tlačidlo**.
 
-A button looks trivial: a pin, high or low. But a mechanical contact *bounces*, so the pin does 1 0 1 1 0 1 before it settles, and the product usually wants two different things from the same button: a short press and a long press. Written with flags and counters in the main loop, it ends as a few `if`s that depend on each other in a way that nobody can explain after a month. A state machine solves it in a way that you can explain with a table.
+Tlačidlo vyzerá triviálne: pin, high alebo low. Lenže mechanický kontakt *poskakuje*, takže pin robí 1 0 1 1 0 1, kým sa ustáli, a produkt od jedného tlačidla zvyčajne chce dve rôzne veci: krátke a dlhé stlačenie. Napísané s príznakmi a počítadlami v hlavnej slučke to skončí ako zopár `if`ov, ktoré od seba závisia spôsobom, ktorý po mesiaci nikto nevie vysvetliť. Konečný automat to rieši spôsobom, ktorý viete vysvetliť tabuľkou.
 
 <!-- truncate -->
 
-## The template in one paragraph
+## Šablóna v jednom odseku
 
-Every state has four routines, and each of them has exactly one job:
+Každý stav má štyri rutiny a každá z nich má presne jednu úlohu:
 
-| Routine | Called | Job |
+| Rutina | Volá sa | Úloha |
 |---|---|---|
-| `Entry` | once, when the state is entered | prepare the state (clear the counter, create an event) |
-| `Execute` | on every run of the machine, while it is in the state | do the work of the state (count, sample) |
-| `CheckLeave` | on every run, after `Execute` | decide whether to leave and where to: **the only place where a transition is requested** |
-| `Leave` | once, when the state is left | clean up |
+| `Entry` | raz, pri vstupe do stavu | pripraviť stav (vynulovať počítadlo, vytvoriť udalosť) |
+| `Execute` | pri každom behu automatu, kým je v stave | vykonať prácu stavu (počítať, vzorkovať) |
+| `CheckLeave` | pri každom behu, po `Execute` | rozhodnúť, či stav opustiť a kam: **jediné miesto, kde sa žiada prechod** |
+| `Leave` | raz, pri opustení stavu | upratať |
 
-The core of the machine runs `Execute` and `CheckLeave` of the actual state, and when the state changed, runs `Leave` of the old one and `Entry` of the new one. The routines never call each other and the code of the state machine contains nothing but the state machine. If you want to know why the device is in a state, you read `CheckLeave` of the previous one.
+Jadro automatu spúšťa `Execute` a `CheckLeave` aktuálneho stavu a keď sa stav zmenil, spustí `Leave` starého a `Entry` nového. Rutiny sa navzájom nikdy nevolajú a kód automatu neobsahuje nič iné než automat. Ak chcete vedieť, prečo je zariadenie v nejakom stave, prečítate `CheckLeave` predchádzajúceho.
 
-## Design first: the states and the transitions
+## Najprv návrh: stavy a prechody
 
-The task runs every 10 ms and reads the raw contact. The debounce time is 50 ms and the limit of a long press is 1 second. Five states are enough:
+Úloha beží každých 10 ms a číta surový kontakt. Čas debounce je 50 ms a hranica dlhého stlačenia je 1 sekunda. Stačí päť stavov:
 
-| State | Execute | Leaves when | To |
+| Stav | Execute | Opúšťa sa, keď | Kam |
 |---|---|---|---|
-| `RELEASED` | nothing | the contact is closed | `DEBOUNCE_PRESS` |
-| `DEBOUNCE_PRESS` | counts the ticks | the contact opens again (it was a glitch) | `RELEASED` |
-| | | the contact was closed for 50 ms | `PRESSED` |
-| `PRESSED` | counts the ticks | the contact opens: **short press** event | `DEBOUNCE_RELEASE` |
-| | | the contact is closed for 1 s | `LONG_PRESS` |
-| `LONG_PRESS` | nothing, the **long press** event was created on the entry | the contact opens | `DEBOUNCE_RELEASE` |
-| `DEBOUNCE_RELEASE` | counts the ticks of an open contact, a bounce resets the count | the contact was open for 50 ms | `RELEASED` |
+| `RELEASED` | nič | kontakt je zatvorený | `DEBOUNCE_PRESS` |
+| `DEBOUNCE_PRESS` | počíta tiky | kontakt sa znova otvorí (bol to glitch) | `RELEASED` |
+| | | kontakt bol zatvorený 50 ms | `PRESSED` |
+| `PRESSED` | počíta tiky | kontakt sa otvorí: udalosť **krátke stlačenie** | `DEBOUNCE_RELEASE` |
+| | | kontakt je zatvorený 1 s | `LONG_PRESS` |
+| `LONG_PRESS` | nič, udalosť **dlhé stlačenie** sa vytvorila pri vstupe | kontakt sa otvorí | `DEBOUNCE_RELEASE` |
+| `DEBOUNCE_RELEASE` | počíta tiky otvoreného kontaktu, poskočenie vynuluje počítadlo | kontakt bol otvorený 50 ms | `RELEASED` |
 
-Writing the table is the real work. When it is complete, the code is only a typing exercise. When it is not (what happens in the `LONG_PRESS` when the contact bounces on the release?), the table shows the hole before you write a line of C.
+Písanie tabuľky je skutočná práca. Keď je kompletná, kód je len písanie na stroji. Keď nie je (čo sa stane v `LONG_PRESS`, keď kontakt poskakuje pri uvoľnení?), tabuľka ukáže dieru ešte predtým, než napíšete riadok v C.
 
-## The code
+## Kód
 
-The input comes from the BSP, so the module has no hardware dependency and can be tested on a PC (the same *seam* as in the article about [unit testing](/blog/unit-testing-unity-cmock)). The port of the module is an `Init`, a `Task` and a function that returns the event once:
+Vstup prichádza z BSP, takže modul nemá závislosť na hardvéri a dá sa testovať na PC (rovnaký *seam* ako v článku o [unit testovaní](/blog/unit-testing-unity-cmock)). Port modulu tvorí `Init`, `Task` a funkcia, ktorá vráti udalosť jednorazovo:
 
 ```c title="Button_Port.h"
 #ifndef BUTTON_BUTTON_PORT_H
@@ -63,7 +63,7 @@ button_Event_t Button_Get_Event(void);     /* returns the event once and clears 
 #endif
 ```
 
-The types follow the template. There is one change that I made on purpose: the table of the routines is **indexed by the state** and not searched, and the enumeration ends with `BUTTON_STATE_COUNT`, which has two uses.
+Typy sledujú šablónu. Je tu jedna zmena, ktorú som urobil zámerne: tabuľka rutín je **indexovaná stavom** a nehľadá sa v nej a enumerácia končí `BUTTON_STATE_COUNT`, ktorá má dve použitia.
 
 ```c title="Button.c"
 typedef enum
@@ -87,7 +87,7 @@ typedef struct
 }   button_SM_Routines_t;
 ```
 
-The first use is the table itself. With the designated initializers the position of a line does not matter, so a state cannot be linked to the wrong routines when someone adds a line in the middle (the template needs the comment "this array must have the same order as the state enum"):
+Prvým použitím je samotná tabuľka. S designated initializers nezáleží na polohe riadku, takže stav sa nedá prepojiť so zlými rutinami, keď niekto pridá riadok do stredu (šablóna potrebuje komentár „toto pole musí mať rovnaké poradie ako enum stavov“):
 
 ```c title="Button.c"
 /* The table is indexed by the state, so the order of the lines does not matter. */
@@ -106,7 +106,7 @@ static const button_SM_Routines_t stateRoutines[BUTTON_STATE_COUNT] =
 };
 ```
 
-The second use is the core of the machine, in which the same constant replaces a hard-coded "last state" in the check of the range:
+Druhým použitím je jadro automatu, v ktorom tá istá konštanta nahrádza natvrdo zapísaný „posledný stav“ pri kontrole rozsahu:
 
 ```c title="Button.c"
 static void Button_HandleStateTransition(void)
@@ -128,7 +128,7 @@ static void Button_HandleStateTransition(void)
 }
 ```
 
-Look at what the core does *not* know: the buttons, the time, the events. Now the states. Most of the routines are one-liners:
+Všimnite si, čo jadro *nevie*: tlačidlá, čas, udalosti. Teraz stavy. Väčšina rutín sú jednoriadkovky:
 
 ```c title="Button.c"
 /* ---- RELEASED ---- */
@@ -183,15 +183,15 @@ static void Button_DebounceRelease_CheckLeave(void) { if (BUTTON_DEBOUNCE_TICKS 
 static void Button_DebounceRelease_Leave(void)      { }
 ```
 
-Some details that are worth a look:
+Niekoľko detailov, ktoré stoja za pozornosť:
 
-- `Button_Task()` reads the input **once** per run and keeps it in `isContactClosed`. All routines of one run see the same value, even if the pin changes in the middle of the run.
-- The short press event is created in `Button_Pressed_CheckLeave()`, in the same place where the decision is made. The long press event is created in `Button_LongPress_Entry()`: the entry is called exactly once per transition, so the event cannot be created twice, whatever the contact does while the button is held.
-- The debounce of the release (`DEBOUNCE_RELEASE`) resets its counter whenever the contact is closed again. This is the answer to the bounce on the release: the machine waits until the contact is quiet for 50 ms.
+- `Button_Task()` číta vstup **raz** za beh a drží ho v `isContactClosed`. Všetky rutiny jedného behu vidia tú istú hodnotu, aj keď sa pin zmení uprostred behu.
+- Udalosť krátkeho stlačenia sa vytvára v `Button_Pressed_CheckLeave()`, na tom istom mieste, kde sa robí rozhodnutie. Udalosť dlhého stlačenia sa vytvára v `Button_LongPress_Entry()`: entry sa volá presne raz za prechod, takže udalosť sa nedá vytvoriť dvakrát, nech kontakt robí počas držania tlačidla čokoľvek.
+- Debounce uvoľnenia (`DEBOUNCE_RELEASE`) vynuluje svoje počítadlo vždy, keď sa kontakt opäť zatvorí. To je odpoveď na poskakovanie pri uvoľnení: automat čaká, kým je kontakt 50 ms pokojný.
 
-## The test
+## Test
 
-The test replaces `Bsp_Get_ButtonRaw()` by a function that reads a string: one character per 10 ms tick, `1` is the closed contact. The patterns are the story of the button, and the result is the string of the events, `S` for a short press and `L` for a long one:
+Test nahradí `Bsp_Get_ButtonRaw()` funkciou, ktorá číta reťazec: jeden znak na 10 ms tik, `1` je zatvorený kontakt. Vzory sú príbehom tlačidla a výsledkom je reťazec udalostí, `S` pre krátke stlačenie a `L` pre dlhé:
 
 ```c title="test_Button.c"
 /* The fake input: one character per 10 ms tick, '1' = contact closed. */
@@ -254,7 +254,7 @@ int main(void)
 }
 ```
 
-The output of the run is the real one:
+Výstup behu je skutočný:
 
 ```text
 nothing happens                    -> (no event)
@@ -267,30 +267,30 @@ a 0.99 s hold                      -> S
 all state machine tests passed
 ```
 
-The two last lines are the case that the flags always get wrong. A 1.5 second hold produces **one** long press and no short press after the release, and a hold just under the limit is a short press. Both are a consequence of the table and not of the careful programming.
+Posledné dva riadky sú prípad, ktorý príznaky vždy pokazia. Podržanie na 1,5 sekundy vyprodukuje **jedno** dlhé stlačenie a žiadne krátke stlačenie po uvoľnení a podržanie tesne pod hranicou je krátke stlačenie. Oboje je dôsledkom tabuľky a nie opatrného programovania.
 
-## What you get, and what it costs
+## Čo získate a čo to stojí
 
-**You get:**
+**Získate:**
 
-- a **readable specification**: the table above and the code are the same thing,
-- the **guarantee of the once**: `Entry` and `Leave` run once per transition, the events are not duplicated,
-- a **place for everything**: a new requirement (a double click) is a new state or a new row in the table, and not an edit of three nested conditions,
-- a **machine that can be tested on a PC** with a string as the input, as you have just seen.
+- **čitateľnú špecifikáciu**: tabuľka vyššie a kód sú tá istá vec,
+- **záruku jedného razu**: `Entry` a `Leave` bežia raz za prechod, udalosti sa neduplikujú,
+- **miesto pre všetko**: nová požiadavka (dvojklik) je nový stav alebo nový riadok v tabuľke, a nie úprava troch vnorených podmienok,
+- **automat, ktorý sa dá testovať na PC** s reťazcom ako vstupom, ako ste práve videli.
 
-**It costs:**
+**Stojí to:**
 
-- the **boilerplate**: four functions per state, most of them empty. It is a price for the uniformity, and it pays off with the 5th state. For a machine with two states, a `switch` is better,
-- the **table of the transitions has to be thought through** before you write code. That is not a cost, but it feels like one at the beginning.
+- **boilerplate**: štyri funkcie na stav, väčšina z nich prázdna. Je to cena za jednotnosť a vyplatí sa od 5. stavu. Pre automat s dvoma stavmi je lepší `switch`,
+- **tabuľku prechodov treba premyslieť** skôr, než napíšete kód. To nie je náklad, ale na začiatku sa tak cíti.
 
-## Pitfalls
+## Úskalia
 
-1. **Time belongs to the task period, not to a delay.** The machine counts the runs, so the limits (50 ms, 1 s) are the numbers of the ticks. Never call a delay in a state, it blocks all the other machines.
-2. **Sample in the task, not in the interrupt.** The interrupt of the pin would see every bounce. The task that runs every 10 ms is a low-pass filter for free.
-3. **A single event slot loses events** if the application reads it slower than the machine produces it. For a button it does not matter, for a protocol it does: use a queue.
-4. **The invalid state is a state.** The check of the range in the core sends a corrupted variable to the safe state instead of reading the table outside of its bounds (the MISRA rules about the [undefined behavior](/blog/misra-c-rules-in-practice) apply here).
-5. **A state machine with 30 states is a sign of a missing hierarchy.** Split it into several machines, where one is a *state* of another, and keep every one of them small enough to fit into a table on a single screen.
+1. **Čas patrí perióde úlohy, nie delayu.** Automat počíta behy, takže limity (50 ms, 1 s) sú počty tikov. Nikdy nevolajte delay v stave, blokuje všetky ostatné automaty.
+2. **Vzorkujte v úlohe, nie v prerušení.** Prerušenie od pinu by videlo každé poskočenie. Úloha, ktorá beží každých 10 ms, je dolnopriepustný filter zadarmo.
+3. **Jediný slot pre udalosť stráca udalosti**, ak ho aplikácia číta pomalšie, než ich automat produkuje. Pri tlačidle to nevadí, pri protokole áno: použite frontu.
+4. **Neplatný stav je stav.** Kontrola rozsahu v jadre pošle poškodenú premennú do bezpečného stavu namiesto čítania tabuľky mimo jej hraníc (platia tu pravidlá MISRA o [nedefinovanom správaní](/blog/misra-c-rules-in-practice)).
+5. **Automat s 30 stavmi je znakom chýbajúcej hierarchie.** Rozdeľte ho na niekoľko automatov, kde jeden je *stavom* druhého, a každý nechajte dosť malý, aby sa zmestil do tabuľky na jednej obrazovke.
 
-## Corrections in the template
+## Opravy v šablóne
 
-When I compared the example with the template from the first article, I found two slips in the template and I fixed them there (a later review of the template found more, see [the list of the fixes](/blog/finite-state-machines#what-was-fixed)): the initial value of the state variables was a leftover name from another project (`APPCORE_HANDLER_STATE_1` instead of `<MODULE>_STATE_1`), and the last row of the table used `State_2_Leave` instead of `State_3_Leave`. The second one is the type of a bug that this article is about: the code compiles, and the machine calls the wrong routine on the exit of the third state. The table with the designated initializers makes it a bit harder to do, and a test that goes through all the states makes it impossible.
+Keď som porovnal príklad so šablónou z prvého článku, našiel som v šablóne dve chyby a opravil som ich tam (neskoršia revízia šablóny našla ďalšie, pozri [zoznam opráv](/blog/finite-state-machines#what-was-fixed)): počiatočná hodnota stavových premenných bola pozostatkom názvu z iného projektu (`APPCORE_HANDLER_STATE_1` namiesto `<MODULE>_STATE_1`) a posledný riadok tabuľky používal `State_2_Leave` namiesto `State_3_Leave`. Tá druhá je typ chyby, o ktorej tento článok je: kód sa skompiluje a automat pri opustení tretieho stavu zavolá zlú rutinu. Tabuľka s designated initializers to trochu sťažuje a test, ktorý prejde všetky stavy, to znemožňuje.

@@ -1,58 +1,58 @@
 ---
-title: "MISRA C rules in practice: what they are, why they exist and how to live with them"
+title: "Правила MISRA C на практиці: що це таке, навіщо вони існують і як з ними жити"
 slug: misra-c-rules-in-practice
 date: 2026-10-04T10:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, misra]
 ---
 
-Say "MISRA" in a room full of embedded developers and half of them will sigh, and the other half will ask which tool you use. The reputation of the rules is mixed: for some they are the bureaucracy that eats a week before every release, for others the reason why a car does not reboot on the highway. Both groups are partly right.
+Скажіть «MISRA» у кімнаті, повній embedded-розробників, і половина зітхне, а друга половина запитає, яким інструментом ви користуєтеся. Репутація цих правил неоднозначна: для одних це бюрократія, що з'їдає тиждень перед кожним релізом, для інших — причина, чому автомобіль не перезавантажується посеред траси. Обидві групи частково мають рацію.
 
-In this article I will go through the rules that I meet most often, one by one: what the rule asks for, what you get for it, what the bad code looks like, what the good code looks like and who finds the problem for you. All examples are real C code that I compiled and ran.
+У цій статті я пройдуся по правилах, які трапляються мені найчастіше, одне за одним: чого вимагає правило, що ви за це отримуєте, як виглядає поганий код, як виглядає добрий і хто знаходить проблему за вас. Усі приклади — це справжній код на C, який я скомпілював і запустив.
 
 <!-- truncate -->
 
-> **A word about the rule texts**
+> **Кілька слів про тексти правил**
 >
-> MISRA C is a copyrighted document of the MISRA consortium. I do not copy its wording here. Every rule is described in my own words, with my own examples, and only the numbers and the categories are quoted. The numbers refer to **MISRA C:2012** (MISRA C:2023 consolidates the amendments, keeps these numbers and adds a few new guidelines). Before you build anything on this article, check the rule in your own copy of the standard, which you can get at [misra.org.uk](https://misra.org.uk). This article is independent and not endorsed by MISRA.
+> MISRA C — документ, захищений авторським правом консорціуму MISRA. Я не копіюю його формулювань. Кожне правило описано моїми словами, з моїми прикладами, а цитуються лише номери та категорії. Номери стосуються **MISRA C:2012** (MISRA C:2023 об'єднує поправки, зберігає ці номери й додає кілька нових настанов). Перш ніж будувати щось на основі цієї статті, перевірте правило у власній копії стандарту, яку можна отримати на [misra.org.uk](https://misra.org.uk). Ця стаття незалежна і не схвалена MISRA.
 
-## What MISRA C is (and what it is not)
+## Що таке MISRA C (і чим вона не є)
 
-MISRA stands for *Motor Industry Software Reliability Association*. The first guidelines for C were published in 1998 for the automotive industry, today they are used in aerospace, rail, medical devices and industrial automation, basically everywhere where a software failure hurts somebody.
+MISRA розшифровується як *Motor Industry Software Reliability Association*. Перші настанови для C було опубліковано у 1998 році для автомобільної галузі, сьогодні їх використовують в авіакосмічній галузі, на залізниці, у медичних пристроях та промисловій автоматизації — по суті, скрізь, де збій програмного забезпечення комусь шкодить.
 
-The central idea is simple. C is a language that allows a lot of things that are legal but dangerous: undefined behaviour, implementation defined behaviour, implicit conversions that change values, pointers that can point anywhere. MISRA defines a **subset of C** in which the dangerous parts are forbidden or have to be justified. It is not a different language, and a MISRA compliant program is still a normal C program that your normal compiler builds.
+Центральна ідея проста. C — мова, яка дозволяє багато речей, що є легальними, але небезпечними: undefined behaviour, implementation defined behaviour, неявні перетворення, що змінюють значення, вказівники, які можуть указувати будь-куди. MISRA визначає **підмножину C**, у якій небезпечні частини заборонені або мають бути обґрунтовані. Це не інша мова, і програма, сумісна з MISRA, залишається звичайною програмою на C, яку збирає ваш звичайний компілятор.
 
-What MISRA is **not**:
+Чим MISRA **не є**:
 
-- It is not a certification. "MISRA compliant" is a claim that you make and document, nobody stamps your code.
-- It is not a guarantee of correctness. The rules remove classes of bugs, they do not check that the thermostat controls the temperature.
-- It is not about style. Naming, indentation and file organization are not part of MISRA, that is what a [coding style](/docs/platform/embi-platform/coding-style) is for.
+- Це не сертифікація. «Сумісність з MISRA» — це твердження, яке ви робите і документуєте, ніхто не ставить печатку на ваш код.
+- Це не гарантія коректності. Правила усувають класи помилок, але не перевіряють, що термостат справді регулює температуру.
+- Це не про стиль. Іменування, відступи та організація файлів не входять до MISRA, для цього існує [coding style](/docs/platform/embi-platform/coding-style).
 
-### How to read a rule
+### Як читати правило
 
-Each guideline has three properties which you should know before you read the first one:
+Кожна настанова має три властивості, які варто знати, перш ніж читати першу з них:
 
-| Property | Values | Meaning |
+| Властивість | Значення | Що означає |
 |---|---|---|
-| **Kind** | *Directive* / *Rule* | A rule can be checked by looking at the source code alone. A directive needs more information (a design, a process), so a tool can help but cannot decide. |
-| **Category** | *Mandatory* / *Required* / *Advisory* | Mandatory: no deviation. Required: a deviation is possible with a written justification. Advisory: recommendation, you only have to record that you do not follow it. |
-| **Decidability** | *Decidable* / *Undecidable* | Whether a tool can give an exact answer. For undecidable rules even the best analyzer produces false positives or misses something. |
+| **Вид** | *Directive* / *Rule* | Правило (rule) можна перевірити, дивлячись лише на вихідний код. Директива (directive) потребує додаткової інформації (дизайну, процесу), тож інструмент може допомогти, але не може вирішити. |
+| **Категорія** | *Mandatory* / *Required* / *Advisory* | Mandatory: жодних відхилень. Required: відхилення можливе за наявності письмового обґрунтування. Advisory: рекомендація, потрібно лише зафіксувати, що ви її не дотримуєтеся. |
+| **Вирішуваність** | *Decidable* / *Undecidable* | Чи може інструмент дати точну відповідь. Для невирішуваних правил навіть найкращий аналізатор видає хибні спрацьовування або щось пропускає. |
 
-The numbering is `Dir 4.12` for directives and `Rule 9.1` for rules, where the first number is the topic (9 = initialization, 10 = types, 11 = pointers, ...).
+Нумерація має вигляд `Dir 4.12` для директив і `Rule 9.1` для правил, де перше число — це тема (9 = ініціалізація, 10 = типи, 11 = вказівники, ...).
 
-## The rules, one by one
+## Правила одне за одним
 
-I grouped them by the problem they solve, not by the number.
+Я згрупував їх за проблемою, яку вони вирішують, а не за номером.
 
-### Rules about values that are not what you think
+### Правила про значення, які не такі, як ви думаєте
 
-#### Rule 9.1 - read before write (Mandatory)
+#### Rule 9.1 - читання перед записом (Mandatory)
 
-**The rule:** do not read a variable with automatic storage before a value was assigned to it.
+**Правило:** не читайте змінну з автоматичним часом зберігання, доки їй не було присвоєно значення.
 
-**What you get:** the value of such a variable is garbage, and on a different compiler or optimization level it is *different* garbage. Bugs like "works in debug, fails in release" very often end here. Because the rule is mandatory, no deviation is possible.
+**Що ви отримуєте:** значення такої змінної — сміття, а на іншому компіляторі чи рівні оптимізації це *інше* сміття. Помилки на кшталт «у debug працює, у release ламається» дуже часто закінчуються саме тут. Оскільки правило mandatory, жодне відхилення неможливе.
 
-Bad, the variable is set only on one path:
+Погано, змінна встановлюється лише на одному шляху:
 
 ```c
 uint8_t Gain_Bad(bool isHigh)
@@ -63,7 +63,7 @@ uint8_t Gain_Bad(bool isHigh)
 }
 ```
 
-Good, every path has a defined value:
+Добре, кожен шлях має визначене значення:
 
 ```c
 uint8_t Gain_Good(bool isHigh)
@@ -74,13 +74,13 @@ uint8_t Gain_Good(bool isHigh)
 }
 ```
 
-**Who finds it:** the compiler sometimes (`-Wall -Wmaybe-uninitialized` with optimization), a static analyzer reliably. In my test build, gcc stayed silent on this function. Do not rely on it.
+**Хто це знаходить:** компілятор — іноді (`-Wall -Wmaybe-uninitialized` з оптимізацією), статичний аналізатор — надійно. У моїй тестовій збірці gcc промовчав на цій функції. Не покладайтеся на нього.
 
 #### Rules 10.1, 10.3, 10.4 - essential types (Required)
 
-**The rules:** the MISRA authors invented the *essential type model*: the type that an expression *looks like* it has (an `uint8_t` stays "unsigned 8 bit" in their view), in contrast to the type that C silently uses (`int`, because of the integer promotion). The rules forbid operations between inappropriate types, assigning a value to a narrower type and mixing categories (signed, unsigned, boolean, character, floating).
+**Правила:** автори MISRA вигадали *модель essential type*: тип, який вираз *виглядає так, ніби має* (`uint8_t` лишається в їхньому розумінні «беззнаковим 8-бітним»), на противагу типу, який C мовчки використовує (`int`, через integer promotion). Правила забороняють операції між невідповідними типами, присвоєння значення вужчому типу та змішування категорій (знакові, беззнакові, булеві, символьні, з рухомою комою).
 
-**What you get:** the integer promotions are the largest source of surprises in embedded C. All values smaller than `int` are promoted to `int` before any arithmetic, and you do not see it. Two classic results:
+**Що ви отримуєте:** integer promotion — найбільше джерело сюрпризів в embedded C. Усі значення, менші за `int`, перед будь-якою арифметикою розширюються до `int`, і ви цього не бачите. Два класичні результати:
 
 ```c
 bool Flags_Bad(uint8_t flags)
@@ -89,7 +89,7 @@ bool Flags_Bad(uint8_t flags)
 }
 ```
 
-`~flags` is not an 8 bit value, it is an `int` with the value `0xFFFFFFF0`. The comparison never succeeds, whatever the argument is. The fix is to say what you mean:
+`~flags` — це не 8-бітне значення, а `int` зі значенням `0xFFFFFFF0`. Порівняння ніколи не спрацьовує, хоч би який був аргумент. Виправлення — сказати, що саме ви маєте на увазі:
 
 ```c
 bool Flags_Good(uint8_t flags)
@@ -98,7 +98,7 @@ bool Flags_Good(uint8_t flags)
 }
 ```
 
-The second classic is the silent narrowing:
+Другий класичний випадок — мовчазне звуження:
 
 ```c
 uint8_t Add_Bad(uint8_t first, uint8_t second)
@@ -108,7 +108,7 @@ uint8_t Add_Bad(uint8_t first, uint8_t second)
 }
 ```
 
-`200 + 100` is calculated as `int` (300), and the assignment to `uint8_t` keeps only 44. No warning, no error, a wrong sum. Two correct variants: widen the result, or cast deliberately and think about the overflow.
+`200 + 100` обчислюється як `int` (300), а присвоєння в `uint8_t` залишає лише 44. Ні попередження, ні помилки, а сума неправильна. Два коректні варіанти: розширити результат або виконати свідоме приведення типу й подумати про переповнення.
 
 ```c
 uint16_t Add_Good(uint8_t first, uint8_t second)
@@ -118,24 +118,24 @@ uint16_t Add_Good(uint8_t first, uint8_t second)
 }
 ```
 
-**Who finds it:** a good static analyzer. The compiler helps only partly: `-Wsign-compare` (part of `-Wextra`) reported the first example, while gcc stayed silent on the second one.
+**Хто це знаходить:** хороший статичний аналізатор. Компілятор допомагає лише частково: `-Wsign-compare` (частина `-Wextra`) повідомив про перший приклад, а на другий gcc промовчав.
 
-#### Directive 4.6 - types with size and signedness (Advisory)
+#### Directive 4.6 - типи з розміром і знаковістю (Advisory)
 
-**The directive:** use typedefs that tell the size and the signedness (`uint8_t`, `int32_t`, or your own names) instead of `char`, `short`, `int` and `long`.
+**Директива:** використовуйте typedef, що вказують розмір і знаковість (`uint8_t`, `int32_t` або ваші власні назви), замість `char`, `short`, `int` і `long`.
 
-**What you get:** the width of `int` depends on the compiler and the MCU: 16 bit on small 8 and 16 bit controllers, 32 bit on a Cortex-M. A code that works on one target silently changes on another. With fixed width types it is visible in the source what the code does. In my projects I go one step further and make own type names for physical values (`temperature_t`, `humidity_t`), so the compiler stops me when I mix them.
+**Що ви отримуєте:** ширина `int` залежить від компілятора і MCU: 16 біт на малих 8- і 16-бітних контролерах, 32 біти на Cortex-M. Код, що працює на одній цільовій платформі, мовчки змінюється на іншій. З типами фіксованої ширини в коді видно, що він робить. У своїх проєктах я йду на крок далі й створюю власні назви типів для фізичних величин (`temperature_t`, `humidity_t`), щоб компілятор зупиняв мене, коли я їх змішую.
 
 ```c
 int counter;       /* 16 or 32 bits? the answer depends on the target */
 uint16_t counter;  /* 16 bits everywhere */
 ```
 
-#### Rule 1.3 - no undefined behaviour (Required)
+#### Rule 1.3 - жодної undefined behaviour (Required)
 
-**The rule:** the program must not contain undefined behaviour. This includes the signed overflow, shifts by too many bits, a division by zero, use of a dangling pointer and many more.
+**Правило:** програма не повинна містити undefined behaviour. Сюди входять переповнення знакових чисел, зсуви на надто велику кількість біт, ділення на нуль, використання «висячого» вказівника та багато іншого.
 
-**What you get:** with undefined behaviour the compiler may do *anything*, including the removal of your safety check, because "this case cannot happen". The most known example is the signed overflow: `first + second` on `int32_t` that does not fit is not "wrap around", it is a license for the optimizer.
+**Що ви отримуєте:** за undefined behaviour компілятор може зробити *що завгодно*, зокрема прибрати вашу захисну перевірку, бо «цього випадку не може бути». Найвідоміший приклад — переповнення знакових чисел: `first + second` для `int32_t`, що не вміщується, — це не «перехід через нуль», а ліцензія для оптимізатора.
 
 ```c
 int32_t Add_Bad2(int32_t first, int32_t second)
@@ -144,7 +144,7 @@ int32_t Add_Bad2(int32_t first, int32_t second)
 }
 ```
 
-The correct code checks the condition *before* the operation and reports the problem to the caller:
+Коректний код перевіряє умову *перед* операцією і повідомляє про проблему викликачеві:
 
 ```c
 bool Add_Safe(int32_t first, int32_t second, int32_t *result)
@@ -164,7 +164,7 @@ bool Add_Safe(int32_t first, int32_t second, int32_t *result)
 }
 ```
 
-The same applies to shifts. The mask of a bit position is only defined if the position is smaller than the width of the type:
+Те саме стосується зсувів. Маска позиції біта визначена лише тоді, коли позиція менша за ширину типу:
 
 ```c
 uint32_t Bit_Mask(uint8_t position)
@@ -173,15 +173,15 @@ uint32_t Bit_Mask(uint8_t position)
 }
 ```
 
-**Who finds it:** partly the compiler (`-fsanitize=undefined` finds it at run time during tests), partly the analyzer. The rule is undecidable in general: a tool can show you all the places which could be a problem.
+**Хто це знаходить:** частково компілятор (`-fsanitize=undefined` знаходить це під час виконання в тестах), частково аналізатор. Загалом правило невирішуване: інструмент може показати всі місця, які могли б бути проблемою.
 
-### Rules about conditions and control flow
+### Правила про умови та потік керування
 
-#### Rule 14.4 - controlling expression is a boolean (Required)
+#### Rule 14.4 - керівний вираз є булевим (Required)
 
-**The rule:** the condition of `if`, `while` and `for` has to be an expression that has the essential Boolean type, i.e. the result of a comparison or a `bool`. An integer or a pointer alone is not allowed.
+**Правило:** умова в `if`, `while` і `for` має бути виразом з essential Boolean типом, тобто результатом порівняння або `bool`. Одне ціле число чи вказівник не дозволені.
 
-**What you get:** the intention is readable. `while (count)` does not tell whether you want "while it is not zero" or "while it is not the end". The explicit form looks the same for numbers, pointers and flags. (I write the constant on the left side, `0u != count`, so a typo with a single `=` does not compile.)
+**Що ви отримуєте:** намір читається. `while (count)` не говорить, чи ви хочете «поки не нуль», чи «поки не кінець». Явна форма виглядає однаково для чисел, вказівників і прапорців. (Константу я пишу ліворуч, `0u != count`, щоб помилка з одним `=` не компілювалася.)
 
 ```c
 uint8_t Count_Bad(uint8_t count)
@@ -200,13 +200,13 @@ uint8_t Count_Good(uint8_t count)
 }
 ```
 
-**Who finds it:** every MISRA analyzer, it is a decidable rule.
+**Хто це знаходить:** кожен аналізатор MISRA, це вирішуване правило.
 
-#### Rule 12.1 - make the operator precedence explicit (Advisory)
+#### Rule 12.1 - робіть пріоритет операторів явним (Advisory)
 
-**The rule:** do not rely on the reader (and yourself) to remember the precedence table, use parentheses.
+**Правило:** не розраховуйте, що читач (і ви самі) пам'ятатимете таблицю пріоритетів, — використовуйте дужки.
 
-**What you get:** the precedence of `&` and `==` in C is the opposite of what the human brain expects. This is the bug that everyone writes at least once:
+**Що ви отримуєте:** пріоритет `&` та `==` у C протилежний тому, чого очікує людський мозок. Це помилка, яку кожен робить принаймні раз:
 
 ```c
 bool Masked_Bad(uint8_t flags)
@@ -215,7 +215,7 @@ bool Masked_Bad(uint8_t flags)
 }
 ```
 
-`MASK == MASK` is evaluated first and gives `1`, so the function tests the bit 0 and not the mask. It returns `true` for `0x01` and `false` for `0x0C`, exactly wrong. With the parentheses the bug cannot exist:
+Спочатку обчислюється `MASK == MASK` і дає `1`, тож функція перевіряє біт 0, а не маску. Вона повертає `true` для `0x01` і `false` для `0x0C` — рівно навпаки. З дужками ця помилка не може існувати:
 
 ```c
 bool Masked_Good(uint8_t flags)
@@ -224,18 +224,18 @@ bool Masked_Good(uint8_t flags)
 }
 ```
 
-**Who finds it:** the compiler (`-Wparentheses` is part of `-Wall`) and every analyzer.
+**Хто це знаходить:** компілятор (`-Wparentheses` входить до `-Wall`) та кожен аналізатор.
 
-#### Rules 15.6, 15.7, 16.3 and 16.4 - complete statements (Required)
+#### Rules 15.6, 15.7, 16.3 і 16.4 - завершені інструкції (Required)
 
-**The rules:**
+**Правила:**
 
-- 15.6: the body of `if`, `else`, `for`, `while` is always a block in braces,
-- 15.7: every `if ... else if` chain ends with an `else`,
-- 16.3: every `switch` clause ends with `break` (or another unconditional jump),
-- 16.4: every `switch` has a `default`.
+- 15.6: тіло `if`, `else`, `for`, `while` — це завжди блок у фігурних дужках,
+- 15.7: кожен ланцюжок `if ... else if` закінчується `else`,
+- 16.3: кожна гілка `switch` закінчується `break` (або іншим безумовним переходом),
+- 16.4: кожен `switch` має `default`.
 
-**What you get:** the rules force you to answer the question "what happens in all the other cases?" at the moment when you write the code and not in the field. A `switch` without a `break` is a classic bug, an `enum` that gets a new value without a `default` is the second one. The braces remove the family of bugs where a second statement is added under an `if` and looks like it is conditional:
+**Що ви отримуєте:** правила змушують відповісти на запитання «що відбувається в усіх інших випадках?» у момент написання коду, а не в польових умовах. `switch` без `break` — класична помилка, `enum`, який отримує нове значення без `default`, — друга. Фігурні дужки усувають сім'ю помилок, коли під `if` додають другу інструкцію, і вона виглядає так, ніби теж умовна:
 
 ```c
 if (isError)
@@ -243,7 +243,7 @@ if (isError)
     Buzzer_On();      /* indented like it belongs to the if - it does not */
 ```
 
-And here is the switch. The first version falls from `MODE_ON` into `MODE_ERROR` and sets the wrong value, the second one handles every case explicitly:
+А ось switch. Перша версія «провалюється» з `MODE_ON` у `MODE_ERROR` і встановлює неправильне значення, друга обробляє кожен випадок явно:
 
 ```c
 void Mode_Bad(mode_t_ mode)
@@ -277,13 +277,13 @@ void Mode_Good(mode_t_ mode)
 }
 ```
 
-In my test gcc found the missing `default` and the fall-through (`-Wswitch-default -Wimplicit-fallthrough`). The `else` rule and the braces are checked by an analyzer or by the formatter.
+У моєму тесті gcc знайшов відсутній `default` і fall-through (`-Wswitch-default -Wimplicit-fallthrough`). Правило про `else` і фігурні дужки перевіряє аналізатор або форматер.
 
-#### Rule 17.2 - no recursion (Required)
+#### Rule 17.2 - жодної рекурсії (Required)
 
-**The rule:** a function must not call itself, neither directly nor through other functions.
+**Правило:** функція не повинна викликати саму себе — ні безпосередньо, ні через інші функції.
 
-**What you get:** on a PC the stack has megabytes. On a microcontroller you have a few kilobytes, and the worst case of the recursion depth depends on the input data. If you remove recursion, the maximal stack usage can be *calculated* (the static analysis of the call tree is enough), and a stack overflow stops being a surprise.
+**Що ви отримуєте:** на ПК стек має мегабайти. На мікроконтролері у вас кілька кілобайтів, а найгірший випадок глибини рекурсії залежить від вхідних даних. Якщо прибрати рекурсію, максимальне використання стека можна *обчислити* (достатньо статичного аналізу дерева викликів), і переповнення стека перестає бути сюрпризом.
 
 ```c
 uint32_t Factorial_Recursive(uint32_t value)
@@ -292,7 +292,7 @@ uint32_t Factorial_Recursive(uint32_t value)
 }
 ```
 
-The iterative version needs a constant amount of the stack:
+Ітеративна версія потребує сталого обсягу стека:
 
 ```c
 uint32_t Factorial_Iterative(uint32_t value)
@@ -303,22 +303,22 @@ uint32_t Factorial_Iterative(uint32_t value)
 }
 ```
 
-**Who finds it:** the analyzer and the linker map (some toolchains print the call graph, `-fstack-usage` tells the size of each frame).
+**Хто це знаходить:** аналізатор і linker map (деякі toolchain друкують граф викликів, `-fstack-usage` показує розмір кожного фрейма).
 
-### Rules about memory and pointers
+### Правила про пам'ять і вказівники
 
-#### Directive 4.12 and Rule 21.3 - no dynamic memory (Required)
+#### Directive 4.12 і Rule 21.3 - жодної динамічної пам'яті (Required)
 
-**The rule:** do not use `malloc`, `calloc`, `realloc` and `free`.
+**Правило:** не використовуйте `malloc`, `calloc`, `realloc` і `free`.
 
-**What you get:**
+**Що ви отримуєте:**
 
-- the heap *fragments*. After weeks of running a request for 64 bytes can fail although 10 kB are free, only not in one piece,
-- the execution time of `malloc` is not deterministic,
-- a memory leak after weeks of running is the worst kind of the bug to find,
-- the memory consumption is known at link time, not at 3 a.m. in the field.
+- купа (heap) *фрагментується*. Після тижнів роботи запит на 64 байти може завершитися невдачею, хоча вільно 10 кБ, лише не суцільним шматком,
+- час виконання `malloc` не детермінований,
+- витік пам'яті після тижнів роботи — найгірший вид помилки для пошуку,
+- споживання пам'яті відоме під час лінкування, а не о 3-й ночі в полі.
 
-A standard alternative is a pool with a fixed size, which has the same API shape as the allocator:
+Стандартна альтернатива — пул фіксованого розміру, який має ту саму форму API, що й алокатор:
 
 ```c
 #define FRAME_POOL_SIZE 4u
@@ -343,15 +343,15 @@ frame_t *Frame_Acquire(void)
 }
 ```
 
-The function returns `NULL` if all frames are taken, so the case "no memory" is handled in the code and is testable on a PC. Exactly the same happens with `malloc`, only you cannot test it, because on your PC the allocation never fails.
+Функція повертає `NULL`, якщо всі фрейми зайняті, тож випадок «немає пам'яті» обробляється в коді й тестується на ПК. Точно те саме відбувається з `malloc`, лише ви не можете цього протестувати, бо на вашому ПК виділення пам'яті ніколи не завершується невдачею.
 
-**Who finds it:** the analyzer, or simply a linker which does not link `malloc` at all.
+**Хто це знаходить:** аналізатор або просто лінкер, який взагалі не підключає `malloc`.
 
-#### Rules 11.3 and 11.5 - careful with pointer casts (Required / Advisory)
+#### Rules 11.3 і 11.5 - обережно з приведенням вказівників (Required / Advisory)
 
-**The rules:** do not cast a pointer to an object of one type to a pointer to an object of another type (11.3), and avoid the conversion from `void *` to an object pointer (11.5).
+**Правила:** не приводьте вказівник на об'єкт одного типу до вказівника на об'єкт іншого типу (11.3) і уникайте перетворення з `void *` на вказівник на об'єкт (11.5).
 
-**What you get:** the cast of a byte buffer to `uint32_t *` is the most common way to read a field of a communication frame:
+**Що ви отримуєте:** приведення байтового буфера до `uint32_t *` — найпоширеніший спосіб прочитати поле кадру зв'язку:
 
 ```c
 uint32_t ReadU32_Bad(const uint8_t *buffer)
@@ -360,7 +360,7 @@ uint32_t ReadU32_Bad(const uint8_t *buffer)
 }
 ```
 
-It is undefined behaviour twice. The address does not need to be aligned to four bytes (a hard fault on a Cortex-M0, a slow access somewhere else), and the access through a pointer of another type violates the aliasing rules, so the optimizer may reorder or drop it. Two correct solutions: `memcpy` (the compiler turns it into a single load where the hardware allows it) or an assembly of the bytes, which also fixes the byte order and does not depend on the endianness of the CPU:
+Це undefined behaviour двічі. Адреса не зобов'язана бути вирівняною на чотири байти (hard fault на Cortex-M0, повільний доступ деінде), а доступ через вказівник іншого типу порушує правила aliasing, тож оптимізатор може переставити або викинути його. Два коректні рішення: `memcpy` (компілятор перетворює його на одне завантаження там, де це дозволяє апаратура) або складання з байтів, що заодно фіксує порядок байтів і не залежить від endianness процесора:
 
 ```c
 uint32_t ReadU32_Good(const uint8_t *buffer)
@@ -377,15 +377,15 @@ uint32_t ReadU32LittleEndian(const uint8_t *buffer)
 }
 ```
 
-The cast of `void *` is typical for a generic callback context. It is advisory because in C it is sometimes the only way. The benefit of the rule is that you will notice every such place and do the cast at a single line in the beginning of the function (as in the [article about SOLID](/blog/solid-principles-c-cpp)), and not everywhere.
+Приведення `void *` типове для загального контексту callback. Воно advisory, бо в C це іноді єдиний спосіб. Користь правила в тому, що ви помітите кожне таке місце і зробите приведення в одному рядку на початку функції (як у [статті про SOLID](/blog/solid-principles-c-cpp)), а не скрізь.
 
-**Who finds it:** every analyzer. A compiler finds the cast only on some targets and with `-Wcast-align`.
+**Хто це знаходить:** кожен аналізатор. Компілятор знаходить таке приведення лише на деяких цільових платформах і з `-Wcast-align`.
 
-#### Rule 8.13 - a pointer to const when possible (Advisory)
+#### Rule 8.13 - вказівник на const, коли це можливо (Advisory)
 
-**The rule:** if a function does not change the data behind a pointer, the pointer is declared as a pointer to `const`.
+**Правило:** якщо функція не змінює дані за вказівником, вказівник оголошується як вказівник на `const`.
 
-**What you get:** the signature is a contract. The caller sees from the prototype that the function only reads, and the compiler guards it. A `const` buffer from the flash can be passed only to a function with `const`, otherwise the code does not compile (or worse, it writes to the flash and causes a fault).
+**Що ви отримуєте:** сигнатура — це контракт. Викликач бачить із прототипу, що функція лише читає, а компілятор це контролює. `const` буфер із flash можна передати лише у функцію з `const`, інакше код не скомпілюється (або, гірше, запише у flash і спричинить fault).
 
 ```c
 uint8_t Checksum_Bad(uint8_t *data, size_t length)
@@ -404,13 +404,13 @@ uint8_t Checksum_Good(const uint8_t *data, size_t length)
 }
 ```
 
-### Rules about the code you wrote and the code that is not there
+### Правила про код, який ви написали, і код, якого немає
 
-#### Rule 17.7 and Directive 4.7 - do not ignore results (Required)
+#### Rule 17.7 і Directive 4.7 - не ігноруйте результати (Required)
 
-**The rules:** a returned value must be used (17.7), and when a function returns an error code, it has to be tested (4.7).
+**Правила:** повернене значення має бути використане (17.7), а коли функція повертає код помилки, його треба перевірити (4.7).
 
-**What you get:** an ignored return value is an ignored error. The sending of a frame to a busy UART, a refused write to the flash, a timeout of the I2C: all of them silently pass, and the application continues with a wrong assumption. If you really do not care, say it with `(void)`, so the reader (and the analyzer) knows that it was a decision and not a mistake:
+**Що ви отримуєте:** проігноровине повернене значення — це проігнорована помилка. Надсилання кадру на зайнятий UART, відмова запису у flash, тайм-аут I2C: усе це проходить мовчки, і застосунок продовжує працювати з хибним припущенням. Якщо вам справді байдуже, скажіть це за допомогою `(void)`, щоб читач (і аналізатор) знав, що це було рішення, а не помилка:
 
 ```c
 bool Send_Checked(const uint8_t *data, size_t length)
@@ -424,13 +424,13 @@ bool Send_Checked(const uint8_t *data, size_t length)
 (void)Uart_Send(message, sizeof message);   /* a log message, loss is acceptable */
 ```
 
-**Who finds it:** the analyzer, in gcc with `__attribute__((warn_unused_result))` on your own API.
+**Хто це знаходить:** аналізатор, у gcc — з `__attribute__((warn_unused_result))` на вашому власному API.
 
-#### Rules 2.1 and 2.2 - no unreachable and no dead code (Required)
+#### Rules 2.1 і 2.2 - жодного недосяжного і мертвого коду (Required)
 
-**The rules:** the project must not contain code that can never be executed (2.1), and code which is executed but has no influence on the result (2.2).
+**Правила:** проєкт не повинен містити код, який ніколи не може виконатися (2.1), і код, який виконується, але не впливає на результат (2.2).
 
-**What you get:** both kinds are a signal of a mistake: a condition which never occurs, a forgotten `return`, or a copy-paste error. Dead code also falsifies the test coverage (you cannot reach 100 % of the lines which no input executes) and it makes the reader to think about it. Both appear in this function:
+**Що ви отримуєте:** обидва види — сигнал помилки: умова, що ніколи не настає, забутий `return` або помилка копіювання й вставлення. Мертвий код також спотворює покриття тестами (не можна досягти 100 % рядків, які не виконує жоден вхід) і змушує читача про нього думати. Обидва види є в цій функції:
 
 ```c
 uint8_t Level_Get(uint8_t raw)
@@ -442,15 +442,15 @@ uint8_t Level_Get(uint8_t raw)
 }
 ```
 
-The first assignment of `level` is dead and the last line is unreachable.
+Перше присвоєння `level` мертве, а останній рядок недосяжний.
 
-**Who finds it:** the analyzer. gcc with `-Wall -Wextra` was silent in my test.
+**Хто це знаходить:** аналізатор. gcc з `-Wall -Wextra` у моєму тесті промовчав.
 
-#### Rule 20.7 and Directive 4.9 - macros with parameters (Required / Advisory)
+#### Rule 20.7 і Directive 4.9 - макроси з параметрами (Required / Advisory)
 
-**The rule:** an expanded macro parameter has to be in parentheses (20.7), and a function is preferred to a function-like macro (4.9).
+**Правило:** розгорнутий параметр макросу має бути в дужках (20.7), а функції віддається перевага перед функціоподібним макросом (4.9).
 
-**What you get:** a macro is a text replacement. If you do not protect the parameter, the precedence of the *caller* decides:
+**Що ви отримуєте:** макрос — це текстова заміна. Якщо ви не захистите параметр, пріоритет визначає *викликач*:
 
 ```c
 #define SQUARE_BAD(x)  x * x
@@ -460,29 +460,29 @@ SQUARE_BAD(2 + 1)   /* 2 + 1 * 2 + 1 = 5, not 9 */
 SQUARE_OK(2 + 1)    /* ((2 + 1) * (2 + 1)) = 9 */
 ```
 
-Even the protected macro has a problem: `SQUARE_OK(count++)` increments twice. That is why directive 4.9 recommends a function. An inline function has a type, evaluates the argument once and costs the same:
+Навіть захищений макрос має проблему: `SQUARE_OK(count++)` інкрементує двічі. Тому директива 4.9 рекомендує функцію. Inline-функція має тип, обчислює аргумент один раз і коштує стільки ж:
 
 ```c
 static inline uint32_t Square(uint32_t value) { return value * value; }
 ```
 
-## Using MISRA in a real project
+## Використання MISRA у реальному проєкті
 
-### Compiler warnings are the first step, not the last
+### Попередження компілятора — перший крок, а не останній
 
-I compiled all the examples above with `gcc -Wall -Wextra -Wconversion -Wshadow -Wswitch-default -Wimplicit-fallthrough -O2`. gcc reported five warnings, and they belong to only three of the "bad" examples: the comparison with the promoted complement, the `switch` (missing `default`, unhandled enum value and the fall-through) and the missing parentheses around `==` in a mask test. It stayed silent about the narrowing, the uninitialized variable, the dead and the unreachable code, the signed overflow, the recursion, the pointer cast and the macro.
+Я скомпілював усі наведені вище приклади з `gcc -Wall -Wextra -Wconversion -Wshadow -Wswitch-default -Wimplicit-fallthrough -O2`. gcc видав п'ять попереджень, і вони стосуються лише трьох «поганих» прикладів: порівняння з розширеним доповненням, `switch` (відсутній `default`, необроблене значення enum і fall-through) та відсутні дужки навколо `==` у перевірці маски. Він промовчав про звуження, неініціалізовану змінну, мертвий і недосяжний код, переповнення знакових чисел, рекурсію, приведення вказівника та макрос.
 
-My recommendation is a compiler with the maximum of warnings and `-Werror` in the CI as the baseline. It is free and it removes the most obvious problems, but it is not a replacement of the static analysis.
+Моя рекомендація — компілятор з максимумом попереджень і `-Werror` у CI як базовий рівень. Це безкоштовно і усуває найочевидніші проблеми, але не замінює статичний аналіз.
 
-### Choose a tool and put it in the CI
+### Оберіть інструмент і додайте його в CI
 
-To check the rules you need a static analyzer. There are commercial ones (Polyspace, Helix QAC, PC-lint Plus, Coverity, Parasoft C/C++test, LDRA, IAR C-STAT and others) and free ones which cover a part of the rules, for example [cppcheck](https://cppcheck.sourceforge.io/) with its MISRA addon. The addon needs the text of the rules as an input, and because of the copyright you have to provide it from your own copy of the standard. A tool is never perfect: for undecidable rules you will have false positives, and sometimes a violation is missed.
+Для перевірки правил потрібен статичний аналізатор. Є комерційні (Polyspace, Helix QAC, PC-lint Plus, Coverity, Parasoft C/C++test, LDRA, IAR C-STAT та інші) і безкоштовні, що покривають частину правил, наприклад [cppcheck](https://cppcheck.sourceforge.io/) з його addon для MISRA. Addon потребує на вході текст правил, і через авторське право його треба надати зі своєї копії стандарту. Інструмент ніколи не буває ідеальним: для невирішуваних правил будуть хибні спрацьовування, а іноді порушення буде пропущене.
 
-The check belongs into the CI of every commit, not into a manual run before the release. Otherwise you do the same work three times: once when you write, once when the violations are found and once when you fix them.
+Перевірка належить до CI кожного коміту, а не до ручного запуску перед релізом. Інакше ви робите ту саму роботу тричі: раз, коли пишете, раз, коли знаходять порушення, і раз, коли їх виправляєте.
 
-### Deviations are part of the system
+### Відхилення — частина системи
 
-Sometimes a rule must be broken. A hardware register access needs a cast of an integer to a pointer, a bootloader needs to write to the flash through a pointer. MISRA knows it and defines a **deviation**: a record with the rule, the place, the reason and the risk assessment. The record should be next to the code:
+Іноді правило доводиться порушувати. Доступ до апаратного регістра потребує приведення цілого числа до вказівника, bootloader має записувати у flash через вказівник. MISRA це знає і визначає **відхилення (deviation)**: запис із правилом, місцем, причиною та оцінкою ризику. Запис має лежати поруч із кодом:
 
 ```c
 /* MISRA deviation: Rule 11.4 (Advisory), see DEV-012
@@ -491,41 +491,41 @@ Sometimes a rule must be broken. A hardware register access needs a cast of an i
 #define UART_REGS ((uartRegisters_t *)0x40004400u)
 ```
 
-A deviation is not a failure. A list of well argued deviations is the sign of a project in which people think. A project with zero deviations and without hardware access is usually either lying or very small.
+Відхилення — це не поразка. Перелік добре обґрунтованих відхилень — ознака проєкту, в якому люди думають. Проєкт без жодного відхилення і без доступу до апаратури зазвичай або бреше, або дуже малий.
 
-### Legacy code and vendor code
+### Legacy-код і код вендора
 
-You will not make the 200 000 lines of an old project compliant in a week. What works:
+Ви не зробите 200 000 рядків старого проєкту сумісними за тиждень. Що працює:
 
-1. **Do not touch the old code,** enable the check for *new and changed* files. The analyzer's baseline stores the existing violations, and the CI fails only on new ones.
-2. **Start with the mandatory and required rules,** advisory ones later.
-3. **Exclude third-party code** and document it. The generated code of the vendor (HAL, LL, CMSIS) is not yours to fix. This is one more reason for the layered architecture from the article about [design and architecture](/blog/design-architecture): when the vendor code sits in the RAL, and the MCAL and everything above it is your code, the borderline of the check is a folder.
+1. **Не чіпайте старий код,** увімкніть перевірку для *нових і змінених* файлів. Baseline аналізатора зберігає наявні порушення, і CI падає лише на нових.
+2. **Починайте з правил mandatory і required,** advisory — пізніше.
+3. **Виключіть стороннім код** і задокументуйте це. Згенерований код вендора (HAL, LL, CMSIS) виправляти не вам. Це ще одна причина для шарової архітектури зі статті про [дизайн та архітектуру](/blog/design-architecture): коли код вендора лежить у RAL, а MCAL і все вище — ваш код, межа перевірки — це тека.
 
-### What does not help
+### Що не допомагає
 
-- **Chasing the number of violations.** A rule fixed in a way that satisfies the tool and breaks the sense (a cast added only to silence the warning) is worse than the original.
-- **Using MISRA as an argument.** "MISRA says so" is not a reason. If you cannot explain what the rule protects you from, you will not be able to decide when it is time for a deviation.
-- **Believing that compliance means correct.** MISRA makes some mistakes impossible. The requirements, the architecture, the review and the tests stay yours.
+- **Гонитва за кількістю порушень.** Правило, виправлене так, що воно задовольняє інструмент, але ламає зміст (приведення типу, додане лише щоб заглушити попередження), гірше за оригінал.
+- **MISRA як аргумент.** «Так каже MISRA» — це не причина. Якщо ви не можете пояснити, від чого правило вас захищає, ви не зможете вирішити, коли настав час для відхилення.
+- **Віра, що сумісність означає коректність.** MISRA робить деякі помилки неможливими. Вимоги, архітектура, рев'ю та тести залишаються на вас.
 
-## Summary
+## Підсумок
 
-| Rule | In short | Benefit |
+| Правило | Коротко | Користь |
 |---|---|---|
-| 9.1 | Initialize before reading | No random values, same behavior in debug and release |
-| 10.x | Respect the essential types | No surprises from integer promotion and narrowing |
-| Dir 4.6 | Fixed width types | The same code means the same on every target |
-| 1.3 | No undefined behavior | The optimizer cannot remove your checks |
-| 14.4 | Explicit conditions | The intention is readable |
-| 12.1 | Parentheses | No precedence bugs |
-| 15.6, 15.7, 16.3, 16.4 | Braces, `else`, `break`, `default` | Every case is handled |
-| 17.2 | No recursion | Stack usage can be calculated |
-| Dir 4.12, 21.3 | No dynamic memory | No fragmentation, leaks and surprises in timing |
-| 11.3, 11.5 | No pointer type tricks | No alignment and aliasing bugs |
-| 8.13 | `const` pointers | The signature is a contract |
-| 17.7, Dir 4.7 | Use the return values | Errors do not disappear |
-| 2.1, 2.2 | No unreachable or dead code | Mistakes are visible, coverage is meaningful |
-| 20.7, Dir 4.9 | Safe macros, prefer functions | No hidden double evaluation or precedence bugs |
+| 9.1 | Ініціалізуйте перед читанням | Жодних випадкових значень, однакова поведінка в debug і release |
+| 10.x | Дотримуйтесь essential types | Жодних сюрпризів від integer promotion і звуження |
+| Dir 4.6 | Типи фіксованої ширини | Той самий код означає те саме на кожній цільовій платформі |
+| 1.3 | Жодної undefined behavior | Оптимізатор не може прибрати ваші перевірки |
+| 14.4 | Явні умови | Намір читається |
+| 12.1 | Дужки | Жодних помилок із пріоритетом |
+| 15.6, 15.7, 16.3, 16.4 | Фігурні дужки, `else`, `break`, `default` | Обробляється кожен випадок |
+| 17.2 | Жодної рекурсії | Використання стека можна обчислити |
+| Dir 4.12, 21.3 | Жодної динамічної пам'яті | Жодної фрагментації, витоків і сюрпризів у таймінгах |
+| 11.3, 11.5 | Жодних трюків з типами вказівників | Жодних помилок вирівнювання й aliasing |
+| 8.13 | Вказівники `const` | Сигнатура — це контракт |
+| 17.7, Dir 4.7 | Використовуйте повернені значення | Помилки не зникають |
+| 2.1, 2.2 | Жодного недосяжного чи мертвого коду | Помилки видно, покриття має сенс |
+| 20.7, Dir 4.9 | Безпечні макроси, надавайте перевагу функціям | Жодного прихованого подвійного обчислення чи помилок пріоритету |
 
-If you remember one thing: **a MISRA rule is the scar of a bug that somebody already had.** You do not need to like the rules, but it is good to know what each of them is a scar of. Then you will know when to follow it, and when to write a deviation and take the responsibility.
+Якщо ви запам'ятаєте лише одне: **правило MISRA — це шрам від помилки, яку хтось уже мав.** Вам не обов'язково любити правила, але добре знати, шрамом від чого є кожне з них. Тоді ви знатимете, коли його дотримуватися, а коли написати відхилення і взяти відповідальність на себе.
 
-The rules described here are only a selection. The full set has more than 140 guidelines, and the rest (the preprocessor, the standard library, the structure of the declarations) is worth reading in your copy of the standard, once.
+Описані тут правила — лише добірка. Повний набір містить понад 140 настанов, а решту (препроцесор, стандартну бібліотеку, структуру оголошень) варто один раз прочитати у вашій копії стандарту.

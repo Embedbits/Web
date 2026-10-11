@@ -1,58 +1,58 @@
 ---
-title: "MISRA C rules in practice: what they are, why they exist and how to live with them"
+title: "Pravidla MISRA C v praxi: co jsou zač, proč existují a jak s nimi žít"
 slug: misra-c-rules-in-practice
 date: 2026-10-04T10:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, misra]
 ---
 
-Say "MISRA" in a room full of embedded developers and half of them will sigh, and the other half will ask which tool you use. The reputation of the rules is mixed: for some they are the bureaucracy that eats a week before every release, for others the reason why a car does not reboot on the highway. Both groups are partly right.
+Řekněte „MISRA“ v místnosti plné embedded vývojářů a polovina si povzdechne, zatímco druhá se zeptá, jaký nástroj používáte. Pověst těchto pravidel je rozporuplná: pro některé je to byrokracie, která před každým vydáním sežere týden, pro jiné důvod, proč se auto na dálnici nerestartuje. Obě skupiny mají zčásti pravdu.
 
-In this article I will go through the rules that I meet most often, one by one: what the rule asks for, what you get for it, what the bad code looks like, what the good code looks like and who finds the problem for you. All examples are real C code that I compiled and ran.
+V tomto článku projdu pravidla, se kterými se setkávám nejčastěji, jedno po druhém: co pravidlo požaduje, co za to získáte, jak vypadá špatný kód, jak vypadá dobrý kód a kdo za vás problém najde. Všechny příklady jsou skutečný C kód, který jsem přeložil a spustil.
 
 <!-- truncate -->
 
-> **A word about the rule texts**
+> **Poznámka k textům pravidel**
 >
-> MISRA C is a copyrighted document of the MISRA consortium. I do not copy its wording here. Every rule is described in my own words, with my own examples, and only the numbers and the categories are quoted. The numbers refer to **MISRA C:2012** (MISRA C:2023 consolidates the amendments, keeps these numbers and adds a few new guidelines). Before you build anything on this article, check the rule in your own copy of the standard, which you can get at [misra.org.uk](https://misra.org.uk). This article is independent and not endorsed by MISRA.
+> MISRA C je dokument chráněný autorskými právy konsorcia MISRA. Jeho znění zde nekopíruji. Každé pravidlo popisuji vlastními slovy a vlastními příklady, citována jsou pouze čísla a kategorie. Čísla se vztahují k normě **MISRA C:2012** (MISRA C:2023 shrnuje dodatky, ponechává tato čísla a přidává několik nových směrnic). Než na tomto článku postavíte cokoli důležitého, ověřte si pravidlo ve vlastním výtisku normy, který získáte na [misra.org.uk](https://misra.org.uk). Tento článek je nezávislý a MISRA ho neschvaluje.
 
-## What MISRA C is (and what it is not)
+## Co je MISRA C (a co není)
 
-MISRA stands for *Motor Industry Software Reliability Association*. The first guidelines for C were published in 1998 for the automotive industry, today they are used in aerospace, rail, medical devices and industrial automation, basically everywhere where a software failure hurts somebody.
+MISRA je zkratka pro *Motor Industry Software Reliability Association*. První směrnice pro jazyk C vyšly v roce 1998 pro automobilový průmysl, dnes se používají v letectví, na železnici, ve zdravotnických prostředcích a v průmyslové automatizaci, tedy v podstatě všude, kde selhání softwaru někomu ublíží.
 
-The central idea is simple. C is a language that allows a lot of things that are legal but dangerous: undefined behaviour, implementation defined behaviour, implicit conversions that change values, pointers that can point anywhere. MISRA defines a **subset of C** in which the dangerous parts are forbidden or have to be justified. It is not a different language, and a MISRA compliant program is still a normal C program that your normal compiler builds.
+Základní myšlenka je jednoduchá. C je jazyk, který dovoluje spoustu věcí, jež jsou legální, ale nebezpečné: nedefinované chování, chování definované implementací, implicitní konverze měnící hodnoty, ukazatele, které mohou mířit kamkoli. MISRA definuje **podmnožinu jazyka C**, ve které jsou nebezpečné části zakázané nebo je nutné je zdůvodnit. Není to jiný jazyk. Program vyhovující MISRA je pořád normální C program, který váš běžný překladač přeloží.
 
-What MISRA is **not**:
+Čím MISRA **není**:
 
-- It is not a certification. "MISRA compliant" is a claim that you make and document, nobody stamps your code.
-- It is not a guarantee of correctness. The rules remove classes of bugs, they do not check that the thermostat controls the temperature.
-- It is not about style. Naming, indentation and file organization are not part of MISRA, that is what a [coding style](/docs/platform/embi-platform/coding-style) is for.
+- Není to certifikace. „Vyhovuje MISRA“ je tvrzení, které sami vyslovíte a zdokumentujete, nikdo váš kód neopatří razítkem.
+- Není to záruka správnosti. Pravidla odstraňují třídy chyb, ale nekontrolují, že termostat opravdu reguluje teplotu.
+- Nejde o styl. Pojmenování, odsazení a organizace souborů nejsou součástí MISRA, od toho je [coding style](/docs/platform/embi-platform/coding-style).
 
-### How to read a rule
+### Jak číst pravidlo
 
-Each guideline has three properties which you should know before you read the first one:
+Každá směrnice má tři vlastnosti, které byste měli znát dřív, než přečtete první z nich:
 
-| Property | Values | Meaning |
+| Vlastnost | Hodnoty | Význam |
 |---|---|---|
-| **Kind** | *Directive* / *Rule* | A rule can be checked by looking at the source code alone. A directive needs more information (a design, a process), so a tool can help but cannot decide. |
-| **Category** | *Mandatory* / *Required* / *Advisory* | Mandatory: no deviation. Required: a deviation is possible with a written justification. Advisory: recommendation, you only have to record that you do not follow it. |
-| **Decidability** | *Decidable* / *Undecidable* | Whether a tool can give an exact answer. For undecidable rules even the best analyzer produces false positives or misses something. |
+| **Druh** | *Directive* / *Rule* | Pravidlo (rule) lze ověřit pouhým pohledem na zdrojový kód. Direktiva (directive) potřebuje další informace (návrh, proces), takže nástroj může pomoci, ale nemůže rozhodnout. |
+| **Kategorie** | *Mandatory* / *Required* / *Advisory* | Mandatory: žádná výjimka. Required: výjimka je možná s písemným zdůvodněním. Advisory: doporučení, stačí zaznamenat, že se jím neřídíte. |
+| **Rozhodnutelnost** | *Decidable* / *Undecidable* | Zda nástroj dokáže dát přesnou odpověď. U nerozhodnutelných pravidel i nejlepší analyzátor produkuje falešné poplachy nebo něco přehlédne. |
 
-The numbering is `Dir 4.12` for directives and `Rule 9.1` for rules, where the first number is the topic (9 = initialization, 10 = types, 11 = pointers, ...).
+Číslování je `Dir 4.12` pro direktivy a `Rule 9.1` pro pravidla, kde první číslo označuje téma (9 = inicializace, 10 = typy, 11 = ukazatele, ...).
 
-## The rules, one by one
+## Pravidla jedno po druhém
 
-I grouped them by the problem they solve, not by the number.
+Seskupil jsem je podle problému, který řeší, ne podle čísla.
 
-### Rules about values that are not what you think
+### Pravidla o hodnotách, které nejsou takové, jak si myslíte
 
-#### Rule 9.1 - read before write (Mandatory)
+#### Rule 9.1 - čti až po zápisu (Mandatory)
 
-**The rule:** do not read a variable with automatic storage before a value was assigned to it.
+**Pravidlo:** nečtěte proměnnou s automatickou dobou trvání dřív, než jí byla přiřazena hodnota.
 
-**What you get:** the value of such a variable is garbage, and on a different compiler or optimization level it is *different* garbage. Bugs like "works in debug, fails in release" very often end here. Because the rule is mandatory, no deviation is possible.
+**Co za to získáte:** hodnota takové proměnné je smetí a na jiném překladači nebo s jinou úrovní optimalizace je to *jiné* smetí. Chyby typu „v debugu funguje, v release selhává“ končí velmi často právě tady. Protože je pravidlo mandatory, výjimka není možná.
 
-Bad, the variable is set only on one path:
+Špatně, proměnná se nastaví jen na jedné cestě:
 
 ```c
 uint8_t Gain_Bad(bool isHigh)
@@ -63,7 +63,7 @@ uint8_t Gain_Bad(bool isHigh)
 }
 ```
 
-Good, every path has a defined value:
+Dobře, každá cesta má definovanou hodnotu:
 
 ```c
 uint8_t Gain_Good(bool isHigh)
@@ -74,13 +74,13 @@ uint8_t Gain_Good(bool isHigh)
 }
 ```
 
-**Who finds it:** the compiler sometimes (`-Wall -Wmaybe-uninitialized` with optimization), a static analyzer reliably. In my test build, gcc stayed silent on this function. Do not rely on it.
+**Kdo to najde:** překladač občas (`-Wall -Wmaybe-uninitialized` s optimalizací), statický analyzátor spolehlivě. V mém testovacím buildu gcc u této funkce mlčel. Nespoléhejte na něj.
 
 #### Rules 10.1, 10.3, 10.4 - essential types (Required)
 
-**The rules:** the MISRA authors invented the *essential type model*: the type that an expression *looks like* it has (an `uint8_t` stays "unsigned 8 bit" in their view), in contrast to the type that C silently uses (`int`, because of the integer promotion). The rules forbid operations between inappropriate types, assigning a value to a narrower type and mixing categories (signed, unsigned, boolean, character, floating).
+**Pravidla:** autoři MISRA vymysleli *model essential types*: typ, který výraz *vypadá, že má* (`uint8_t` zůstává z jejich pohledu „unsigned 8 bit“), na rozdíl od typu, který C potichu používá (`int`, kvůli integer promotion). Pravidla zakazují operace mezi nevhodnými typy, přiřazení hodnoty do užšího typu a míchání kategorií (signed, unsigned, boolean, character, floating).
 
-**What you get:** the integer promotions are the largest source of surprises in embedded C. All values smaller than `int` are promoted to `int` before any arithmetic, and you do not see it. Two classic results:
+**Co za to získáte:** integer promotions jsou největším zdrojem překvapení v embedded C. Všechny hodnoty menší než `int` se před jakoukoli aritmetikou povýší na `int` a vy to nevidíte. Dva klasické výsledky:
 
 ```c
 bool Flags_Bad(uint8_t flags)
@@ -89,7 +89,7 @@ bool Flags_Bad(uint8_t flags)
 }
 ```
 
-`~flags` is not an 8 bit value, it is an `int` with the value `0xFFFFFFF0`. The comparison never succeeds, whatever the argument is. The fix is to say what you mean:
+`~flags` není 8bitová hodnota, ale `int` s hodnotou `0xFFFFFFF0`. Porovnání nikdy neuspěje, ať je argument jakýkoli. Řešením je říct, co myslíte:
 
 ```c
 bool Flags_Good(uint8_t flags)
@@ -98,7 +98,7 @@ bool Flags_Good(uint8_t flags)
 }
 ```
 
-The second classic is the silent narrowing:
+Druhým klasikem je tiché zúžení:
 
 ```c
 uint8_t Add_Bad(uint8_t first, uint8_t second)
@@ -108,7 +108,7 @@ uint8_t Add_Bad(uint8_t first, uint8_t second)
 }
 ```
 
-`200 + 100` is calculated as `int` (300), and the assignment to `uint8_t` keeps only 44. No warning, no error, a wrong sum. Two correct variants: widen the result, or cast deliberately and think about the overflow.
+`200 + 100` se spočítá jako `int` (300) a přiřazení do `uint8_t` zachová jen 44. Žádné varování, žádná chyba, špatný součet. Dvě správné varianty: rozšířit výsledek, nebo přetypovat záměrně a promyslet přetečení.
 
 ```c
 uint16_t Add_Good(uint8_t first, uint8_t second)
@@ -118,24 +118,24 @@ uint16_t Add_Good(uint8_t first, uint8_t second)
 }
 ```
 
-**Who finds it:** a good static analyzer. The compiler helps only partly: `-Wsign-compare` (part of `-Wextra`) reported the first example, while gcc stayed silent on the second one.
+**Kdo to najde:** dobrý statický analyzátor. Překladač pomůže jen částečně: `-Wsign-compare` (součást `-Wextra`) ohlásil první příklad, zatímco u druhého gcc mlčel.
 
-#### Directive 4.6 - types with size and signedness (Advisory)
+#### Directive 4.6 - typy s velikostí a znaménkovostí (Advisory)
 
-**The directive:** use typedefs that tell the size and the signedness (`uint8_t`, `int32_t`, or your own names) instead of `char`, `short`, `int` and `long`.
+**Direktiva:** místo `char`, `short`, `int` a `long` používejte typedefy, které říkají velikost a znaménkovost (`uint8_t`, `int32_t` nebo vlastní názvy).
 
-**What you get:** the width of `int` depends on the compiler and the MCU: 16 bit on small 8 and 16 bit controllers, 32 bit on a Cortex-M. A code that works on one target silently changes on another. With fixed width types it is visible in the source what the code does. In my projects I go one step further and make own type names for physical values (`temperature_t`, `humidity_t`), so the compiler stops me when I mix them.
+**Co za to získáte:** šířka `int` závisí na překladači a MCU: 16 bitů na malých 8bitových a 16bitových řadičích, 32 bitů na Cortex-M. Kód, který funguje na jednom cíli, se na jiném potichu změní. S typy pevné šířky je ve zdrojovém kódu vidět, co kód dělá. Ve svých projektech jdu o krok dál a vytvářím vlastní názvy typů pro fyzikální veličiny (`temperature_t`, `humidity_t`), aby mě překladač zastavil, když je promíchám.
 
 ```c
 int counter;       /* 16 or 32 bits? the answer depends on the target */
 uint16_t counter;  /* 16 bits everywhere */
 ```
 
-#### Rule 1.3 - no undefined behaviour (Required)
+#### Rule 1.3 - žádné nedefinované chování (Required)
 
-**The rule:** the program must not contain undefined behaviour. This includes the signed overflow, shifts by too many bits, a division by zero, use of a dangling pointer and many more.
+**Pravidlo:** program nesmí obsahovat nedefinované chování. To zahrnuje přetečení se znaménkem, posuny o příliš mnoho bitů, dělení nulou, použití visícího ukazatele a mnoho dalšího.
 
-**What you get:** with undefined behaviour the compiler may do *anything*, including the removal of your safety check, because "this case cannot happen". The most known example is the signed overflow: `first + second` on `int32_t` that does not fit is not "wrap around", it is a license for the optimizer.
+**Co za to získáte:** při nedefinovaném chování může překladač udělat *cokoli*, včetně odstranění vaší bezpečnostní kontroly, protože „tento případ nemůže nastat“. Nejznámějším příkladem je přetečení se znaménkem: `first + second` na `int32_t`, které se nevejde, není „přetečení dokola“, ale licence pro optimalizátor.
 
 ```c
 int32_t Add_Bad2(int32_t first, int32_t second)
@@ -144,7 +144,7 @@ int32_t Add_Bad2(int32_t first, int32_t second)
 }
 ```
 
-The correct code checks the condition *before* the operation and reports the problem to the caller:
+Správný kód ověří podmínku *před* operací a nahlásí problém volajícímu:
 
 ```c
 bool Add_Safe(int32_t first, int32_t second, int32_t *result)
@@ -164,7 +164,7 @@ bool Add_Safe(int32_t first, int32_t second, int32_t *result)
 }
 ```
 
-The same applies to shifts. The mask of a bit position is only defined if the position is smaller than the width of the type:
+Totéž platí pro posuny. Maska bitové pozice je definovaná jen tehdy, je-li pozice menší než šířka typu:
 
 ```c
 uint32_t Bit_Mask(uint8_t position)
@@ -173,15 +173,15 @@ uint32_t Bit_Mask(uint8_t position)
 }
 ```
 
-**Who finds it:** partly the compiler (`-fsanitize=undefined` finds it at run time during tests), partly the analyzer. The rule is undecidable in general: a tool can show you all the places which could be a problem.
+**Kdo to najde:** částečně překladač (`-fsanitize=undefined` to za běhu najde během testů), částečně analyzátor. Pravidlo je obecně nerozhodnutelné: nástroj vám může ukázat všechna místa, která by mohla být problém.
 
-### Rules about conditions and control flow
+### Pravidla o podmínkách a řízení toku
 
-#### Rule 14.4 - controlling expression is a boolean (Required)
+#### Rule 14.4 - řídicí výraz je boolean (Required)
 
-**The rule:** the condition of `if`, `while` and `for` has to be an expression that has the essential Boolean type, i.e. the result of a comparison or a `bool`. An integer or a pointer alone is not allowed.
+**Pravidlo:** podmínka v `if`, `while` a `for` musí být výraz s essential typem Boolean, tedy výsledek porovnání nebo `bool`. Samotné celé číslo nebo ukazatel nejsou povoleny.
 
-**What you get:** the intention is readable. `while (count)` does not tell whether you want "while it is not zero" or "while it is not the end". The explicit form looks the same for numbers, pointers and flags. (I write the constant on the left side, `0u != count`, so a typo with a single `=` does not compile.)
+**Co za to získáte:** záměr je čitelný. `while (count)` neříká, zda chcete „dokud to není nula“, nebo „dokud to není konec“. Explicitní tvar vypadá stejně pro čísla, ukazatele i příznaky. (Konstantu píšu vlevo, `0u != count`, takže překlep s jedním `=` se nepřeloží.)
 
 ```c
 uint8_t Count_Bad(uint8_t count)
@@ -200,13 +200,13 @@ uint8_t Count_Good(uint8_t count)
 }
 ```
 
-**Who finds it:** every MISRA analyzer, it is a decidable rule.
+**Kdo to najde:** každý analyzátor MISRA, jde o rozhodnutelné pravidlo.
 
-#### Rule 12.1 - make the operator precedence explicit (Advisory)
+#### Rule 12.1 - zviditelněte prioritu operátorů (Advisory)
 
-**The rule:** do not rely on the reader (and yourself) to remember the precedence table, use parentheses.
+**Pravidlo:** nespoléhejte na to, že si čtenář (a vy sami) pamatuje tabulku priorit, používejte závorky.
 
-**What you get:** the precedence of `&` and `==` in C is the opposite of what the human brain expects. This is the bug that everyone writes at least once:
+**Co za to získáte:** priorita `&` a `==` je v C opačná, než čeká lidský mozek. Tuto chybu napsal každý aspoň jednou:
 
 ```c
 bool Masked_Bad(uint8_t flags)
@@ -215,7 +215,7 @@ bool Masked_Bad(uint8_t flags)
 }
 ```
 
-`MASK == MASK` is evaluated first and gives `1`, so the function tests the bit 0 and not the mask. It returns `true` for `0x01` and `false` for `0x0C`, exactly wrong. With the parentheses the bug cannot exist:
+`MASK == MASK` se vyhodnotí jako první a dá `1`, takže funkce testuje bit 0 a ne masku. Pro `0x01` vrátí `true` a pro `0x0C` `false`, přesně obráceně. Se závorkami chyba nemůže vzniknout:
 
 ```c
 bool Masked_Good(uint8_t flags)
@@ -224,18 +224,18 @@ bool Masked_Good(uint8_t flags)
 }
 ```
 
-**Who finds it:** the compiler (`-Wparentheses` is part of `-Wall`) and every analyzer.
+**Kdo to najde:** překladač (`-Wparentheses` je součástí `-Wall`) i každý analyzátor.
 
-#### Rules 15.6, 15.7, 16.3 and 16.4 - complete statements (Required)
+#### Rules 15.6, 15.7, 16.3 a 16.4 - úplné příkazy (Required)
 
-**The rules:**
+**Pravidla:**
 
-- 15.6: the body of `if`, `else`, `for`, `while` is always a block in braces,
-- 15.7: every `if ... else if` chain ends with an `else`,
-- 16.3: every `switch` clause ends with `break` (or another unconditional jump),
-- 16.4: every `switch` has a `default`.
+- 15.6: tělo `if`, `else`, `for`, `while` je vždy blok ve složených závorkách,
+- 15.7: každý řetězec `if ... else if` končí větví `else`,
+- 16.3: každá klauzule `switch` končí příkazem `break` (nebo jiným nepodmíněným skokem),
+- 16.4: každý `switch` má `default`.
 
-**What you get:** the rules force you to answer the question "what happens in all the other cases?" at the moment when you write the code and not in the field. A `switch` without a `break` is a classic bug, an `enum` that gets a new value without a `default` is the second one. The braces remove the family of bugs where a second statement is added under an `if` and looks like it is conditional:
+**Co za to získáte:** pravidla vás nutí odpovědět na otázku „co se stane ve všech ostatních případech?“ ve chvíli, kdy kód píšete, a ne v provozu. `switch` bez `break` je klasická chyba, `enum`, který dostane novou hodnotu, bez `default` je druhá. Složené závorky odstraňují celou rodinu chyb, kdy se pod `if` přidá druhý příkaz, který vypadá, jako by byl podmíněný:
 
 ```c
 if (isError)
@@ -243,7 +243,7 @@ if (isError)
     Buzzer_On();      /* indented like it belongs to the if - it does not */
 ```
 
-And here is the switch. The first version falls from `MODE_ON` into `MODE_ERROR` and sets the wrong value, the second one handles every case explicitly:
+A tady je switch. První verze propadne z `MODE_ON` do `MODE_ERROR` a nastaví špatnou hodnotu, druhá ošetří každý případ explicitně:
 
 ```c
 void Mode_Bad(mode_t_ mode)
@@ -277,13 +277,13 @@ void Mode_Good(mode_t_ mode)
 }
 ```
 
-In my test gcc found the missing `default` and the fall-through (`-Wswitch-default -Wimplicit-fallthrough`). The `else` rule and the braces are checked by an analyzer or by the formatter.
+V mém testu gcc našel chybějící `default` i propadnutí (`-Wswitch-default -Wimplicit-fallthrough`). Pravidlo o `else` a složené závorky kontroluje analyzátor nebo formátovač.
 
-#### Rule 17.2 - no recursion (Required)
+#### Rule 17.2 - žádná rekurze (Required)
 
-**The rule:** a function must not call itself, neither directly nor through other functions.
+**Pravidlo:** funkce nesmí volat sama sebe, ani přímo, ani přes jiné funkce.
 
-**What you get:** on a PC the stack has megabytes. On a microcontroller you have a few kilobytes, and the worst case of the recursion depth depends on the input data. If you remove recursion, the maximal stack usage can be *calculated* (the static analysis of the call tree is enough), and a stack overflow stops being a surprise.
+**Co za to získáte:** na PC má zásobník megabajty. Na mikrokontroléru máte pár kilobajtů a nejhorší případ hloubky rekurze závisí na vstupních datech. Pokud rekurzi odstraníte, maximální využití zásobníku lze *spočítat* (stačí statická analýza stromu volání) a přetečení zásobníku přestane být překvapením.
 
 ```c
 uint32_t Factorial_Recursive(uint32_t value)
@@ -292,7 +292,7 @@ uint32_t Factorial_Recursive(uint32_t value)
 }
 ```
 
-The iterative version needs a constant amount of the stack:
+Iterativní verze potřebuje konstantní množství zásobníku:
 
 ```c
 uint32_t Factorial_Iterative(uint32_t value)
@@ -303,22 +303,22 @@ uint32_t Factorial_Iterative(uint32_t value)
 }
 ```
 
-**Who finds it:** the analyzer and the linker map (some toolchains print the call graph, `-fstack-usage` tells the size of each frame).
+**Kdo to najde:** analyzátor a linker map (některé toolchainy vypisují graf volání, `-fstack-usage` říká velikost každého rámce).
 
-### Rules about memory and pointers
+### Pravidla o paměti a ukazatelích
 
-#### Directive 4.12 and Rule 21.3 - no dynamic memory (Required)
+#### Directive 4.12 a Rule 21.3 - žádná dynamická paměť (Required)
 
-**The rule:** do not use `malloc`, `calloc`, `realloc` and `free`.
+**Pravidlo:** nepoužívejte `malloc`, `calloc`, `realloc` a `free`.
 
-**What you get:**
+**Co za to získáte:**
 
-- the heap *fragments*. After weeks of running a request for 64 bytes can fail although 10 kB are free, only not in one piece,
-- the execution time of `malloc` is not deterministic,
-- a memory leak after weeks of running is the worst kind of the bug to find,
-- the memory consumption is known at link time, not at 3 a.m. in the field.
+- halda se *fragmentuje*. Po týdnech běhu může selhat požadavek na 64 bajtů, přestože je volných 10 kB, jen ne v jednom kuse,
+- doba provádění `malloc` není deterministická,
+- únik paměti po týdnech běhu je nejhorší druh chyby k hledání,
+- spotřeba paměti je známá při linkování, ne ve 3 ráno v provozu.
 
-A standard alternative is a pool with a fixed size, which has the same API shape as the allocator:
+Standardní alternativou je pool s pevnou velikostí, který má stejný tvar API jako alokátor:
 
 ```c
 #define FRAME_POOL_SIZE 4u
@@ -343,15 +343,15 @@ frame_t *Frame_Acquire(void)
 }
 ```
 
-The function returns `NULL` if all frames are taken, so the case "no memory" is handled in the code and is testable on a PC. Exactly the same happens with `malloc`, only you cannot test it, because on your PC the allocation never fails.
+Funkce vrací `NULL`, jsou-li všechny rámce obsazené, takže případ „není paměť“ je v kódu ošetřen a dá se otestovat na PC. Úplně totéž se děje s `malloc`, jen to otestovat nemůžete, protože na vašem PC alokace nikdy nselže.
 
-**Who finds it:** the analyzer, or simply a linker which does not link `malloc` at all.
+**Kdo to najde:** analyzátor, nebo prostě linker, který `malloc` vůbec nelinkuje.
 
-#### Rules 11.3 and 11.5 - careful with pointer casts (Required / Advisory)
+#### Rules 11.3 a 11.5 - opatrně s přetypováním ukazatelů (Required / Advisory)
 
-**The rules:** do not cast a pointer to an object of one type to a pointer to an object of another type (11.3), and avoid the conversion from `void *` to an object pointer (11.5).
+**Pravidla:** nepřetypovávejte ukazatel na objekt jednoho typu na ukazatel na objekt jiného typu (11.3) a vyhněte se konverzi z `void *` na ukazatel na objekt (11.5).
 
-**What you get:** the cast of a byte buffer to `uint32_t *` is the most common way to read a field of a communication frame:
+**Co za to získáte:** přetypování bajtového bufferu na `uint32_t *` je nejběžnější způsob, jak přečíst pole komunikačního rámce:
 
 ```c
 uint32_t ReadU32_Bad(const uint8_t *buffer)
@@ -360,7 +360,7 @@ uint32_t ReadU32_Bad(const uint8_t *buffer)
 }
 ```
 
-It is undefined behaviour twice. The address does not need to be aligned to four bytes (a hard fault on a Cortex-M0, a slow access somewhere else), and the access through a pointer of another type violates the aliasing rules, so the optimizer may reorder or drop it. Two correct solutions: `memcpy` (the compiler turns it into a single load where the hardware allows it) or an assembly of the bytes, which also fixes the byte order and does not depend on the endianness of the CPU:
+Je to nedefinované chování hned dvakrát. Adresa nemusí být zarovnaná na čtyři bajty (hard fault na Cortex-M0, pomalý přístup jinde) a přístup přes ukazatel jiného typu porušuje pravidla aliasingu, takže ho optimalizátor může přeuspořádat nebo zahodit. Dvě správná řešení: `memcpy` (překladač z něj udělá jediné načtení, kde to hardware dovolí) nebo složení z bajtů, které zároveň určí pořadí bajtů a nezávisí na endianitě CPU:
 
 ```c
 uint32_t ReadU32_Good(const uint8_t *buffer)
@@ -377,15 +377,15 @@ uint32_t ReadU32LittleEndian(const uint8_t *buffer)
 }
 ```
 
-The cast of `void *` is typical for a generic callback context. It is advisory because in C it is sometimes the only way. The benefit of the rule is that you will notice every such place and do the cast at a single line in the beginning of the function (as in the [article about SOLID](/blog/solid-principles-c-cpp)), and not everywhere.
+Přetypování z `void *` je typické pro generický kontext callbacku. Je advisory, protože v C je to někdy jediná cesta. Přínos pravidla je v tom, že si všimnete každého takového místa a přetypování uděláte na jediném řádku na začátku funkce (jako v [článku o SOLID](/blog/solid-principles-c-cpp)), a ne všude.
 
-**Who finds it:** every analyzer. A compiler finds the cast only on some targets and with `-Wcast-align`.
+**Kdo to najde:** každý analyzátor. Překladač přetypování najde jen na některých cílech a s `-Wcast-align`.
 
-#### Rule 8.13 - a pointer to const when possible (Advisory)
+#### Rule 8.13 - ukazatel na const, kdykoli je to možné (Advisory)
 
-**The rule:** if a function does not change the data behind a pointer, the pointer is declared as a pointer to `const`.
+**Pravidlo:** pokud funkce nemění data, na která ukazatel míří, ukazatel se deklaruje jako ukazatel na `const`.
 
-**What you get:** the signature is a contract. The caller sees from the prototype that the function only reads, and the compiler guards it. A `const` buffer from the flash can be passed only to a function with `const`, otherwise the code does not compile (or worse, it writes to the flash and causes a fault).
+**Co za to získáte:** signatura je smlouva. Volající z prototypu vidí, že funkce data jen čte, a překladač to hlídá. `const` buffer z flash lze předat jen funkci s `const`, jinak se kód nepřeloží (nebo hůř, zapíše do flash a způsobí chybu).
 
 ```c
 uint8_t Checksum_Bad(uint8_t *data, size_t length)
@@ -404,13 +404,13 @@ uint8_t Checksum_Good(const uint8_t *data, size_t length)
 }
 ```
 
-### Rules about the code you wrote and the code that is not there
+### Pravidla o kódu, který jste napsali, a kódu, který tam není
 
-#### Rule 17.7 and Directive 4.7 - do not ignore results (Required)
+#### Rule 17.7 a Directive 4.7 - neignorujte výsledky (Required)
 
-**The rules:** a returned value must be used (17.7), and when a function returns an error code, it has to be tested (4.7).
+**Pravidla:** vrácená hodnota se musí použít (17.7) a když funkce vrací chybový kód, musí se otestovat (4.7).
 
-**What you get:** an ignored return value is an ignored error. The sending of a frame to a busy UART, a refused write to the flash, a timeout of the I2C: all of them silently pass, and the application continues with a wrong assumption. If you really do not care, say it with `(void)`, so the reader (and the analyzer) knows that it was a decision and not a mistake:
+**Co za to získáte:** ignorovaná návratová hodnota je ignorovaná chyba. Odeslání rámce na zaneprázdněné UART, odmítnutý zápis do flash, timeout I2C: to všechno tiše projde a aplikace pokračuje se špatným předpokladem. Pokud vás to opravdu nezajímá, řekněte to pomocí `(void)`, aby čtenář (i analyzátor) věděl, že šlo o rozhodnutí, a ne o omyl:
 
 ```c
 bool Send_Checked(const uint8_t *data, size_t length)
@@ -424,13 +424,13 @@ bool Send_Checked(const uint8_t *data, size_t length)
 (void)Uart_Send(message, sizeof message);   /* a log message, loss is acceptable */
 ```
 
-**Who finds it:** the analyzer, in gcc with `__attribute__((warn_unused_result))` on your own API.
+**Kdo to najde:** analyzátor, v gcc pomocí `__attribute__((warn_unused_result))` na vašem vlastním API.
 
-#### Rules 2.1 and 2.2 - no unreachable and no dead code (Required)
+#### Rules 2.1 a 2.2 - žádný nedosažitelný ani mrtvý kód (Required)
 
-**The rules:** the project must not contain code that can never be executed (2.1), and code which is executed but has no influence on the result (2.2).
+**Pravidla:** projekt nesmí obsahovat kód, který nelze nikdy provést (2.1), a kód, který se provádí, ale nemá vliv na výsledek (2.2).
 
-**What you get:** both kinds are a signal of a mistake: a condition which never occurs, a forgotten `return`, or a copy-paste error. Dead code also falsifies the test coverage (you cannot reach 100 % of the lines which no input executes) and it makes the reader to think about it. Both appear in this function:
+**Co za to získáte:** oba druhy jsou signálem chyby: podmínka, která nikdy nenastane, zapomenutý `return` nebo chyba při copy-paste. Mrtvý kód také falšuje pokrytí testy (nedosáhnete 100 % řádků, které žádný vstup neprovede) a nutí čtenáře nad ním přemýšlet. Obojí se objevuje v této funkci:
 
 ```c
 uint8_t Level_Get(uint8_t raw)
@@ -442,15 +442,15 @@ uint8_t Level_Get(uint8_t raw)
 }
 ```
 
-The first assignment of `level` is dead and the last line is unreachable.
+První přiřazení do `level` je mrtvé a poslední řádek je nedosažitelný.
 
-**Who finds it:** the analyzer. gcc with `-Wall -Wextra` was silent in my test.
+**Kdo to najde:** analyzátor. gcc s `-Wall -Wextra` v mém testu mlčel.
 
-#### Rule 20.7 and Directive 4.9 - macros with parameters (Required / Advisory)
+#### Rule 20.7 a Directive 4.9 - makra s parametry (Required / Advisory)
 
-**The rule:** an expanded macro parameter has to be in parentheses (20.7), and a function is preferred to a function-like macro (4.9).
+**Pravidlo:** rozvinutý parametr makra musí být v závorkách (20.7) a funkce má přednost před makrem podobným funkci (4.9).
 
-**What you get:** a macro is a text replacement. If you do not protect the parameter, the precedence of the *caller* decides:
+**Co za to získáte:** makro je textová náhrada. Pokud parametr nechráníte, rozhoduje priorita operátorů *volajícího*:
 
 ```c
 #define SQUARE_BAD(x)  x * x
@@ -460,29 +460,29 @@ SQUARE_BAD(2 + 1)   /* 2 + 1 * 2 + 1 = 5, not 9 */
 SQUARE_OK(2 + 1)    /* ((2 + 1) * (2 + 1)) = 9 */
 ```
 
-Even the protected macro has a problem: `SQUARE_OK(count++)` increments twice. That is why directive 4.9 recommends a function. An inline function has a type, evaluates the argument once and costs the same:
+I chráněné makro má problém: `SQUARE_OK(count++)` inkrementuje dvakrát. Proto direktiva 4.9 doporučuje funkci. Inline funkce má typ, vyhodnotí argument jednou a stojí stejně:
 
 ```c
 static inline uint32_t Square(uint32_t value) { return value * value; }
 ```
 
-## Using MISRA in a real project
+## MISRA v reálném projektu
 
-### Compiler warnings are the first step, not the last
+### Varování překladače jsou první krok, ne poslední
 
-I compiled all the examples above with `gcc -Wall -Wextra -Wconversion -Wshadow -Wswitch-default -Wimplicit-fallthrough -O2`. gcc reported five warnings, and they belong to only three of the "bad" examples: the comparison with the promoted complement, the `switch` (missing `default`, unhandled enum value and the fall-through) and the missing parentheses around `==` in a mask test. It stayed silent about the narrowing, the uninitialized variable, the dead and the unreachable code, the signed overflow, the recursion, the pointer cast and the macro.
+Všechny příklady výše jsem přeložil pomocí `gcc -Wall -Wextra -Wconversion -Wshadow -Wswitch-default -Wimplicit-fallthrough -O2`. gcc ohlásil pět varování, která patří jen ke třem „špatným“ příkladům: porovnání s povýšeným doplňkem, `switch` (chybějící `default`, neošetřená hodnota enum a propadnutí) a chybějící závorky kolem `==` v testu masky. Mlčel o zúžení, neinicializované proměnné, mrtvém a nedosažitelném kódu, přetečení se znaménkem, rekurzi, přetypování ukazatele a makru.
 
-My recommendation is a compiler with the maximum of warnings and `-Werror` in the CI as the baseline. It is free and it removes the most obvious problems, but it is not a replacement of the static analysis.
+Doporučuji jako základ překladač s maximem varování a `-Werror` v CI. Je to zadarmo a odstraní to nejviditelnější problémy, ale statickou analýzu to nenahrazuje.
 
-### Choose a tool and put it in the CI
+### Vyberte nástroj a dejte ho do CI
 
-To check the rules you need a static analyzer. There are commercial ones (Polyspace, Helix QAC, PC-lint Plus, Coverity, Parasoft C/C++test, LDRA, IAR C-STAT and others) and free ones which cover a part of the rules, for example [cppcheck](https://cppcheck.sourceforge.io/) with its MISRA addon. The addon needs the text of the rules as an input, and because of the copyright you have to provide it from your own copy of the standard. A tool is never perfect: for undecidable rules you will have false positives, and sometimes a violation is missed.
+Ke kontrole pravidel potřebujete statický analyzátor. Existují komerční (Polyspace, Helix QAC, PC-lint Plus, Coverity, Parasoft C/C++test, LDRA, IAR C-STAT a další) i volné, které pokrývají část pravidel, například [cppcheck](https://cppcheck.sourceforge.io/) s doplňkem pro MISRA. Doplněk potřebuje jako vstup text pravidel a kvůli autorským právům ho musíte dodat z vlastního výtisku normy. Nástroj nikdy není dokonalý: u nerozhodnutelných pravidel budete mít falešné poplachy a občas se porušení přehlédne.
 
-The check belongs into the CI of every commit, not into a manual run before the release. Otherwise you do the same work three times: once when you write, once when the violations are found and once when you fix them.
+Kontrola patří do CI při každém commitu, ne do ručního spuštění před vydáním. Jinak děláte stejnou práci třikrát: jednou při psaní, jednou při nalezení porušení a jednou při jeho opravě.
 
-### Deviations are part of the system
+### Výjimky jsou součástí systému
 
-Sometimes a rule must be broken. A hardware register access needs a cast of an integer to a pointer, a bootloader needs to write to the flash through a pointer. MISRA knows it and defines a **deviation**: a record with the rule, the place, the reason and the risk assessment. The record should be next to the code:
+Někdy je nutné pravidlo porušit. Přístup k hardwarovému registru potřebuje přetypování celého čísla na ukazatel, bootloader potřebuje zapisovat do flash přes ukazatel. MISRA to ví a definuje **deviation** (výjimku): záznam s pravidlem, místem, důvodem a posouzením rizika. Záznam by měl být vedle kódu:
 
 ```c
 /* MISRA deviation: Rule 11.4 (Advisory), see DEV-012
@@ -491,41 +491,41 @@ Sometimes a rule must be broken. A hardware register access needs a cast of an i
 #define UART_REGS ((uartRegisters_t *)0x40004400u)
 ```
 
-A deviation is not a failure. A list of well argued deviations is the sign of a project in which people think. A project with zero deviations and without hardware access is usually either lying or very small.
+Výjimka není selhání. Seznam dobře podložených výjimek je znamením projektu, ve kterém lidé přemýšlejí. Projekt s nulou výjimek a bez přístupu k hardwaru buď lže, nebo je velmi malý.
 
-### Legacy code and vendor code
+### Legacy kód a kód od dodavatelů
 
-You will not make the 200 000 lines of an old project compliant in a week. What works:
+200 000 řádků starého projektu nezpůsobíte vyhovujícími za týden. Co funguje:
 
-1. **Do not touch the old code,** enable the check for *new and changed* files. The analyzer's baseline stores the existing violations, and the CI fails only on new ones.
-2. **Start with the mandatory and required rules,** advisory ones later.
-3. **Exclude third-party code** and document it. The generated code of the vendor (HAL, LL, CMSIS) is not yours to fix. This is one more reason for the layered architecture from the article about [design and architecture](/blog/design-architecture): when the vendor code sits in the RAL, and the MCAL and everything above it is your code, the borderline of the check is a folder.
+1. **Nesahejte na starý kód,** zapněte kontrolu pro *nové a změněné* soubory. Baseline analyzátoru uloží stávající porušení a CI selže jen na nových.
+2. **Začněte s pravidly mandatory a required,** advisory až později.
+3. **Vyjměte kód třetích stran** a zdokumentujte to. Generovaný kód dodavatele (HAL, LL, CMSIS) není vaše věc opravovat. To je další důvod pro vrstvenou architekturu z článku o [návrhu a architektuře](/blog/design-architecture): když kód dodavatele sedí v RAL a MCAL a vše nad ním je váš kód, hranicí kontroly je složka.
 
-### What does not help
+### Co nepomáhá
 
-- **Chasing the number of violations.** A rule fixed in a way that satisfies the tool and breaks the sense (a cast added only to silence the warning) is worse than the original.
-- **Using MISRA as an argument.** "MISRA says so" is not a reason. If you cannot explain what the rule protects you from, you will not be able to decide when it is time for a deviation.
-- **Believing that compliance means correct.** MISRA makes some mistakes impossible. The requirements, the architecture, the review and the tests stay yours.
+- **Hon na počet porušení.** Pravidlo opravené způsobem, který uspokojí nástroj a zničí smysl (přetypování přidané jen pro umlčení varování), je horší než původní stav.
+- **Používání MISRA jako argumentu.** „MISRA to říká“ není důvod. Pokud neumíte vysvětlit, před čím vás pravidlo chrání, nebudete umět rozhodnout, kdy je čas na výjimku.
+- **Víra, že vyhovění znamená správnost.** MISRA některé chyby znemožní. Požadavky, architektura, review a testy zůstávají na vás.
 
-## Summary
+## Shrnutí
 
-| Rule | In short | Benefit |
+| Pravidlo | Stručně | Přínos |
 |---|---|---|
-| 9.1 | Initialize before reading | No random values, same behavior in debug and release |
-| 10.x | Respect the essential types | No surprises from integer promotion and narrowing |
-| Dir 4.6 | Fixed width types | The same code means the same on every target |
-| 1.3 | No undefined behavior | The optimizer cannot remove your checks |
-| 14.4 | Explicit conditions | The intention is readable |
-| 12.1 | Parentheses | No precedence bugs |
-| 15.6, 15.7, 16.3, 16.4 | Braces, `else`, `break`, `default` | Every case is handled |
-| 17.2 | No recursion | Stack usage can be calculated |
-| Dir 4.12, 21.3 | No dynamic memory | No fragmentation, leaks and surprises in timing |
-| 11.3, 11.5 | No pointer type tricks | No alignment and aliasing bugs |
-| 8.13 | `const` pointers | The signature is a contract |
-| 17.7, Dir 4.7 | Use the return values | Errors do not disappear |
-| 2.1, 2.2 | No unreachable or dead code | Mistakes are visible, coverage is meaningful |
-| 20.7, Dir 4.9 | Safe macros, prefer functions | No hidden double evaluation or precedence bugs |
+| 9.1 | Inicializovat před čtením | Žádné náhodné hodnoty, stejné chování v debugu i release |
+| 10.x | Respektovat essential types | Žádná překvapení z integer promotion a zúžení |
+| Dir 4.6 | Typy pevné šířky | Stejný kód znamená totéž na každém cíli |
+| 1.3 | Žádné nedefinované chování | Optimalizátor nemůže odstranit vaše kontroly |
+| 14.4 | Explicitní podmínky | Záměr je čitelný |
+| 12.1 | Závorky | Žádné chyby priority |
+| 15.6, 15.7, 16.3, 16.4 | Složené závorky, `else`, `break`, `default` | Každý případ je ošetřen |
+| 17.2 | Žádná rekurze | Využití zásobníku lze spočítat |
+| Dir 4.12, 21.3 | Žádná dynamická paměť | Žádná fragmentace, úniky ani překvapení v časování |
+| 11.3, 11.5 | Žádné triky s typy ukazatelů | Žádné chyby zarovnání a aliasingu |
+| 8.13 | Ukazatele na `const` | Signatura je smlouva |
+| 17.7, Dir 4.7 | Používat návratové hodnoty | Chyby nemizí |
+| 2.1, 2.2 | Žádný nedosažitelný ani mrtvý kód | Chyby jsou vidět, pokrytí má smysl |
+| 20.7, Dir 4.9 | Bezpečná makra, preferovat funkce | Žádné skryté dvojí vyhodnocení ani chyby priority |
 
-If you remember one thing: **a MISRA rule is the scar of a bug that somebody already had.** You do not need to like the rules, but it is good to know what each of them is a scar of. Then you will know when to follow it, and when to write a deviation and take the responsibility.
+Pokud si máte zapamatovat jedinou věc: **pravidlo MISRA je jizva po chybě, kterou už někdo měl.** Nemusíte ta pravidla mít rádi, ale je dobré vědět, po jaké chybě je každé z nich jizvou. Pak budete vědět, kdy se jím řídit a kdy napsat výjimku a převzít odpovědnost.
 
-The rules described here are only a selection. The full set has more than 140 guidelines, and the rest (the preprocessor, the standard library, the structure of the declarations) is worth reading in your copy of the standard, once.
+Zde popsaná pravidla jsou jen výběr. Celá sada má více než 140 směrnic a zbytek (preprocesor, standardní knihovna, struktura deklarací) stojí za to si jednou přečíst ve vlastním výtisku normy.

@@ -1,29 +1,29 @@
 ---
-title: "Debugging a HardFault on a Cortex-M: from a mystery to a line of code"
+title: "Ladění HardFaultu na Cortex-M: od záhady k řádku kódu"
 slug: debugging-hardfault-cortex-m
 date: 2026-10-07T20:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, stm32]
 ---
 
-Every embedded developer knows the moment: the firmware has been running, and then it does not. The debugger shows that the program sits in an infinite loop with a name like `HardFault_Handler` or `Default_Handler`, and the call stack is a few meaningless frames. That loop is the **default** handler of the startup code, and it says exactly nothing about what happened. The fault has a cause, and the processor has already written it down: in eight registers on the stack and in four status registers. It is only necessary to read them.
+Každý embedded vývojář zná ten okamžik: firmware běžel, a pak najednou neběží. Debugger ukazuje, že program sedí v nekonečné smyčce se jménem jako `HardFault_Handler` nebo `Default_Handler`, a call stack tvoří pár nic neříkajících rámců. Ta smyčka je **výchozí** handler ze startup kódu a o tom, co se stalo, neříká absolutně nic. Chyba má ale příčinu a procesor si ji už zapsal: v osmi registrech na zásobníku a ve čtyřech stavových registrech. Stačí je jen přečíst.
 
-This article shows how to turn the loop into a line of source code, in two real examples that I ran in QEMU (a model of an STM32F4 board) and examined with GDB: a call of a `NULL` function pointer and a write to an address where nothing is. All outputs are real.
+Tento článek ukazuje, jak z té smyčky získat řádek zdrojového kódu, na dvou skutečných příkladech, které jsem spustil v QEMU (model desky se STM32F4) a prozkoumal pomocí GDB: volání ukazatele na funkci s hodnotou `NULL` a zápis na adresu, kde nic není. Všechny výstupy jsou skutečné.
 
 <!-- truncate -->
 
-## What the core does when a fault happens
+## Co jádro udělá, když nastane chyba
 
-On a Cortex-M the processor does not crash silently. When it cannot continue (an invalid instruction, a bus error, an access that is not allowed), it takes an **exception** and does two things that are important for the debugging:
+Cortex-M nepadá tiše. Když procesor nemůže pokračovat (neplatná instrukce, chyba sběrnice, nepovolený přístup), vyvolá **výjimku** a udělá dvě věci důležité pro ladění:
 
-1. It **pushes eight registers on the stack**: `R0`, `R1`, `R2`, `R3`, `R12`, `LR`, `PC` and `xPSR`. The saved `PC` is the instruction that caused the fault, and the saved `LR` tells who called the faulting function.
-2. It sets **bits in the fault status registers** that say what kind of a fault it was: `CFSR` (the configurable fault status, which is made of three parts for the memory, the bus and the usage faults), `HFSR` (the hard fault status) and the address registers `MMFAR` and `BFAR` with the address that was accessed.
+1. **Uloží osm registrů na zásobník**: `R0`, `R1`, `R2`, `R3`, `R12`, `LR`, `PC` a `xPSR`. Uložený `PC` je instrukce, která chybu způsobila, a uložený `LR` říká, kdo chybující funkci zavolal.
+2. Nastaví **bity ve stavových registrech chyb**, které říkají, o jaký druh chyby šlo: `CFSR` (configurable fault status, složený ze tří částí pro memory, bus a usage fault), `HFSR` (hard fault status) a adresní registry `MMFAR` a `BFAR` s adresou, ke které se přistupovalo.
 
-The memory, bus and usage faults have their own handlers, but they are **disabled** after the reset, so every fault is *escalated* to the HardFault. That is the reason why the one handler sees everything, and the bit `FORCED` in `HFSR` says that this has happened.
+Memory, bus a usage fault mají své vlastní handlery, ale po resetu jsou **zakázané**, takže každá chyba je *eskalována* na HardFault. Proto jediný handler vidí všechno a bit `FORCED` v `HFSR` říká, že k tomu došlo.
 
-## A handler that reads the registers
+## Handler, který čte registry
 
-The only difficulty is to get to the stack where the registers are. There are two stack pointers on the core (`MSP` for the exceptions and the main code, `PSP` for the tasks of an operating system), and the bit 2 of the value in `LR` at the entry of the exception tells which of them was used. This has to be done *before* the compiler uses the stack for its own purposes, so the handler is a short function in assembler (`naked`: no prologue), which passes the pointer to a function in C:
+Jediná potíž je dostat se na zásobník, kde registry leží. Jádro má dva ukazatele zásobníku (`MSP` pro výjimky a hlavní kód, `PSP` pro úlohy operačního systému) a bit 2 hodnoty v `LR` při vstupu do výjimky říká, který z nich byl použit. To je nutné udělat *dříve*, než překladač použije zásobník pro své účely, takže handler je krátká funkce v assembleru (`naked`: bez prologu), která předá ukazatel funkci v C:
 
 ```c title="fault.c (the report)"
 /* ---- the fault report ---- */
@@ -79,11 +79,11 @@ __attribute__((naked)) void HardFault_Handler(void)
 }
 ```
 
-Look at the three parts. The structure `stackFrame_t` is the layout of the eight registers in the order that the core pushes them. The function `HardFault_Report()` copies them (together with the status registers) into the global variable `faultInfo`, prints a short report, and then **stays in a loop on purpose**, so a debugger can connect and look at the variable. The assembler stub selects the right stack and jumps to it. In a product, the report would be written to a memory that survives the reset, and the firmware would reset itself, but the principle is the same.
+Podívejte se na tři části. Struktura `stackFrame_t` je rozložení osmi registrů v pořadí, v jakém je jádro ukládá. Funkce `HardFault_Report()` (spolu se stavovými registry) zkopíruje do globální proměnné `faultInfo`, vypíše krátkou zprávu a pak **záměrně zůstane ve smyčce**, aby se mohl připojit debugger a proměnnou si prohlédnout. Assemblerová vložka vybere správný zásobník a skočí do ní. V produktu by se zpráva zapsala do paměti, která přežije reset, a firmware by se sám resetoval, ale princip je stejný.
 
-## Example 1: the call of a `NULL` pointer
+## Příklad 1: volání ukazatele `NULL`
 
-This is the application with the bug. A callback is registered later, but the code that calls it runs earlier:
+Toto je aplikace s chybou. Callback se zaregistruje později, ale kód, který ho volá, běží dříve:
 
 ```c title="fault.c (the application)"
 /* ---- the application with a bug ---- */
@@ -105,7 +105,7 @@ int main(void)
 }
 ```
 
-The program prints `start`, and then the report:
+Program vypíše `start` a potom zprávu:
 
 ```text
 start
@@ -117,14 +117,14 @@ CFSR  0x00020000
 HFSR  0x40000000
 ```
 
-Now the reading of it, value by value:
+Teď její čtení, hodnotu po hodnotě:
 
-- **`PC = 0x00000000`**: the processor tried to execute an instruction at the address zero. Almost always, this means a jump through a `NULL` function pointer, or a return to a corrupted address.
-- **`CFSR = 0x00020000`**: the bit 17 is `INVSTATE`, "invalid state". The processor attempted to execute in the ARM state, which a Cortex-M does not have. The reason is in the **`xPSR`**: its bit 24 is the `T` bit (Thumb), and here it is zero (`0x60000000`). The address of a Thumb function has the lowest bit set, and `NULL` has not, so the jump through the pointer cleared the `T` bit. That the `T` bit is zero is the typical fingerprint of a jump to `NULL`.
-- **`HFSR = 0x40000000`**: the bit 30 is `FORCED`, the fault was escalated to the HardFault from the usage fault, which is not enabled.
-- **`LR = 0x08000115`**: the return address, with the lowest bit set (Thumb). It is the address of the **caller**, `0x08000114`, and that is where the bug is.
+- **`PC = 0x00000000`**: procesor se pokusil provést instrukci na adrese nula. Téměř vždy to znamená skok přes ukazatel na funkci s hodnotou `NULL` nebo návrat na poškozenou adresu.
+- **`CFSR = 0x00020000`**: bit 17 je `INVSTATE`, „invalid state". Procesor se pokusil vykonávat kód ve stavu ARM, který Cortex-M nemá. Důvod je v **`xPSR`**: jeho bit 24 je bit `T` (Thumb) a tady je nulový (`0x60000000`). Adresa funkce v Thumbu má nejnižší bit nastavený, `NULL` ho nemá, takže skok přes ukazatel bit `T` vynuloval. Nulový bit `T` je typický otisk prstu skoku na `NULL`.
+- **`HFSR = 0x40000000`**: bit 30 je `FORCED`, chyba byla eskalována na HardFault z usage fault, který není povolen.
+- **`LR = 0x08000115`**: návratová adresa s nastaveným nejnižším bitem (Thumb). Je to adresa **volajícího**, `0x08000114`, a právě tam je chyba.
 
-With the debugger, the last step takes seconds. The QEMU waits for GDB (`-S -gdb tcp::1234`), and the session:
+S debuggerem trvá poslední krok pár sekund. QEMU čeká na GDB (`-S -gdb tcp::1234`) a session vypadá takto:
 
 ```text
 (gdb) break fault.c:64
@@ -149,7 +149,7 @@ Button_Pressed + 7 in section .text
    0x8000112 <Button_Pressed+4>:	blx	r3
 ```
 
-`info symbol` gives the function, `list *` gives the line (the one *after* the call, because that is the return address), and the disassembly shows the instruction pair that is the bug itself: the load of the zero into `r3` and the `blx r3`, a call through a register that holds `NULL`. Note `r3 = 0x0` in the stacked registers. Without the debugger, the same answer is in one command of the toolchain, which only needs the address from the report and the file with the debug information (`-g`):
+`info symbol` vrátí funkci, `list *` řádek (ten *za* voláním, protože to je návratová adresa) a disassembly ukáže dvojici instrukcí, která je samotnou chybou: načtení nuly do `r3` a `blx r3`, volání přes registr obsahující `NULL`. Všimněte si `r3 = 0x0` v uložených registrech. Bez debuggeru je tatáž odpověď jedním příkazem toolchainu, který potřebuje jen adresu ze zprávy a soubor s ladicími informacemi (`-g`):
 
 ```text
 $ arm-none-eabi-addr2line -e fault.elf -f 0x08000114
@@ -157,9 +157,9 @@ Button_Pressed
 fault.c:87
 ```
 
-## Example 2: a write to an address where nothing is
+## Příklad 2: zápis na adresu, kde nic není
 
-I changed one line of the application: instead of the callback, the function writes to the address `0xA0000000`, where nothing is mapped in the model of the chip. The report:
+Změnil jsem jeden řádek aplikace: místo callbacku funkce zapisuje na adresu `0xA0000000`, kde v modelu čipu není namapováno nic. Zpráva:
 
 ```text
 *** HardFault ***
@@ -170,7 +170,7 @@ CFSR  0x00008200
 HFSR  0x40000000
 ```
 
-This time the `PC` is a **valid address in the flash**, the `T` bit is set (`0x21000000`) and `CFSR` is different: `0x8200` are two bits, 9 (`PRECISERR`, a precise data bus error) and 15 (`BFARVALID`, the register `BFAR` holds the address). In GDB:
+Tentokrát je `PC` **platná adresa ve flash**, bit `T` je nastaven (`0x21000000`) a `CFSR` je jiný: `0x8200` jsou dva bity, 9 (`PRECISERR`, přesná chyba datové sběrnice) a 15 (`BFARVALID`, registr `BFAR` obsahuje adresu). V GDB:
 
 ```text
 (gdb) print/x faultInfo.cfsr
@@ -181,58 +181,58 @@ $2 = 0xa0000000
 main + 12 in section .text
 ```
 
-`BFAR` is the address that the program tried to write, `PC` is the instruction that tried it. Together they say "this instruction wrote to this address", which is the complete description of the problem. If the address is small (`0x00000008`), it is a `NULL` pointer to a structure and you are accessing a member. If it looks like data (`0x20000000` and a bit more), it is a stack or a buffer that you have overrun.
+`BFAR` je adresa, na kterou se program pokusil zapisovat, `PC` je instrukce, která se o to pokusila. Dohromady říkají „tato instrukce zapsala na tuto adresu", což je úplný popis problému. Pokud je adresa malá (`0x00000008`), jde o ukazatel `NULL` na strukturu a vy přistupujete k jejímu členu. Pokud vypadá jako data (`0x20000000` a kousek víc), jde o zásobník nebo buffer, který jste přetekli.
 
-## The bits of the CFSR that you will meet
+## Bity CFSR, se kterými se setkáte
 
-The register is a combination of three registers (each of them has its own byte or two bytes). These are the ones that you will see most often (the two that I observed in the examples are marked):
+Registr je kombinací tří registrů (každý má svůj bajt nebo dva bajty). Tohle jsou ty, které uvidíte nejčastěji (dva, které jsem pozoroval v příkladech, jsou zvýrazněny):
 
-| Bit | Name | Meaning |
+| Bit | Název | Význam |
 |---|---|---|
-| 0 | `IACCVIOL` | the instruction fetch from a region that is not allowed (MPU) |
-| 1 | `DACCVIOL` | the data access to a region that is not allowed (MPU) |
-| 7 | `MMARVALID` | the register `MMFAR` holds the address |
-| 8 | `IBUSERR` | the bus error on an instruction fetch |
-| **9** | **`PRECISERR`** | **the precise bus error on a data access: `PC` is the instruction that did it** |
-| 10 | `IMPRECISERR` | the imprecise bus error: the instruction has already gone, `PC` is not reliable |
-| 11, 12 | `UNSTKERR`, `STKERR` | the bus error while the registers were popped or pushed (often a damaged stack) |
-| **15** | **`BFARVALID`** | **the register `BFAR` holds the address** |
-| 16 | `UNDEFINSTR` | an undefined instruction (executing data, a corrupted code) |
-| **17** | **`INVSTATE`** | **an attempt to execute in the ARM state: a jump to an address with the bit 0 clear** |
-| 18 | `INVPC` | an invalid `EXC_RETURN` (a damaged stack of an exception) |
-| 19 | `NOCP` | an access to a coprocessor that is not enabled (typically the FPU that was not switched on) |
-| 24 | `UNALIGNED` | an unaligned access, when the trap is enabled |
-| 25 | `DIVBYZERO` | a division by zero, when the trap is enabled |
+| 0 | `IACCVIOL` | načtení instrukce z nepovolené oblasti (MPU) |
+| 1 | `DACCVIOL` | datový přístup do nepovolené oblasti (MPU) |
+| 7 | `MMARVALID` | registr `MMFAR` obsahuje adresu |
+| 8 | `IBUSERR` | chyba sběrnice při načítání instrukce |
+| **9** | **`PRECISERR`** | **přesná chyba sběrnice při datovém přístupu: `PC` je instrukce, která ji způsobila** |
+| 10 | `IMPRECISERR` | nepřesná chyba sběrnice: instrukce už je pryč, `PC` není spolehlivé |
+| 11, 12 | `UNSTKERR`, `STKERR` | chyba sběrnice při vybírání nebo ukládání registrů (často poškozený zásobník) |
+| **15** | **`BFARVALID`** | **registr `BFAR` obsahuje adresu** |
+| 16 | `UNDEFINSTR` | nedefinovaná instrukce (provádění dat, poškozený kód) |
+| **17** | **`INVSTATE`** | **pokus o provádění ve stavu ARM: skok na adresu s vynulovaným bitem 0** |
+| 18 | `INVPC` | neplatná hodnota `EXC_RETURN` (poškozený zásobník výjimky) |
+| 19 | `NOCP` | přístup k nepovolenému koprocesoru (typicky FPU, které nebylo zapnuto) |
+| 24 | `UNALIGNED` | nezarovnaný přístup, je-li povolena past |
+| 25 | `DIVBYZERO` | dělení nulou, je-li povolena past |
 
-## What usually stands behind a HardFault
+## Co obvykle stojí za HardFaultem
 
-| What you see | What it usually is |
+| Co vidíte | Co to obvykle je |
 |---|---|
-| `PC = 0`, `INVSTATE` | a call through a `NULL` function pointer, or a return to a corrupted address |
-| `PRECISERR` and a small `BFAR` | a `NULL` pointer to a structure |
-| `PRECISERR` and `BFAR` in a peripheral address range | an access to a peripheral that is not available, for example one whose clock has not been switched on (on some families such an access is a bus error, on others it is silently ignored) |
-| `STKERR` / `UNSTKERR`, or a `PC` that makes no sense | a stack overflow or a buffer overflow that damaged the return address |
-| `NOCP` at the first floating point instruction | the FPU has not been enabled in the startup code |
-| `IMPRECISERR` | a write that went through a write buffer: the report arrives later than the instruction. For the debugging, the buffering can be switched off (the bit `DISABLEDEFWRITEBUF` in `ACTLR`), so the fault becomes precise |
+| `PC = 0`, `INVSTATE` | volání přes ukazatel na funkci `NULL` nebo návrat na poškozenou adresu |
+| `PRECISERR` a malé `BFAR` | ukazatel `NULL` na strukturu |
+| `PRECISERR` a `BFAR` v rozsahu adres periferií | přístup k nedostupné periferii, například takové, jejíž hodiny nebyly zapnuty (u některých rodin je takový přístup chybou sběrnice, u jiných se tiše ignoruje) |
+| `STKERR` / `UNSTKERR` nebo `PC`, které nedává smysl | přetečení zásobníku nebo bufferu, které poškodilo návratovou adresu |
+| `NOCP` u první instrukce s plovoucí řádovou čárkou | FPU nebylo povoleno ve startup kódu |
+| `IMPRECISERR` | zápis, který prošel přes write buffer: zpráva přijde později než instrukce. Pro ladění lze buffering vypnout (bit `DISABLEDEFWRITEBUF` v `ACTLR`), takže chyba bude přesná |
 
-I demonstrated the first line of the table and the principle of the second (a bus error with the address in `BFAR`). The remaining lines are a summary of the usual causes, they follow from the meaning of the bits in the reference manual of the core.
+První řádek tabulky a princip druhého (chyba sběrnice s adresou v `BFAR`) jsem předvedl. Zbývající řádky jsou souhrnem obvyklých příčin, vyplývají z významu bitů v referenční příručce jádra.
 
-## Practice
+## Praxe
 
-1. **Never leave the default handler as an empty loop.** The handler above is about thirty lines, and it turns the fault into a report with a place in the code. Put it into the startup code of the project once.
-2. **Keep the debug information** in the file that you archive with the release (`-g`, and the `.elf`), so the address of a report from the field can be turned into a line, even if the firmware is delivered stripped. That is also one more reason for the [reproducible build](/blog/reproducible-builds-embedded): the address means something only for the exact binary that produced it.
-3. **Enable the finer faults** (the bits in `SHCSR`) when you want the `UsageFault`, `BusFault` and `MemManage` handlers separately. The report is richer, because the status registers are not shared.
-4. **Store the report in a memory that survives a reset** (a section that the startup code does not clear, see the article about [what happens before `main()`](/blog/before-main-startup-linker)), reset, and send it after the restart. The report of a device in the field is worth more than a hundred guesses.
-5. **Prevent what you can.** The `NULL` call in the example is a defect that the [rules of MISRA](/blog/misra-c-rules-in-practice) and a unit test of the module (the pointer must be set before the first call) would catch, and a stack overflow is the thing for which the stack usage has to be known (the rule against the recursion).
+1. **Nikdy nenechávejte výchozí handler jako prázdnou smyčku.** Handler výše má asi třicet řádků a promění chybu ve zprávu s místem v kódu. Vložte ho jednou do startup kódu projektu.
+2. **Uchovávejte ladicí informace** v souboru, který archivujete s vydáním (`-g` a `.elf`), aby šla adresa ze zprávy z provozu převést na řádek, i když je firmware dodán bez symbolů. To je také další důvod pro [reprodukovatelný build](/blog/reproducible-builds-embedded): adresa něco znamená jen pro přesně ten binární soubor, který ji vytvořil.
+3. **Povolte jemnější chyby** (bity v `SHCSR`), když chcete mít handlery `UsageFault`, `BusFault` a `MemManage` zvlášť. Zpráva je pak bohatší, protože stavové registry nejsou sdílené.
+4. **Ukládejte zprávu do paměti, která přežije reset** (sekce, kterou startup kód nemaže, viz článek o tom, [co se děje před `main()`](/blog/before-main-startup-linker)), proveďte reset a po restartu ji odešlete. Zpráva ze zařízení v provozu má větší cenu než sto dohadů.
+5. **Předcházejte tomu, co jde.** Volání `NULL` v příkladu je vada, kterou by zachytila [pravidla MISRA](/blog/misra-c-rules-in-practice) a unit test modulu (ukazatel musí být nastaven před prvním voláním), a přetečení zásobníku je věc, pro kterou je nutné znát využití zásobníku (pravidlo proti rekurzi).
 
-## The same session on a board
+## Stejná session na desce
 
-I used QEMU, because it does not need a board, and its GDB server (`-S -gdb tcp::1234`) behaves the same as the one of a debug probe: the commands in the examples are the commands that you type with a probe. The platform has an artifact for the **probe-rs** toolset (a debugging toolset for ARM targets over a debug probe, with a DAP server), which is the way to connect GDB or an IDE to a real board. I did not run it for this article, as I do not have a probe in my environment.
+Použil jsem QEMU, protože nepotřebuje desku, a jeho GDB server (`-S -gdb tcp::1234`) se chová stejně jako server debug probe: příkazy v příkladech jsou příkazy, které zadáváte i s probe. Platforma má artefakt pro sadu nástrojů **probe-rs** (ladicí sada pro cíle ARM přes debug probe, se serverem DAP), což je způsob, jak připojit GDB nebo IDE ke skutečné desce. Pro tento článek jsem ho nespouštěl, protože ve svém prostředí probe nemám.
 
-## Summary
+## Shrnutí
 
-1. A HardFault is not a mystery: the core has pushed the registers and set the status bits.
-2. The handler needs to find the right stack (`EXC_RETURN`) and to read the frame, `CFSR`, `HFSR` and `BFAR`.
-3. `PC` and `LR` give the place, `CFSR` gives the kind, `BFAR` gives the address.
-4. `PC = 0` with `INVSTATE` is a jump to `NULL`, and the `T` bit of the `xPSR` shows it.
-5. Keep the `.elf`, and the address of a field report becomes a line of code.
+1. HardFault není záhada: jádro uložilo registry a nastavilo stavové bity.
+2. Handler musí najít správný zásobník (`EXC_RETURN`) a přečíst rámec, `CFSR`, `HFSR` a `BFAR`.
+3. `PC` a `LR` dávají místo, `CFSR` druh chyby, `BFAR` adresu.
+4. `PC = 0` s `INVSTATE` je skok na `NULL` a bit `T` v `xPSR` to ukazuje.
+5. Uchovejte `.elf` a adresa ze zprávy z provozu se promění v řádek kódu.

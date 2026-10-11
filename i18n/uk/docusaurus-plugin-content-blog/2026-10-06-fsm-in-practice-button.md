@@ -1,49 +1,49 @@
 ---
-title: "Finite state machines in practice: a button with debounce and long press"
+title: "Скінченні автомати на практиці: кнопка з debounce та довгим натисканням"
 slug: fsm-in-practice-button
 date: 2026-10-06T10:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, architecture]
 ---
 
-In the [first article about finite state machines](/blog/finite-state-machines) I gave you the template and ended with "to be continued". This is the continuation, and the best way to continue a theory is a problem. I chose the one that every embedded project has and that nobody gets right on the first try: **a push button**.
+У [першій статті про скінченні автомати](/blog/finite-state-machines) я дав вам шаблон і закінчив словами «далі буде». Це продовження, а найкращий спосіб продовжити теорію — це задача. Я обрав ту, що є в кожному embedded-проєкті і яку ніхто не робить правильно з першого разу: **кнопка**.
 
-A button looks trivial: a pin, high or low. But a mechanical contact *bounces*, so the pin does 1 0 1 1 0 1 before it settles, and the product usually wants two different things from the same button: a short press and a long press. Written with flags and counters in the main loop, it ends as a few `if`s that depend on each other in a way that nobody can explain after a month. A state machine solves it in a way that you can explain with a table.
+Кнопка виглядає тривіальною: пін, високий або низький рівень. Але механічний контакт *деренчить* (bounce), тож пін робить 1 0 1 1 0 1, перш ніж заспокоїться, а продукт зазвичай хоче від тієї самої кнопки двох різних речей: коротке і довге натискання. Якщо написати це з прапорцями та лічильниками в головному циклі, вийде кілька `if`, що залежать один від одного так, що за місяць ніхто не зможе пояснити як. Скінченний автомат вирішує це так, що пояснити можна таблицею.
 
 <!-- truncate -->
 
-## The template in one paragraph
+## Шаблон в одному абзаці
 
-Every state has four routines, and each of them has exactly one job:
+Кожен стан має чотири підпрограми, і кожна з них має рівно одне завдання:
 
-| Routine | Called | Job |
+| Підпрограма | Коли викликається | Завдання |
 |---|---|---|
-| `Entry` | once, when the state is entered | prepare the state (clear the counter, create an event) |
-| `Execute` | on every run of the machine, while it is in the state | do the work of the state (count, sample) |
-| `CheckLeave` | on every run, after `Execute` | decide whether to leave and where to: **the only place where a transition is requested** |
-| `Leave` | once, when the state is left | clean up |
+| `Entry` | один раз, коли стан входить в дію | підготувати стан (скинути лічильник, створити подію) |
+| `Execute` | при кожному запуску автомата, поки він у цьому стані | виконати роботу стану (рахувати, семплювати) |
+| `CheckLeave` | при кожному запуску, після `Execute` | вирішити, чи залишати стан і куди переходити: **єдине місце, де запитується перехід** |
+| `Leave` | один раз, коли стан залишається | прибрати за собою |
 
-The core of the machine runs `Execute` and `CheckLeave` of the actual state, and when the state changed, runs `Leave` of the old one and `Entry` of the new one. The routines never call each other and the code of the state machine contains nothing but the state machine. If you want to know why the device is in a state, you read `CheckLeave` of the previous one.
+Ядро автомата запускає `Execute` і `CheckLeave` поточного стану, а коли стан змінився, запускає `Leave` старого і `Entry` нового. Підпрограми ніколи не викликають одна одну, а код автомата не містить нічого, крім автомата. Якщо хочете знати, чому пристрій у певному стані, читайте `CheckLeave` попереднього.
 
-## Design first: the states and the transitions
+## Спочатку дизайн: стани та переходи
 
-The task runs every 10 ms and reads the raw contact. The debounce time is 50 ms and the limit of a long press is 1 second. Five states are enough:
+Задача запускається кожні 10 мс і читає сирий контакт. Час debounce — 50 мс, а межа довгого натискання — 1 секунда. П'яти станів достатньо:
 
-| State | Execute | Leaves when | To |
+| Стан | Execute | Залишається, коли | Куди |
 |---|---|---|---|
-| `RELEASED` | nothing | the contact is closed | `DEBOUNCE_PRESS` |
-| `DEBOUNCE_PRESS` | counts the ticks | the contact opens again (it was a glitch) | `RELEASED` |
-| | | the contact was closed for 50 ms | `PRESSED` |
-| `PRESSED` | counts the ticks | the contact opens: **short press** event | `DEBOUNCE_RELEASE` |
-| | | the contact is closed for 1 s | `LONG_PRESS` |
-| `LONG_PRESS` | nothing, the **long press** event was created on the entry | the contact opens | `DEBOUNCE_RELEASE` |
-| `DEBOUNCE_RELEASE` | counts the ticks of an open contact, a bounce resets the count | the contact was open for 50 ms | `RELEASED` |
+| `RELEASED` | нічого | контакт замкнений | `DEBOUNCE_PRESS` |
+| `DEBOUNCE_PRESS` | рахує тики | контакт знову розімкнувся (це був збій) | `RELEASED` |
+| | | контакт був замкнений 50 мс | `PRESSED` |
+| `PRESSED` | рахує тики | контакт розмикається: подія **короткого натискання** | `DEBOUNCE_RELEASE` |
+| | | контакт замкнений 1 с | `LONG_PRESS` |
+| `LONG_PRESS` | нічого, подію **довгого натискання** створено на вході | контакт розмикається | `DEBOUNCE_RELEASE` |
+| `DEBOUNCE_RELEASE` | рахує тики розімкненого контакту, деренчання скидає лічильник | контакт був розімкнений 50 мс | `RELEASED` |
 
-Writing the table is the real work. When it is complete, the code is only a typing exercise. When it is not (what happens in the `LONG_PRESS` when the contact bounces on the release?), the table shows the hole before you write a line of C.
+Складання таблиці — це справжня робота. Коли вона повна, код — лише вправа з друкування. Коли ні (що відбувається в `LONG_PRESS`, коли контакт деренчить при відпусканні?), таблиця покаже діру ще до того, як ви напишете рядок C.
 
-## The code
+## Код
 
-The input comes from the BSP, so the module has no hardware dependency and can be tested on a PC (the same *seam* as in the article about [unit testing](/blog/unit-testing-unity-cmock)). The port of the module is an `Init`, a `Task` and a function that returns the event once:
+Вхід приходить із BSP, тож модуль не має апаратних залежностей і його можна тестувати на ПК (той самий *seam*, що й у статті про [unit-тестування](/blog/unit-testing-unity-cmock)). Порт модуля — це `Init`, `Task` і функція, що повертає подію один раз:
 
 ```c title="Button_Port.h"
 #ifndef BUTTON_BUTTON_PORT_H
@@ -63,7 +63,7 @@ button_Event_t Button_Get_Event(void);     /* returns the event once and clears 
 #endif
 ```
 
-The types follow the template. There is one change that I made on purpose: the table of the routines is **indexed by the state** and not searched, and the enumeration ends with `BUTTON_STATE_COUNT`, which has two uses.
+Типи слідують шаблону. Є одна зміна, яку я зробив навмисно: таблиця підпрограм **індексується станом**, а не обшукується, і перелік закінчується `BUTTON_STATE_COUNT`, який має два застосування.
 
 ```c title="Button.c"
 typedef enum
@@ -87,7 +87,7 @@ typedef struct
 }   button_SM_Routines_t;
 ```
 
-The first use is the table itself. With the designated initializers the position of a line does not matter, so a state cannot be linked to the wrong routines when someone adds a line in the middle (the template needs the comment "this array must have the same order as the state enum"):
+Перше застосування — сама таблиця. З designated initializers позиція рядка не має значення, тож стан не можна прив'язати до неправильних підпрограм, коли хтось додасть рядок посередині (шаблон потребує коментаря «цей масив має мати той самий порядок, що й enum станів»):
 
 ```c title="Button.c"
 /* The table is indexed by the state, so the order of the lines does not matter. */
@@ -106,7 +106,7 @@ static const button_SM_Routines_t stateRoutines[BUTTON_STATE_COUNT] =
 };
 ```
 
-The second use is the core of the machine, in which the same constant replaces a hard-coded "last state" in the check of the range:
+Друге застосування — ядро автомата, в якому та сама константа замінює жорстко закодований «останній стан» у перевірці діапазону:
 
 ```c title="Button.c"
 static void Button_HandleStateTransition(void)
@@ -128,7 +128,7 @@ static void Button_HandleStateTransition(void)
 }
 ```
 
-Look at what the core does *not* know: the buttons, the time, the events. Now the states. Most of the routines are one-liners:
+Зверніть увагу, чого ядро *не знає*: кнопок, часу, подій. Тепер стани. Більшість підпрограм — однорядкові:
 
 ```c title="Button.c"
 /* ---- RELEASED ---- */
@@ -183,15 +183,15 @@ static void Button_DebounceRelease_CheckLeave(void) { if (BUTTON_DEBOUNCE_TICKS 
 static void Button_DebounceRelease_Leave(void)      { }
 ```
 
-Some details that are worth a look:
+Кілька деталей, на які варто глянути:
 
-- `Button_Task()` reads the input **once** per run and keeps it in `isContactClosed`. All routines of one run see the same value, even if the pin changes in the middle of the run.
-- The short press event is created in `Button_Pressed_CheckLeave()`, in the same place where the decision is made. The long press event is created in `Button_LongPress_Entry()`: the entry is called exactly once per transition, so the event cannot be created twice, whatever the contact does while the button is held.
-- The debounce of the release (`DEBOUNCE_RELEASE`) resets its counter whenever the contact is closed again. This is the answer to the bounce on the release: the machine waits until the contact is quiet for 50 ms.
+- `Button_Task()` читає вхід **один раз** за запуск і зберігає його в `isContactClosed`. Усі підпрограми одного запуску бачать те саме значення, навіть якщо пін змінюється посеред запуску.
+- Подія короткого натискання створюється в `Button_Pressed_CheckLeave()`, у тому самому місці, де ухвалюється рішення. Подія довгого натискання створюється в `Button_LongPress_Entry()`: entry викликається рівно один раз на перехід, тож подія не може бути створена двічі, що б не робив контакт, поки кнопка утримується.
+- Debounce відпускання (`DEBOUNCE_RELEASE`) скидає свій лічильник щоразу, коли контакт знову замикається. Це відповідь на деренчання при відпусканні: автомат чекає, доки контакт не вгамується на 50 мс.
 
-## The test
+## Тест
 
-The test replaces `Bsp_Get_ButtonRaw()` by a function that reads a string: one character per 10 ms tick, `1` is the closed contact. The patterns are the story of the button, and the result is the string of the events, `S` for a short press and `L` for a long one:
+Тест замінює `Bsp_Get_ButtonRaw()` функцією, що читає рядок: один символ на тик у 10 мс, `1` — замкнений контакт. Шаблони — це історія кнопки, а результат — рядок подій, `S` для короткого натискання і `L` для довгого:
 
 ```c title="test_Button.c"
 /* The fake input: one character per 10 ms tick, '1' = contact closed. */
@@ -254,7 +254,7 @@ int main(void)
 }
 ```
 
-The output of the run is the real one:
+Вивід запуску — справжній:
 
 ```text
 nothing happens                    -> (no event)
@@ -267,30 +267,30 @@ a 0.99 s hold                      -> S
 all state machine tests passed
 ```
 
-The two last lines are the case that the flags always get wrong. A 1.5 second hold produces **one** long press and no short press after the release, and a hold just under the limit is a short press. Both are a consequence of the table and not of the careful programming.
+Два останні рядки — це випадок, який прапорці завжди обробляють неправильно. Утримання 1,5 секунди дає **одне** довге натискання і жодного короткого після відпускання, а утримання трохи менше за межу — це коротке натискання. Обидва результати випливають із таблиці, а не з ретельного програмування.
 
-## What you get, and what it costs
+## Що ви отримуєте і чого це коштує
 
-**You get:**
+**Ви отримуєте:**
 
-- a **readable specification**: the table above and the code are the same thing,
-- the **guarantee of the once**: `Entry` and `Leave` run once per transition, the events are not duplicated,
-- a **place for everything**: a new requirement (a double click) is a new state or a new row in the table, and not an edit of three nested conditions,
-- a **machine that can be tested on a PC** with a string as the input, as you have just seen.
+- **читабельну специфікацію**: таблиця вище і код — це одне й те саме,
+- **гарантію «рівно один раз»**: `Entry` і `Leave` виконуються по одному разу на перехід, події не дублюються,
+- **місце для всього**: нова вимога (подвійний клік) — це новий стан або новий рядок у таблиці, а не правка трьох вкладених умов,
+- **автомат, який можна тестувати на ПК** з рядком як входом, як ви щойно бачили.
 
-**It costs:**
+**Це коштує:**
 
-- the **boilerplate**: four functions per state, most of them empty. It is a price for the uniformity, and it pays off with the 5th state. For a machine with two states, a `switch` is better,
-- the **table of the transitions has to be thought through** before you write code. That is not a cost, but it feels like one at the beginning.
+- **шаблонний код (boilerplate)**: чотири функції на стан, більшість із них порожні. Це плата за однорідність, і вона окупається з 5-м станом. Для автомата з двома станами краще `switch`,
+- **таблицю переходів треба продумати** до написання коду. Це не витрата, але на початку так здається.
 
-## Pitfalls
+## Підводні камені
 
-1. **Time belongs to the task period, not to a delay.** The machine counts the runs, so the limits (50 ms, 1 s) are the numbers of the ticks. Never call a delay in a state, it blocks all the other machines.
-2. **Sample in the task, not in the interrupt.** The interrupt of the pin would see every bounce. The task that runs every 10 ms is a low-pass filter for free.
-3. **A single event slot loses events** if the application reads it slower than the machine produces it. For a button it does not matter, for a protocol it does: use a queue.
-4. **The invalid state is a state.** The check of the range in the core sends a corrupted variable to the safe state instead of reading the table outside of its bounds (the MISRA rules about the [undefined behavior](/blog/misra-c-rules-in-practice) apply here).
-5. **A state machine with 30 states is a sign of a missing hierarchy.** Split it into several machines, where one is a *state* of another, and keep every one of them small enough to fit into a table on a single screen.
+1. **Час належить періоду задачі, а не затримці.** Автомат рахує запуски, тож межі (50 мс, 1 с) — це кількість тиків. Ніколи не викликайте затримку в стані, вона блокує всі інші автомати.
+2. **Семплуйте в задачі, а не в перериванні.** Переривання піна бачило б кожне деренчання. Задача, що запускається кожні 10 мс, — це безкоштовний фільтр низьких частот.
+3. **Єдиний слот для події губить події,** якщо застосунок читає її повільніше, ніж автомат створює. Для кнопки це не має значення, для протоколу має: використовуйте чергу.
+4. **Недійсний стан — це теж стан.** Перевірка діапазону в ядрі відправляє пошкоджену змінну в безпечний стан замість читання таблиці за її межами (тут діють правила MISRA про [undefined behavior](/blog/misra-c-rules-in-practice)).
+5. **Автомат із 30 станами — ознака відсутньої ієрархії.** Розділіть його на кілька автоматів, де один є *станом* іншого, і тримайте кожен достатньо малим, щоб він умістився в таблицю на одному екрані.
 
-## Corrections in the template
+## Виправлення в шаблоні
 
-When I compared the example with the template from the first article, I found two slips in the template and I fixed them there (a later review of the template found more, see [the list of the fixes](/blog/finite-state-machines#what-was-fixed)): the initial value of the state variables was a leftover name from another project (`APPCORE_HANDLER_STATE_1` instead of `<MODULE>_STATE_1`), and the last row of the table used `State_2_Leave` instead of `State_3_Leave`. The second one is the type of a bug that this article is about: the code compiles, and the machine calls the wrong routine on the exit of the third state. The table with the designated initializers makes it a bit harder to do, and a test that goes through all the states makes it impossible.
+Коли я порівняв приклад із шаблоном із першої статті, я знайшов у шаблоні дві помилки й виправив їх там (пізніша перевірка шаблону знайшла ще, див. [перелік виправлень](/blog/finite-state-machines#what-was-fixed)): початкове значення змінних стану було залишком назви з іншого проєкту (`APPCORE_HANDLER_STATE_1` замість `<MODULE>_STATE_1`), а в останньому рядку таблиці стояло `State_2_Leave` замість `State_3_Leave`. Друга — це той тип помилки, якому присвячена ця стаття: код компілюється, а автомат викликає неправильну підпрограму при виході з третього стану. Таблиця з designated initializers трохи ускладнює таку помилку, а тест, що проходить усі стани, робить її неможливою.

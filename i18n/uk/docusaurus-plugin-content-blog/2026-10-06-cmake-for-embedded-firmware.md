@@ -1,28 +1,28 @@
 ---
-title: "CMake for embedded firmware: a build that you can read"
+title: "CMake для embedded firmware: збірка, яку можна прочитати"
 slug: cmake-for-embedded-firmware
 date: 2026-10-06T18:00:00
 authors: [Mr.Nobody]
 tags: [embedded, cmake, stm32]
 ---
 
-An IDE project is a file that nobody reads: a few thousand lines of XML that the IDE writes and the IDE reads, and that nobody can review in a pull request. The build then exists only on the computer where somebody clicked it together. CMake solves it with a different philosophy: **the build is a text that you read, review, version and run in the CI** exactly the same way as on your desk.
+Проєкт в IDE - це файл, який ніхто не читає: кілька тисяч рядків XML, які IDE пише і IDE читає, і які неможливо переглянути в pull request. Збірка тоді існує лише на комп'ютері, де хтось її склікав. CMake розв'язує це іншою філософією: **збірка - це текст, який ви читаєте, рев'юїте, версіонуєте й запускаєте в CI** точнісінько так само, як і на своєму столі.
 
-The build system of the Embedbits platform (EmBi_Platform) is made in CMake, and this article explains the pieces that every embedded CMake build needs, on a small project that I built and ran: a toolchain file, flags with names, build types, the modules as libraries, the linker script, the files after the link and a test that runs the firmware in a simulator. All numbers and outputs are real.
+Система збірки платформи Embedbits (EmBi_Platform) зроблена на CMake, і ця стаття пояснює елементи, потрібні кожній embedded-збірці на CMake, на невеликому проєкті, який я зібрав і запустив: toolchain-файл, прапорці з іменами, типи збірки, модулі як бібліотеки, linker script, файли після лінкування та тест, що запускає firmware в симуляторі. Усі числа й виводи - справжні.
 
 <!-- truncate -->
 
-## Two layers: the project and the platform
+## Два шари: проєкт і платформа
 
-The platform splits the build into two parts, and the idea is worth stealing even for a small project. The root `CMakeLists.txt` of the product is a minimal entry point, and everything complicated lives in a separate script that is **versioned and shared** (a Git submodule), which the root includes:
+Платформа ділить збірку на дві частини, і цю ідею варто запозичити навіть для невеликого проєкту. Кореневий `CMakeLists.txt` продукту - це мінімальна точка входу, а все складне живе в окремому скрипті, який **версіонується і є спільним** (підмодуль Git) і який корінь підключає:
 
 ```cmake
 include(${CMAKE_CURRENT_LIST_DIR}/CMake/Build.cmake)
 ```
 
-The platform script knows the build types (`Debug`, `Release`, `UnitTest`, `IntegrationTest`), the checks of the parameters, the toolchain, the include paths and the registration of the modules. The product only fills in what is specific for it. A fix of the build is then a new version of the submodule and not an edit of ten products. The example below has both parts in one project to be short, but it keeps the same separation: `cmake/` is the "platform" and `CMakeLists.txt` is the "product".
+Скрипт платформи знає типи збірки (`Debug`, `Release`, `UnitTest`, `IntegrationTest`), перевірки параметрів, toolchain, шляхи включення та реєстрацію модулів. Продукт заповнює лише те, що специфічне для нього. Виправлення збірки - це тоді нова версія підмодуля, а не правка десяти продуктів. Приклад нижче містить обидві частини в одному проєкті для стислості, але зберігає той самий поділ: `cmake/` - це «платформа», а `CMakeLists.txt` - «продукт».
 
-## The example project
+## Приклад проєкту
 
 ```text
 cmake/
@@ -34,9 +34,9 @@ Application/                main.c
 CMakeLists.txt
 ```
 
-## The toolchain file: the compiler is not the PC
+## Toolchain-файл: компілятор - це не PC
 
-CMake assumes that you build for the computer that you sit at. A toolchain file says otherwise:
+CMake припускає, що ви збираєте для комп'ютера, за яким сидите. Toolchain-файл каже інакше:
 
 ```cmake title="cmake/arm-none-eabi.cmake"
 # Toolchain file: tells CMake that the target is a bare-metal ARM and not the PC.
@@ -57,7 +57,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 ```
 
-The line that people forget is `CMAKE_TRY_COMPILE_TARGET_TYPE`. At the beginning CMake builds a test program to check that the compiler works, and a bare-metal compiler cannot link a program for a PC (there is no operating system, no `main` that is called by anybody). With a static library as the target of the check, the test passes. The toolchain is given on the command line, once, when the build folder is created:
+Рядок, про який забувають, - `CMAKE_TRY_COMPILE_TARGET_TYPE`. На початку CMake збирає тестову програму, щоб перевірити, що компілятор працює, а bare-metal компілятор не може злінкувати програму для PC (немає операційної системи, немає `main`, який хтось викликає). Якщо ціллю перевірки є статична бібліотека, тест проходить. Toolchain задається в командному рядку один раз, коли створюється тека збірки:
 
 ```bash
 cmake -S . -B build-debug -G Ninja \
@@ -65,11 +65,11 @@ cmake -S . -B build-debug -G Ninja \
 cmake --build build-debug
 ```
 
-The same source folder with another `-B` is another build: a `build-release` next to it, or one for the unit tests on the PC, without the toolchain file.
+Та сама тека з вихідними кодами з іншим `-B` - це інша збірка: `build-release` поруч або збірка для модульних тестів на PC, без toolchain-файлу.
 
-## Flags with names
+## Прапорці з іменами
 
-A line like `-mcpu=cortex-m4 -mthumb -mfloat-abi=soft -ffunction-sections ...` is hard to review, because nobody knows which part of it is important. The platform has a file `Flags.cmake` with a variable for every flag, with a comment (`THUMB_MODE`, `ENABLE_ALL_WARNINGS`, `REMOVE_UNUSED_FUNCTIONS`, `ENABLE_GC_SECTIONS`, `PRINT_MEMORY_USAGE` and so on, plus the CPU and FPU variants from the Cortex-M0 to the M85). The project then reads like a sentence. Mine has only what the example needs:
+Рядок на кшталт `-mcpu=cortex-m4 -mthumb -mfloat-abi=soft -ffunction-sections ...` важко рев'юїти, бо ніхто не знає, яка його частина важлива. Платформа має файл `Flags.cmake` зі змінною для кожного прапорця та коментарем (`THUMB_MODE`, `ENABLE_ALL_WARNINGS`, `REMOVE_UNUSED_FUNCTIONS`, `ENABLE_GC_SECTIONS`, `PRINT_MEMORY_USAGE` і так далі, плюс варіанти CPU та FPU від Cortex-M0 до M85). Тоді проєкт читається як речення. У моєму лише те, що потрібно для прикладу:
 
 ```cmake title="cmake/Flags.cmake"
 # Flags with names, so the CMakeLists.txt reads like a sentence.
@@ -83,9 +83,9 @@ set(DEBUG_OPTIONS         -Og -g3)
 set(RELEASE_OPTIONS       -Os -g0)
 ```
 
-## The CMakeLists.txt
+## CMakeLists.txt
 
-The whole root file of the example, 80 lines:
+Увесь кореневий файл прикладу, 80 рядків:
 
 ```cmake title="CMakeLists.txt"
 cmake_minimum_required(VERSION 3.19)
@@ -170,29 +170,29 @@ if(QEMU)
 endif()
 ```
 
-Let me explain a few lines that decide whether the firmware will be right.
+Поясню кілька рядків, від яких залежить, чи буде firmware правильним.
 
-**Build types with explicit flags.** There are only two, `Debug` (`-Og -g3`: fast enough and debuggable) and `Release` (`-Os -g0`: small and without the debug information), and anything else stops the configuration with an error message. The platform has two more, `UnitTest` and `IntegrationTest`: in the first one the `TARGET_MCU` is not even needed, because it builds for the PC.
+**Типи збірки з явними прапорцями.** Їх лише два: `Debug` (`-Og -g3`: достатньо швидко і можна налагоджувати) та `Release` (`-Os -g0`: малий розмір і без налагоджувальної інформації), а будь-що інше зупиняє конфігурацію з повідомленням про помилку. Платформа має ще два, `UnitTest` та `IntegrationTest`: у першому `TARGET_MCU` навіть не потрібен, бо збірка йде для PC.
 
-**The default flags of CMake.** This is a trap. CMake adds its own flags to each configuration, `-O3 -DNDEBUG` for `Release` and `-g` for `Debug`, before your own. In the first version of the example the compile command of the release looked like this:
+**Типові прапорці CMake.** Це пастка. CMake додає власні прапорці до кожної конфігурації, `-O3 -DNDEBUG` для `Release` і `-g` для `Debug`, перед вашими. У першій версії прикладу команда компіляції release виглядала так:
 
 ```text
 -O3 -DNDEBUG -std=gnu11 -mcpu=cortex-m4 ... -Os -g0 -ffunction-sections ...
 ```
 
-The last `-O` wins, so it was `-Os`, but the `-DNDEBUG` (which switches the `assert()` off) was there although I never asked for it. If you want to know what you build, clear the defaults (`set(CMAKE_C_FLAGS_RELEASE "")`) and write everything in your own file. The way to see what really goes to the compiler is `compile_commands.json`, which the `CMAKE_EXPORT_COMPILE_COMMANDS` option creates: it is also the file that the editors and `clang-tidy` read.
+Перемагає останній `-O`, тож це був `-Os`, але `-DNDEBUG` (який вимикає `assert()`) там був, хоча я його не просив. Якщо ви хочете знати, що збираєте, очистіть типові значення (`set(CMAKE_C_FLAGS_RELEASE "")`) і напишіть усе у власному файлі. Спосіб побачити, що справді йде до компілятора, - `compile_commands.json`, який створює опція `CMAKE_EXPORT_COMPILE_COMMANDS`: це також файл, який читають редактори та `clang-tidy`.
 
-**The startup code is an `OBJECT` library.** The objects of such a library are put into the executable directly, without relying on the linker to pull them out of an archive.
+**Startup-код - це бібліотека `OBJECT`.** Об'єкти такої бібліотеки потрапляють у виконуваний файл напряму, без покладання на те, що linker витягне їх з архіву.
 
-**The linker script is a dependency** (`LINK_DEPENDS`): when it changes, the firmware is linked again.
+**Linker script - це залежність** (`LINK_DEPENDS`): коли він змінюється, firmware лінкується знову.
 
-## The modules are libraries
+## Модулі - це бібліотеки
 
-Each module is a static library with a list of its **own** sources and its public headers ([the article about the file organization](/blog/file-organization-embedded-c) explains why). The application links the library, and with it gets the include path of the public headers and nothing else. In the CMake file of the module there is no `file(GLOB ...)`: the sources are listed one by one, so a new file is a visible change in a pull request and a file that is left in the folder by accident does not end up in the firmware.
+Кожен модуль - статична бібліотека зі списком **власних** вихідних файлів і публічних заголовків ([стаття про організацію файлів](/blog/file-organization-embedded-c) пояснює чому). Застосунок лінкує бібліотеку і разом з нею отримує шлях включення публічних заголовків і більше нічого. У файлі CMake модуля немає `file(GLOB ...)`: вихідні файли перелічено по одному, тож новий файл - це видима зміна в pull request, а файл, випадково залишений у теці, не потрапить у firmware.
 
-## `TARGET_MCU`: one name, several definitions
+## `TARGET_MCU`: одне ім'я, кілька визначень
 
-The platform builds are started with `-DTARGET_MCU=STM32G474xE`. The script takes the name apart with a regular expression, and from one parameter it makes the definitions for the code (`STM32G474xx` and `STM32G4xx`), which the vendor headers use to select the right device. The same logic, run on four names:
+Збірки платформи запускаються з `-DTARGET_MCU=STM32G474xE`. Скрипт розбирає ім'я регулярним виразом і з одного параметра робить визначення для коду (`STM32G474xx` та `STM32G4xx`), які заголовки виробника використовують для вибору потрібного пристрою. Та сама логіка, запущена на чотирьох іменах:
 
 ```text
 STM32G474xE  ->  MCU_ID STM32G474xx, MCU_FAMILY_ID STM32G4xx
@@ -201,11 +201,11 @@ STM32F407VG  ->  MCU_ID STM32F407xx, MCU_FAMILY_ID STM32F4xx
 STM32H563ZI  ->  MCU_ID STM32H563xx, MCU_FAMILY_ID STM32H5xx
 ```
 
-This is the link to the article about the [STM32 families and the branches](/blog/bsp-stm32-families-git-branches): the family decides which branch of the BSP is in the tree, and the MCU name decides the definitions and the linker script.
+Це зв'язок зі статтею про [родини STM32 і гілки](/blog/bsp-stm32-families-git-branches): родина вирішує, яка гілка BSP лежить у дереві, а ім'я MCU вирішує визначення та linker script.
 
-## What the linker tells you
+## Що вам каже linker
 
-`-Wl,--print-memory-usage` prints at the end of every link how much of each memory is used, `-Wl,-Map=firmware.map` writes the address of everything, and the post-build step prints the size:
+`-Wl,--print-memory-usage` наприкінці кожного лінкування виводить, скільки кожної пам'яті використано, `-Wl,-Map=firmware.map` записує адресу всього, а крок post-build виводить розмір:
 
 ```text
 Memory region         Used Size  Region Size  %age Used
@@ -215,28 +215,28 @@ Memory region         Used Size  Region Size  %age Used
     276	      0	      8	    284	    11c	firmware.elf
 ```
 
-Two experiments that I did with these numbers show why the flags are in the build and not in somebody's head.
+Два експерименти, які я провів із цими числами, показують, чому прапорці мають бути у збірці, а не в чиїйсь голові.
 
-**The linker can throw away what nobody calls.** With `-ffunction-sections -fdata-sections` every function is in its own section, and `-Wl,--gc-sections` lets the linker remove the unreferenced ones. The example has a function `Unused_Checksum()` that nobody calls:
+**Linker може викинути те, що ніхто не викликає.** З `-ffunction-sections -fdata-sections` кожна функція лежить у власній секції, а `-Wl,--gc-sections` дозволяє linker видалити ті, на які немає посилань. У прикладі є функція `Unused_Checksum()`, яку ніхто не викликає:
 
-| Build | Code size |
+| Збірка | Розмір коду |
 |---|---|
-| Release, without the section flags and without `--gc-sections` | 324 B |
-| Release, with them (`-DGC_SECTIONS=ON`) | **276 B** |
+| Release, без прапорців секцій і без `--gc-sections` | 324 B |
+| Release, з ними (`-DGC_SECTIONS=ON`) | **276 B** |
 
-The 48 bytes difference is exactly the checksum function. In a real project with a vendor library, which has hundreds of functions of which you call ten, the difference is in kilobytes.
+Різниця у 48 байтів - це саме функція контрольної суми. У справжньому проєкті з бібліотекою виробника, яка має сотні функцій, з яких ви викликаєте десять, різниця вимірюється в кілобайтах.
 
-**The compiler can add memory behind your back.** The first release build of the example had **772 B**, almost three times more than the debug build (288 B). The map file showed `memcpy` and `memset` from the standard library. The cause: when the optimization is on, GCC recognizes the loops in the startup code (the copy of `.data` and the zeroing of `.bss`) as a copy and a fill, and replaces them with calls of these two functions, which then come with their code from the library. One flag on the startup object fixes it, and the result is **276 B**:
+**Компілятор може додати пам'ять за вашою спиною.** Перша release-збірка прикладу мала **772 B**, майже втричі більше за debug-збірку (288 B). Map-файл показав `memcpy` і `memset` зі стандартної бібліотеки. Причина: коли оптимізація ввімкнена, GCC розпізнає цикли в startup-коді (копіювання `.data` і обнулення `.bss`) як копіювання й заповнення та замінює їх викликами цих двох функцій, які потім приходять зі своїм кодом з бібліотеки. Один прапорець на startup-об'єкті це виправляє, і результат - **276 B**:
 
 ```cmake
 target_compile_options(Startup PRIVATE -fno-tree-loop-distribute-patterns)
 ```
 
-Apart from the size, there is a second reason to care: the startup code runs *before* the memory is initialized, and the less library code it uses, the less can go wrong (see the article about [what happens before `main()`](/blog/before-main-startup-linker)).
+Крім розміру, є друга причина про це дбати: startup-код виконується *до* ініціалізації пам'яті, і чим менше бібліотечного коду він використовує, тим менше може піти не так (див. статтю про [те, що відбувається перед `main()`](/blog/before-main-startup-linker)).
 
-## After the link: what you flash, and what you test
+## Після лінкування: що ви прошиваєте і що тестуєте
 
-The `POST_BUILD` command makes `firmware.bin` and `firmware.hex` (the formats that the programmers read) from the ELF file and prints the size. The last part of the example is a test: `add_test` runs the firmware in QEMU and `ctest` checks that it printed the expected text:
+Команда `POST_BUILD` створює `firmware.bin` і `firmware.hex` (формати, які читають програматори) з файлу ELF і виводить розмір. Остання частина прикладу - тест: `add_test` запускає firmware в QEMU, а `ctest` перевіряє, що воно вивело очікуваний текст:
 
 ```bash
 ctest --test-dir build-debug
@@ -248,16 +248,16 @@ ctest --test-dir build-debug
 100% tests passed, 0 tests failed out of 1
 ```
 
-It is a *smoke test* (does the firmware start and reach its `main()`?), and it runs in a fraction of a second on every commit. It does not replace a test on the hardware, but a build that does not start is found in the CI and not at the desk. The tests of the modules on the PC are a different build of the same CMake project (the [article about Unity and CMock](/blog/unit-testing-unity-cmock) shows one).
+Це *smoke test* (чи стартує firmware і чи доходить до свого `main()`?), і він виконується за долю секунди на кожному коміті. Він не замінює тест на hardware, але збірку, що не стартує, знаходять у CI, а не за столом. Тести модулів на PC - це інша збірка того самого проєкту CMake (одну показує [стаття про Unity і CMock](/blog/unit-testing-unity-cmock)).
 
-## A checklist
+## Чекліст
 
-1. A toolchain file, and `CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY`.
-2. The flags in one file with names, the CMake defaults of the configurations cleared.
-3. Each module is a library with an explicit list of sources and public headers.
-4. `-ffunction-sections -fdata-sections` and `--gc-sections`, always.
-5. `--print-memory-usage` and the map file in every link, `size` after it.
-6. `compile_commands.json` for the editor and the static analysis.
-7. The linker script is a dependency of the firmware.
-8. A smoke test in a simulator in the CI.
-9. Look at the size of the *release* build from time to time. If it grows without a reason, the map file knows why.
+1. Toolchain-файл і `CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY`.
+2. Прапорці в одному файлі з іменами, типові значення конфігурацій CMake очищені.
+3. Кожен модуль - бібліотека з явним списком вихідних файлів і публічних заголовків.
+4. `-ffunction-sections -fdata-sections` і `--gc-sections`, завжди.
+5. `--print-memory-usage` і map-файл у кожному лінкуванні, після нього `size`.
+6. `compile_commands.json` для редактора та статичного аналізу.
+7. Linker script - залежність firmware.
+8. Smoke test у симуляторі в CI.
+9. Час від часу дивіться на розмір *release*-збірки. Якщо він зростає без причини, map-файл знає чому.

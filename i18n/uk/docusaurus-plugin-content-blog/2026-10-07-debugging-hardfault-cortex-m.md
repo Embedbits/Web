@@ -1,29 +1,29 @@
 ---
-title: "Debugging a HardFault on a Cortex-M: from a mystery to a line of code"
+title: "Налагодження HardFault на Cortex-M: від загадки до рядка коду"
 slug: debugging-hardfault-cortex-m
 date: 2026-10-07T20:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, stm32]
 ---
 
-Every embedded developer knows the moment: the firmware has been running, and then it does not. The debugger shows that the program sits in an infinite loop with a name like `HardFault_Handler` or `Default_Handler`, and the call stack is a few meaningless frames. That loop is the **default** handler of the startup code, and it says exactly nothing about what happened. The fault has a cause, and the processor has already written it down: in eight registers on the stack and in four status registers. It is only necessary to read them.
+Кожен розробник вбудованих систем знає цей момент: прошивка працювала, а потім перестала. Налагоджувач показує, що програма сидить у нескінченному циклі з назвою на кшталт `HardFault_Handler` або `Default_Handler`, а стек викликів — це кілька беззмістовних фреймів. Цей цикл — **типовий** обробник зі startup-коду, і він не каже абсолютно нічого про те, що сталося. У збою є причина, і процесор уже її записав: у вісім регістрів на стеку та в чотири регістри стану. Їх залишається лише прочитати.
 
-This article shows how to turn the loop into a line of source code, in two real examples that I ran in QEMU (a model of an STM32F4 board) and examined with GDB: a call of a `NULL` function pointer and a write to an address where nothing is. All outputs are real.
+Ця стаття показує, як перетворити цей цикл на рядок вихідного коду, на двох реальних прикладах, які я запускав у QEMU (моделі плати з STM32F4) і досліджував за допомогою GDB: виклик `NULL`-вказівника на функцію та запис за адресою, де нічого немає. Усі виводи справжні.
 
 <!-- truncate -->
 
-## What the core does when a fault happens
+## Що робить ядро, коли стається збій
 
-On a Cortex-M the processor does not crash silently. When it cannot continue (an invalid instruction, a bus error, an access that is not allowed), it takes an **exception** and does two things that are important for the debugging:
+На Cortex-M процесор не падає мовчки. Коли він не може продовжувати (недійсна інструкція, помилка шини, недозволений доступ), він переходить до **винятку** (exception) і робить дві речі, важливі для налагодження:
 
-1. It **pushes eight registers on the stack**: `R0`, `R1`, `R2`, `R3`, `R12`, `LR`, `PC` and `xPSR`. The saved `PC` is the instruction that caused the fault, and the saved `LR` tells who called the faulting function.
-2. It sets **bits in the fault status registers** that say what kind of a fault it was: `CFSR` (the configurable fault status, which is made of three parts for the memory, the bus and the usage faults), `HFSR` (the hard fault status) and the address registers `MMFAR` and `BFAR` with the address that was accessed.
+1. **Заштовхує вісім регістрів на стек**: `R0`, `R1`, `R2`, `R3`, `R12`, `LR`, `PC` і `xPSR`. Збережений `PC` — це інструкція, що спричинила збій, а збережений `LR` вказує, хто викликав функцію, у якій стався збій.
+2. Встановлює **біти в регістрах стану збоїв**, які показують, який це був збій: `CFSR` (configurable fault status, що складається з трьох частин для збоїв пам'яті, шини та використання), `HFSR` (hard fault status) і регістри адрес `MMFAR` та `BFAR` з адресою, до якої було звернення.
 
-The memory, bus and usage faults have their own handlers, but they are **disabled** after the reset, so every fault is *escalated* to the HardFault. That is the reason why the one handler sees everything, and the bit `FORCED` in `HFSR` says that this has happened.
+Збої пам'яті, шини та використання мають власні обробники, але після скидання вони **вимкнені**, тому кожен збій *ескалується* до HardFault. Ось чому один обробник бачить усе, а біт `FORCED` в `HFSR` повідомляє, що це сталося.
 
-## A handler that reads the registers
+## Обробник, який читає регістри
 
-The only difficulty is to get to the stack where the registers are. There are two stack pointers on the core (`MSP` for the exceptions and the main code, `PSP` for the tasks of an operating system), and the bit 2 of the value in `LR` at the entry of the exception tells which of them was used. This has to be done *before* the compiler uses the stack for its own purposes, so the handler is a short function in assembler (`naked`: no prologue), which passes the pointer to a function in C:
+Єдина складність — дістатися до стека, де лежать регістри. У ядра є два вказівники стека (`MSP` для винятків і основного коду, `PSP` для задач операційної системи), і біт 2 значення в `LR` на вході у виняток показує, який із них використовувався. Це потрібно зробити *до того*, як компілятор використає стек для власних потреб, тому обробник — це коротка функція на асемблері (`naked`: без пролога), яка передає вказівник у функцію на C:
 
 ```c title="fault.c (the report)"
 /* ---- the fault report ---- */
@@ -79,11 +79,11 @@ __attribute__((naked)) void HardFault_Handler(void)
 }
 ```
 
-Look at the three parts. The structure `stackFrame_t` is the layout of the eight registers in the order that the core pushes them. The function `HardFault_Report()` copies them (together with the status registers) into the global variable `faultInfo`, prints a short report, and then **stays in a loop on purpose**, so a debugger can connect and look at the variable. The assembler stub selects the right stack and jumps to it. In a product, the report would be written to a memory that survives the reset, and the firmware would reset itself, but the principle is the same.
+Погляньте на три частини. Структура `stackFrame_t` — це розташування восьми регістрів у порядку, в якому їх заштовхує ядро. Функція `HardFault_Report()` копіює їх (разом з регістрами стану) у глобальну змінну `faultInfo`, друкує короткий звіт, а потім **навмисно залишається в циклі**, щоб налагоджувач міг підключитися й подивитися на змінну. Асемблерна заглушка вибирає правильний стек і переходить до функції. У продукті звіт записувався б у пам'ять, що переживає скидання, а прошивка самостійно перезавантажувалася б, але принцип той самий.
 
-## Example 1: the call of a `NULL` pointer
+## Приклад 1: виклик `NULL`-вказівника
 
-This is the application with the bug. A callback is registered later, but the code that calls it runs earlier:
+Ось застосунок із помилкою. Callback реєструється пізніше, а код, який його викликає, виконується раніше:
 
 ```c title="fault.c (the application)"
 /* ---- the application with a bug ---- */
@@ -105,7 +105,7 @@ int main(void)
 }
 ```
 
-The program prints `start`, and then the report:
+Програма друкує `start`, а потім звіт:
 
 ```text
 start
@@ -117,14 +117,14 @@ CFSR  0x00020000
 HFSR  0x40000000
 ```
 
-Now the reading of it, value by value:
+Тепер його розбір, значення за значенням:
 
-- **`PC = 0x00000000`**: the processor tried to execute an instruction at the address zero. Almost always, this means a jump through a `NULL` function pointer, or a return to a corrupted address.
-- **`CFSR = 0x00020000`**: the bit 17 is `INVSTATE`, "invalid state". The processor attempted to execute in the ARM state, which a Cortex-M does not have. The reason is in the **`xPSR`**: its bit 24 is the `T` bit (Thumb), and here it is zero (`0x60000000`). The address of a Thumb function has the lowest bit set, and `NULL` has not, so the jump through the pointer cleared the `T` bit. That the `T` bit is zero is the typical fingerprint of a jump to `NULL`.
-- **`HFSR = 0x40000000`**: the bit 30 is `FORCED`, the fault was escalated to the HardFault from the usage fault, which is not enabled.
-- **`LR = 0x08000115`**: the return address, with the lowest bit set (Thumb). It is the address of the **caller**, `0x08000114`, and that is where the bug is.
+- **`PC = 0x00000000`**: процесор спробував виконати інструкцію за нульовою адресою. Майже завжди це означає перехід через `NULL`-вказівник на функцію або повернення за пошкодженою адресою.
+- **`CFSR = 0x00020000`**: біт 17 — це `INVSTATE`, «недійсний стан». Процесор спробував виконувати код у стані ARM, якого в Cortex-M немає. Причина — в **`xPSR`**: його біт 24 — це біт `T` (Thumb), і тут він нульовий (`0x60000000`). Адреса Thumb-функції має встановлений наймолодший біт, а `NULL` його не має, тож перехід через вказівник скинув біт `T`. Нульовий біт `T` — типовий відбиток переходу на `NULL`.
+- **`HFSR = 0x40000000`**: біт 30 — це `FORCED`, збій було ескальовано до HardFault зі збою використання (usage fault), який не ввімкнено.
+- **`LR = 0x08000115`**: адреса повернення з встановленим наймолодшим бітом (Thumb). Це адреса **викликача**, `0x08000114`, і саме там помилка.
 
-With the debugger, the last step takes seconds. The QEMU waits for GDB (`-S -gdb tcp::1234`), and the session:
+З налагоджувачем останній крок займає лічені секунди. QEMU чекає на GDB (`-S -gdb tcp::1234`), і сесія виглядає так:
 
 ```text
 (gdb) break fault.c:64
@@ -149,7 +149,7 @@ Button_Pressed + 7 in section .text
    0x8000112 <Button_Pressed+4>:	blx	r3
 ```
 
-`info symbol` gives the function, `list *` gives the line (the one *after* the call, because that is the return address), and the disassembly shows the instruction pair that is the bug itself: the load of the zero into `r3` and the `blx r3`, a call through a register that holds `NULL`. Note `r3 = 0x0` in the stacked registers. Without the debugger, the same answer is in one command of the toolchain, which only needs the address from the report and the file with the debug information (`-g`):
+`info symbol` дає функцію, `list *` дає рядок (той, що *після* виклику, бо це адреса повернення), а дизасемблер показує пару інструкцій, яка і є самою помилкою: завантаження нуля в `r3` та `blx r3`, виклик через регістр, що містить `NULL`. Зверніть увагу на `r3 = 0x0` у збережених регістрах. Без налагоджувача ту саму відповідь дає одна команда toolchain, якій потрібні лише адреса зі звіту та файл з налагоджувальною інформацією (`-g`):
 
 ```text
 $ arm-none-eabi-addr2line -e fault.elf -f 0x08000114
@@ -157,9 +157,9 @@ Button_Pressed
 fault.c:87
 ```
 
-## Example 2: a write to an address where nothing is
+## Приклад 2: запис за адресою, де нічого немає
 
-I changed one line of the application: instead of the callback, the function writes to the address `0xA0000000`, where nothing is mapped in the model of the chip. The report:
+Я змінив один рядок застосунку: замість callback функція пише за адресою `0xA0000000`, де в моделі чипа нічого не відображено. Звіт:
 
 ```text
 *** HardFault ***
@@ -170,7 +170,7 @@ CFSR  0x00008200
 HFSR  0x40000000
 ```
 
-This time the `PC` is a **valid address in the flash**, the `T` bit is set (`0x21000000`) and `CFSR` is different: `0x8200` are two bits, 9 (`PRECISERR`, a precise data bus error) and 15 (`BFARVALID`, the register `BFAR` holds the address). In GDB:
+Цього разу `PC` — це **дійсна адреса у flash**, біт `T` встановлено (`0x21000000`), а `CFSR` інший: `0x8200` — це два біти, 9 (`PRECISERR`, точна помилка шини даних) і 15 (`BFARVALID`, регістр `BFAR` містить адресу). У GDB:
 
 ```text
 (gdb) print/x faultInfo.cfsr
@@ -181,58 +181,58 @@ $2 = 0xa0000000
 main + 12 in section .text
 ```
 
-`BFAR` is the address that the program tried to write, `PC` is the instruction that tried it. Together they say "this instruction wrote to this address", which is the complete description of the problem. If the address is small (`0x00000008`), it is a `NULL` pointer to a structure and you are accessing a member. If it looks like data (`0x20000000` and a bit more), it is a stack or a buffer that you have overrun.
+`BFAR` — це адреса, за якою програма намагалася писати, `PC` — інструкція, що намагалася це зробити. Разом вони кажуть: «ця інструкція писала за цією адресою», і це повний опис проблеми. Якщо адреса мала (`0x00000008`), це `NULL`-вказівник на структуру, і ви звертаєтеся до її поля. Якщо вона схожа на дані (`0x20000000` і трохи більше), то це стек або буфер, який ви переповнили.
 
-## The bits of the CFSR that you will meet
+## Біти CFSR, які ви зустрінете
 
-The register is a combination of three registers (each of them has its own byte or two bytes). These are the ones that you will see most often (the two that I observed in the examples are marked):
+Регістр є комбінацією трьох регістрів (кожен має власний байт або два байти). Ось ті, які ви бачитимете найчастіше (два, які я спостерігав у прикладах, виділено):
 
-| Bit | Name | Meaning |
+| Біт | Назва | Значення |
 |---|---|---|
-| 0 | `IACCVIOL` | the instruction fetch from a region that is not allowed (MPU) |
-| 1 | `DACCVIOL` | the data access to a region that is not allowed (MPU) |
-| 7 | `MMARVALID` | the register `MMFAR` holds the address |
-| 8 | `IBUSERR` | the bus error on an instruction fetch |
-| **9** | **`PRECISERR`** | **the precise bus error on a data access: `PC` is the instruction that did it** |
-| 10 | `IMPRECISERR` | the imprecise bus error: the instruction has already gone, `PC` is not reliable |
-| 11, 12 | `UNSTKERR`, `STKERR` | the bus error while the registers were popped or pushed (often a damaged stack) |
-| **15** | **`BFARVALID`** | **the register `BFAR` holds the address** |
-| 16 | `UNDEFINSTR` | an undefined instruction (executing data, a corrupted code) |
-| **17** | **`INVSTATE`** | **an attempt to execute in the ARM state: a jump to an address with the bit 0 clear** |
-| 18 | `INVPC` | an invalid `EXC_RETURN` (a damaged stack of an exception) |
-| 19 | `NOCP` | an access to a coprocessor that is not enabled (typically the FPU that was not switched on) |
-| 24 | `UNALIGNED` | an unaligned access, when the trap is enabled |
-| 25 | `DIVBYZERO` | a division by zero, when the trap is enabled |
+| 0 | `IACCVIOL` | вибірка інструкції з недозволеної області (MPU) |
+| 1 | `DACCVIOL` | доступ до даних у недозволеній області (MPU) |
+| 7 | `MMARVALID` | регістр `MMFAR` містить адресу |
+| 8 | `IBUSERR` | помилка шини під час вибірки інструкції |
+| **9** | **`PRECISERR`** | **точна помилка шини під час доступу до даних: `PC` — це інструкція, що її спричинила** |
+| 10 | `IMPRECISERR` | неточна помилка шини: інструкція вже виконалася, `PC` ненадійний |
+| 11, 12 | `UNSTKERR`, `STKERR` | помилка шини під час витягування або заштовхування регістрів (часто пошкоджений стек) |
+| **15** | **`BFARVALID`** | **регістр `BFAR` містить адресу** |
+| 16 | `UNDEFINSTR` | невизначена інструкція (виконання даних, пошкоджений код) |
+| **17** | **`INVSTATE`** | **спроба виконання в стані ARM: перехід за адресою з очищеним бітом 0** |
+| 18 | `INVPC` | недійсний `EXC_RETURN` (пошкоджений стек винятку) |
+| 19 | `NOCP` | доступ до співпроцесора, який не ввімкнено (зазвичай FPU, який не було увімкнено) |
+| 24 | `UNALIGNED` | невирівняний доступ, коли trap увімкнено |
+| 25 | `DIVBYZERO` | ділення на нуль, коли trap увімкнено |
 
-## What usually stands behind a HardFault
+## Що зазвичай стоїть за HardFault
 
-| What you see | What it usually is |
+| Що ви бачите | Чим це зазвичай є |
 |---|---|
-| `PC = 0`, `INVSTATE` | a call through a `NULL` function pointer, or a return to a corrupted address |
-| `PRECISERR` and a small `BFAR` | a `NULL` pointer to a structure |
-| `PRECISERR` and `BFAR` in a peripheral address range | an access to a peripheral that is not available, for example one whose clock has not been switched on (on some families such an access is a bus error, on others it is silently ignored) |
-| `STKERR` / `UNSTKERR`, or a `PC` that makes no sense | a stack overflow or a buffer overflow that damaged the return address |
-| `NOCP` at the first floating point instruction | the FPU has not been enabled in the startup code |
-| `IMPRECISERR` | a write that went through a write buffer: the report arrives later than the instruction. For the debugging, the buffering can be switched off (the bit `DISABLEDEFWRITEBUF` in `ACTLR`), so the fault becomes precise |
+| `PC = 0`, `INVSTATE` | виклик через `NULL`-вказівник на функцію або повернення за пошкодженою адресою |
+| `PRECISERR` і малий `BFAR` | `NULL`-вказівник на структуру |
+| `PRECISERR` і `BFAR` в діапазоні адрес периферії | доступ до недоступної периферії, наприклад такої, тактування якої не ввімкнено (в одних сімействах такий доступ — це помилка шини, в інших він мовчки ігнорується) |
+| `STKERR` / `UNSTKERR` або `PC`, що не має сенсу | переповнення стека або буфера, яке пошкодило адресу повернення |
+| `NOCP` на першій інструкції з плаваючою комою | FPU не було увімкнено у startup-коді |
+| `IMPRECISERR` | запис, що пройшов через буфер запису: звіт приходить пізніше за інструкцію. Для налагодження буферизацію можна вимкнути (біт `DISABLEDEFWRITEBUF` в `ACTLR`), і тоді збій стає точним |
 
-I demonstrated the first line of the table and the principle of the second (a bus error with the address in `BFAR`). The remaining lines are a summary of the usual causes, they follow from the meaning of the bits in the reference manual of the core.
+Я продемонстрував перший рядок таблиці та принцип другого (помилка шини з адресою в `BFAR`). Решта рядків — це підсумок типових причин, вони випливають зі значення бітів у reference manual ядра.
 
-## Practice
+## Практика
 
-1. **Never leave the default handler as an empty loop.** The handler above is about thirty lines, and it turns the fault into a report with a place in the code. Put it into the startup code of the project once.
-2. **Keep the debug information** in the file that you archive with the release (`-g`, and the `.elf`), so the address of a report from the field can be turned into a line, even if the firmware is delivered stripped. That is also one more reason for the [reproducible build](/blog/reproducible-builds-embedded): the address means something only for the exact binary that produced it.
-3. **Enable the finer faults** (the bits in `SHCSR`) when you want the `UsageFault`, `BusFault` and `MemManage` handlers separately. The report is richer, because the status registers are not shared.
-4. **Store the report in a memory that survives a reset** (a section that the startup code does not clear, see the article about [what happens before `main()`](/blog/before-main-startup-linker)), reset, and send it after the restart. The report of a device in the field is worth more than a hundred guesses.
-5. **Prevent what you can.** The `NULL` call in the example is a defect that the [rules of MISRA](/blog/misra-c-rules-in-practice) and a unit test of the module (the pointer must be set before the first call) would catch, and a stack overflow is the thing for which the stack usage has to be known (the rule against the recursion).
+1. **Ніколи не залишайте типовий обробник порожнім циклом.** Обробник вище займає близько тридцяти рядків і перетворює збій на звіт із місцем у коді. Додайте його до startup-коду проєкту один раз.
+2. **Зберігайте налагоджувальну інформацію** у файлі, який архівуєте разом з релізом (`-g` і `.elf`), щоб адресу зі звіту з поля можна було перетворити на рядок, навіть якщо прошивка постачається зі stripped-символами. Це ще одна причина для [відтворюваної збірки](/blog/reproducible-builds-embedded): адреса має сенс лише для точного бінарного файлу, який її створив.
+3. **Вмикайте тонші збої** (біти в `SHCSR`), коли хочете окремі обробники `UsageFault`, `BusFault` і `MemManage`. Звіт буде багатшим, бо регістри стану не спільні.
+4. **Зберігайте звіт у пам'яті, що переживає скидання** (секція, яку startup-код не очищує, див. статтю про [те, що відбувається перед `main()`](/blog/before-main-startup-linker)), перезавантажуйтеся й надсилайте його після перезапуску. Звіт з пристрою в полі вартий більше за сотню здогадок.
+5. **Запобігайте тому, чому можете.** `NULL`-виклик у прикладі — це дефект, який виявили б [правила MISRA](/blog/misra-c-rules-in-practice) та unit-тест модуля (вказівник має бути встановлений до першого виклику), а переповнення стека — це те, для чого потрібно знати використання стека (правило проти рекурсії).
 
-## The same session on a board
+## Та сама сесія на платі
 
-I used QEMU, because it does not need a board, and its GDB server (`-S -gdb tcp::1234`) behaves the same as the one of a debug probe: the commands in the examples are the commands that you type with a probe. The platform has an artifact for the **probe-rs** toolset (a debugging toolset for ARM targets over a debug probe, with a DAP server), which is the way to connect GDB or an IDE to a real board. I did not run it for this article, as I do not have a probe in my environment.
+Я користувався QEMU, бо йому не потрібна плата, а його GDB-сервер (`-S -gdb tcp::1234`) поводиться так само, як сервер налагоджувального зонда: команди в прикладах — це команди, які ви вводите із зондом. Платформа має артефакт для набору інструментів **probe-rs** (набір інструментів налагодження для ARM-цілей через налагоджувальний зонд, із DAP-сервером), який є способом підключити GDB або IDE до справжньої плати. Я не запускав його для цієї статті, бо в моєму середовищі немає зонда.
 
-## Summary
+## Підсумок
 
-1. A HardFault is not a mystery: the core has pushed the registers and set the status bits.
-2. The handler needs to find the right stack (`EXC_RETURN`) and to read the frame, `CFSR`, `HFSR` and `BFAR`.
-3. `PC` and `LR` give the place, `CFSR` gives the kind, `BFAR` gives the address.
-4. `PC = 0` with `INVSTATE` is a jump to `NULL`, and the `T` bit of the `xPSR` shows it.
-5. Keep the `.elf`, and the address of a field report becomes a line of code.
+1. HardFault — не загадка: ядро заштовхнуло регістри та встановило біти стану.
+2. Обробнику потрібно знайти правильний стек (`EXC_RETURN`) і прочитати фрейм, `CFSR`, `HFSR` та `BFAR`.
+3. `PC` і `LR` дають місце, `CFSR` — вид збою, `BFAR` — адресу.
+4. `PC = 0` з `INVSTATE` — це перехід на `NULL`, і це показує біт `T` в `xPSR`.
+5. Зберігайте `.elf`, і адреса зі звіту з поля стане рядком коду.

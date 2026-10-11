@@ -1,18 +1,18 @@
 ---
-title: "Designing a peripheral API: eight decisions behind the Gpio module"
+title: "Проєктування API периферії: вісім рішень за модулем Gpio"
 slug: designing-peripheral-api-gpio
 date: 2026-10-07T10:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, architecture]
 ---
 
-The GPIO is the simplest peripheral of a microcontroller: a pin is high or low. That is exactly why it is a good subject for an article about the **design of an interface**. There is no hardware complexity to hide behind, and every decision is a choice of the designer: how a pin is named, what a function returns, where the polarity of an LED lives. The MCAL module `Gpio` of the Embedbits BSP is a real example with real answers, and I will go through them one by one, with the alternatives and the price.
+GPIO — найпростіша периферія мікроконтролера: пін має високий або низький рівень. Саме тому це добра тема для статті про **проєктування інтерфейсу**. Тут немає апаратної складності, за якою можна сховатися, і кожне рішення — це вибір проєктувальника: як називається пін, що повертає функція, де живе полярність світлодіода. MCAL-модуль `Gpio` з BSP від Embedbits — реальний приклад із реальними відповідями, і я пройдуся по них одну за одною, з альтернативами та ціною.
 
-The code from the module is quoted from the STM32H5 branch of [Bsp-Mcal-Gpio](https://github.com/Embedbits/Bsp-Mcal-Gpio). The examples that use it were compiled and run against the **real** `Gpio_Port.h` and `Gpio_Types.h`, with a small fake of the implementation, so that the API could be tried on a PC.
+Код модуля цитується з гілки STM32H5 репозиторію [Bsp-Mcal-Gpio](https://github.com/Embedbits/Bsp-Mcal-Gpio). Приклади, що його використовують, були скомпільовані та запущені з **справжніми** `Gpio_Port.h` і `Gpio_Types.h` та невеликою заглушкою реалізації, щоб API можна було спробувати на ПК.
 
 <!-- truncate -->
 
-## The whole interface on one screen
+## Увесь інтерфейс на одному екрані
 
 ```c
 gpio_ModuleVersion_t Gpio_Get_ModuleVersion  ( void );
@@ -34,23 +34,23 @@ gpio_RequestState_t  Gpio_Set_PinStateActive   ( gpio_PortId_t portId, gpio_PinI
 gpio_RequestState_t  Gpio_Set_PinStateInactive ( gpio_PortId_t portId, gpio_PinId_t pinId, gpio_PinLevel_t pinActiveLevel );
 ```
 
-Every decision below can be read from this list.
+Кожне рішення нижче можна прочитати з цього переліку.
 
-## 1. A pin is a pair of identifiers, not a vendor macro
+## 1. Пін — це пара ідентифікаторів, а не макрос вендора
 
-The vendor drivers address a pin with a pointer to a register block and a bit mask: `LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_5)`. The MCAL takes two enumerations instead, `gpio_PortId_t` and `gpio_PinId_t`:
+Драйвери вендора адресують пін за допомогою вказівника на блок регістрів і бітової маски: `LL_GPIO_SetOutputPin(GPIOA, LL_GPIO_PIN_5)`. Натомість MCAL приймає два переліки, `gpio_PortId_t` і `gpio_PinId_t`:
 
 ```c
 Gpio_Set_PinLevel( GPIO_PORT_A, GPIO_PIN_ID_5, GPIO_PIN_LEVEL_HIGH );
 ```
 
-**Why:** the code above the MCAL does not need any vendor header, it does not know what `GPIOA` is (the address of a register block of the vendor), and an identifier can be range-checked, as an arbitrary pointer cannot. Each enumeration ends with a counter (`GPIO_PORT_CNT`, `GPIO_PIN_ID_CNT`), which is the upper limit for the check at the beginning of a function.
+**Чому:** код над MCAL не потребує жодного заголовка вендора, він не знає, що таке `GPIOA` (адреса блоку регістрів вендора), а ідентифікатор можна перевірити на діапазон, чого не можна зробити з довільним вказівником. Кожен перелік закінчується лічильником (`GPIO_PORT_CNT`, `GPIO_PIN_ID_CNT`), який є верхньою межею для перевірки на початку функції.
 
-**The price:** a table that translates the identifier to the register block (in `Gpio.c`, one line per port) and one more indirection. The table also solves a problem of its own: the MCUs of a family have a different number of ports, so the entries are wrapped in `#if defined(GPIOK)` (see the article about [the families](/blog/bsp-stm32-families-git-branches)).
+**Ціна:** таблиця, що перетворює ідентифікатор на блок регістрів (у `Gpio.c`, один рядок на порт), і ще один рівень непрямості. Таблиця також розв'язує власну проблему: MCU одного сімейства мають різну кількість портів, тож записи загорнуто в `#if defined(GPIOK)` (див. статтю про [сімейства](/blog/bsp-stm32-families-git-branches)).
 
-## 2. Every function that can fail returns a state, and the results go out through a pointer
+## 2. Кожна функція, що може зазнати невдачі, повертає стан, а результати виходять через вказівник
 
-All functions except `Deinit`, `Task` and the version getter return `gpio_RequestState_t`, and the getters deliver the value through a pointer parameter:
+Усі функції, окрім `Deinit`, `Task` і геттера версії, повертають `gpio_RequestState_t`, а геттери передають значення через параметр-вказівник:
 
 ```c
 gpio_PinLevel_t level = GPIO_PIN_LEVEL_LOW;
@@ -61,15 +61,15 @@ if (GPIO_REQUEST_OK == Gpio_Get_PinLevel(GPIO_PORT_C, GPIO_PIN_ID_13, &level))
 }
 ```
 
-**Why:** the return value of a getter cannot carry the value *and* the information that the value is not valid (`GPIO_PIN_LEVEL_LOW` is a valid level, so a returned `0` is ambiguous). With the state in the return value and the data in the parameter, an invalid port, an invalid pin or a `NULL` pointer is a visible error and not a silently wrong level. The `* const` in the signature says that the function does not change the pointer, only the data behind it.
+**Чому:** значення, що повертає геттер, не може нести і значення, *і* інформацію про те, що значення недійсне (`GPIO_PIN_LEVEL_LOW` — дійсний рівень, тож повернений `0` неоднозначний). Зі станом у поверненому значенні та даними в параметрі недійсний порт, недійсний пін чи вказівник `NULL` — це помітна помилка, а не мовчки хибний рівень. `* const` у сигнатурі говорить, що функція не змінює вказівник, лише дані за ним.
 
-**The price:** two lines instead of one at every use. And the state has two values (`GPIO_REQUEST_OK`, `GPIO_REQUEST_ERROR`), so the caller knows *that* it failed and not *why*. For a GPIO it is enough, because there are only a few reasons (an invalid identifier, a `NULL`), and all of them are programming errors. For a peripheral with a real failure (a timeout of the I2C, a bus error), the caller needs more, and a richer enumeration is the usual answer.
+**Ціна:** два рядки замість одного при кожному використанні. А стан має два значення (`GPIO_REQUEST_OK`, `GPIO_REQUEST_ERROR`), тож викликач знає, *що* сталася помилка, але не *чому*. Для GPIO цього достатньо, бо причин лише кілька (недійсний ідентифікатор, `NULL`), і всі вони — помилки програмування. Для периферії з реальними збоями (тайм-аут I2C, помилка шини) викликачеві потрібно більше, і звичайна відповідь — багатший перелік.
 
-The rule from the article about [MISRA](/blog/misra-c-rules-in-practice) that applies is 17.7 (the returned value is used): here the interface makes it easy to follow, because every function that can fail tells it through the value that you have to look at.
+Правило з статті про [MISRA](/blog/misra-c-rules-in-practice), яке тут діє, — 17.7 (повернене значення використовується): інтерфейс полегшує його дотримання, бо кожна функція, що може зазнати невдачі, повідомляє про це значенням, на яке треба подивитися.
 
-## 3. A pin is configured by data, not by a sequence of calls
+## 3. Пін налаштовується даними, а не послідовністю викликів
 
-There is a configuration structure with everything that describes a pin, and one function that applies it:
+Є структура конфігурації з усім, що описує пін, і одна функція, яка її застосовує:
 
 ```c
 typedef struct
@@ -85,7 +85,7 @@ typedef struct
 }   gpio_Config_t;
 ```
 
-**Why:** the knowledge about the board then lives in a **table**, and the code that applies it is the same for every board. Look at the example that I compiled and ran: the board is two entries, and the initialization is a loop.
+**Чому:** знання про плату тоді живе в **таблиці**, а код, що її застосовує, однаковий для кожної плати. Погляньте на приклад, який я скомпілював і запустив: плата — це два записи, а ініціалізація — цикл.
 
 ```c title="board.c"
 #include <stdbool.h>
@@ -136,24 +136,24 @@ bool Board_Set_Led(bool isOn)
 }
 ```
 
-Because the table is data, a new revision of the PCB changes a line in the table and nothing in the code. In the Embedbits architecture it is the job of the HAL layer: it holds the tables and uses the MCAL to apply them.
+Оскільки таблиця — це дані, нова ревізія друкованої плати змінює рядок у таблиці й нічого в коді. В архітектурі Embedbits це завдання шару HAL: він тримає таблиці й використовує MCAL, щоб їх застосувати.
 
-**The price:** the structure has eight fields and every entry has to fill all of them (the designated initializers make it readable, and a field that is left out is zero, which is not always a sensible value). That is why a `Get_DefaultConfig` function, which some other modules have, is a useful companion.
+**Ціна:** структура має вісім полів, і кожен запис має заповнити всі (designated initializers роблять це читабельним, а пропущене поле дорівнює нулю, що не завжди розумне значення). Тому функція `Get_DefaultConfig`, яку мають деякі інші модулі, — корисний супутник.
 
-## 4. The polarity of a signal is a property of the pin, not of the code
+## 4. Полярність сигналу — властивість піна, а не коду
 
-The structure has the field `PinActiveLevel`, and there are the functions `Gpio_Set_PinStateActive()` and `Gpio_Set_PinStateInactive()`, which take the polarity as a parameter. The reason is a plain fact of electronics: an LED can be connected to the ground (it lights up with a **high** level) or to the supply (it lights up with a **low** level), and a chip-select signal is usually *active low*. If the code says `Gpio_Set_PinLevel(..., HIGH)` for "LED on", it is right for one board and wrong for the next.
+Структура має поле `PinActiveLevel`, а також функції `Gpio_Set_PinStateActive()` і `Gpio_Set_PinStateInactive()`, які приймають полярність як параметр. Причина — простий факт електроніки: світлодіод можна під'єднати до землі (він світиться при **високому** рівні) або до живлення (він світиться при **низькому** рівні), а сигнал chip-select зазвичай *active low*. Якщо код каже `Gpio_Set_PinLevel(..., HIGH)` для «світлодіод увімкнено», він правильний для однієї плати й хибний для наступної.
 
-With the polarity in the table, the application says "on" and the table says what that means. In the example above the LED is connected to the supply, so `PinActiveLevel` is `GPIO_PIN_LEVEL_LOW`, and the test confirms what the pin does:
+З полярністю в таблиці застосунок каже «увімкнено», а таблиця — що це означає. У наведеному вище прикладі світлодіод під'єднано до живлення, тож `PinActiveLevel` — це `GPIO_PIN_LEVEL_LOW`, і тест підтверджує, що робить пін:
 
 ```text
 after Board_Init():      the pin is high (the LED is off)
 after Board_Set_Led(1):  the pin is low  (the LED is on)
 ```
 
-## 5. The enumerations are the vendor constants
+## 5. Переліки — це константи вендора
 
-The types do not invent their own numbers, they are the numbers of the vendor driver:
+Типи не вигадують власних чисел, вони є числами драйвера вендора:
 
 ```c
 typedef enum
@@ -165,17 +165,17 @@ typedef enum
 }   gpio_PinMode_t;
 ```
 
-**Why:** the conversion from the type of the MCAL to the value that the LL function wants is **free**: there is no `switch`, no table and no way to make a typing mistake in the translation. The values of the constants differ from a family to a family, and that is hidden in the one `#include` of the RAL port (the family-specific `Stm32_gpio.h`).
+**Чому:** перетворення з типу MCAL у значення, яке хоче функція LL, **безкоштовне**: немає `switch`, немає таблиці й немає способу зробити друкарську помилку в перекладі. Значення констант різняться від сімейства до сімейства, і це сховано в одному `#include` порту RAL (специфічний для сімейства `Stm32_gpio.h`).
 
-**The price:** `Gpio_Types.h`, a public header, includes the header of the RAL, so the vendor constants leak into the headers that the users of the module see. The alternative is the type with its own values and a translation table in the `.c` file, which costs code and a place for a bug, but keeps the vendor out of the public headers. The decision is a compromise, and it is good to know that it is one.
+**Ціна:** `Gpio_Types.h`, публічний заголовок, включає заголовок RAL, тож константи вендора просочуються в заголовки, які бачать користувачі модуля. Альтернатива — тип із власними значеннями й таблицею перекладу у файлі `.c`, що коштує коду й місця для помилки, але тримає вендора поза публічними заголовками. Це рішення — компроміс, і добре знати, що воно таке.
 
-## 6. The same lifecycle as every other module
+## 6. Той самий життєвий цикл, що й у кожного іншого модуля
 
-`Gpio_Get_ModuleVersion()`, `Gpio_Init()`, `Gpio_Deinit()` and `Gpio_Task()` come from the template that every module starts with (see the article about the [file organization](/blog/file-organization-embedded-c)). The difference is in the one place where it makes sense: `Gpio_Init()` is not `void`, it takes **a pin configuration**. A GPIO module does not know the board, so "initialize the module" has no meaning without the question "which pin?". A uniform lifecycle that is bent where the nature of the module requires it is better than a lifecycle that is forced on a module where it does not fit.
+`Gpio_Get_ModuleVersion()`, `Gpio_Init()`, `Gpio_Deinit()` і `Gpio_Task()` походять із шаблону, з якого починається кожен модуль (див. статтю про [організацію файлів](/blog/file-organization-embedded-c)). Різниця в єдиному місці, де вона має сенс: `Gpio_Init()` не `void`, вона приймає **конфігурацію піна**. Модуль GPIO не знає плати, тож «ініціалізувати модуль» не має сенсу без запитання «який пін?». Єдиний життєвий цикл, який гнеться там, де цього вимагає природа модуля, кращий за життєвий цикл, нав'язаний модулю, якому він не підходить.
 
-## 7. The order of the steps is a part of the interface
+## 7. Порядок кроків — частина інтерфейсу
 
-Look at the comment of `Gpio_Init()`:
+Погляньте на коментар до `Gpio_Init()`:
 
 ```c
 /**
@@ -186,13 +186,13 @@ Look at the comment of `Gpio_Init()`:
  */
 ```
 
-The pin mode, which is the step that actually **connects the output driver to the pad**, is the last. If the mode were first, the pin would for a moment drive the level that the output register had after the reset (usually low), and then jump to the right one: a pulse on a line that may be a chip-select, a reset of another chip or the gate of a transistor. Such a glitch is invisible in a debugger and visible on an oscilloscope. It is a good example of a rule for API design: **when the order of the steps matters for the hardware, the function that does them should own the order**, so the user cannot get it wrong.
+Режим піна, тобто крок, який насправді **підключає вихідний драйвер до виводу**, — останній. Якби режим ішов першим, пін на мить видавав би рівень, який вихідний регістр мав після скидання (зазвичай низький), а потім стрибав би на правильний: імпульс на лінії, що може бути chip-select, скиданням іншої мікросхеми або затвором транзистора. Такий glitch невидимий у відлагоднику й видимий на осцилографі. Це хороший приклад правила проєктування API: **коли порядок кроків важливий для апаратури, функція, що їх виконує, має володіти порядком**, щоб користувач не міг його переплутати.
 
-The second sentence of the comment, "stops at the first failed step", is also a design decision: the function does not try to continue after an error, and it returns the state of the failing step.
+Друге речення коментаря, «stops at the first failed step», — теж проєктне рішення: функція не намагається продовжувати після помилки і повертає стан кроку, що зазнав невдачі.
 
-## 8. A wrong argument is an error that the caller can see, not a crash
+## 8. Хибний аргумент — це помилка, яку бачить викликач, а не аварія
 
-The functions check their arguments, and the answer is the state:
+Функції перевіряють свої аргументи, а відповідь — це стан:
 
 ```c
 assert(GPIO_REQUEST_ERROR == Gpio_Init(GPIO_NULL_PTR));
@@ -200,21 +200,21 @@ assert(GPIO_REQUEST_ERROR == Gpio_Get_PinLevel(GPIO_PORT_CNT, GPIO_PIN_ID_0, &le
 assert(GPIO_REQUEST_ERROR == Gpio_Set_PinLevel(GPIO_PORT_A, GPIO_PIN_ID_CNT, GPIO_PIN_LEVEL_HIGH));
 ```
 
-(This is the test of my fake, but the real `Gpio_Init()` does the same for the `NULL`: the whole body is inside `if( GPIO_NULL_PTR != gpioConfig )`.) The `_CNT` constants have a second job here: `GPIO_PORT_CNT` is the first value that is **not** a valid port, so the check is a single comparison. In a firmware, there is no one to show a message to, and an `assert` that stops the program is usually the wrong answer for a production build. An error that goes up to the caller, who knows what to do (and a module on top of the MCAL that knows what is critical), is a better one.
+(Це тест моєї заглушки, але справжня `Gpio_Init()` робить те саме для `NULL`: усе тіло знаходиться всередині `if( GPIO_NULL_PTR != gpioConfig )`.) Константи `_CNT` тут мають друге завдання: `GPIO_PORT_CNT` — це перше значення, яке **не** є дійсним портом, тож перевірка — це одне порівняння. У firmware немає кому показати повідомлення, а `assert`, що зупиняє програму, зазвичай хибна відповідь для робочої збірки. Помилка, що піднімається до викликача, який знає, що робити (і до модуля над MCAL, який знає, що критично), — краща відповідь.
 
-## What I would look at again
+## До чого б я повернувся
 
-An honest design review always has a list, and this one has two items that come from the article about MISRA:
+Чесний огляд дизайну завжди має перелік, і цей має два пункти, що походять зі статті про MISRA:
 
-- `Gpio_Init( gpio_Config_t *gpioConfig )` only **reads** the structure, so the parameter could be `const gpio_Config_t *` (Rule 8.13). The signature would say that the function does not change the configuration, and the table of the board could be `const` and live in the flash instead of the RAM.
-- The two-valued `gpio_RequestState_t` is the same in every module (it is generated by the template). It is a simple and uniform decision that is right for the GPIO, and the modules with the real failures will sooner or later need more.
+- `Gpio_Init( gpio_Config_t *gpioConfig )` лише **читає** структуру, тож параметр міг би бути `const gpio_Config_t *` (Rule 8.13). Сигнатура говорила б, що функція не змінює конфігурацію, а таблиця плати могла б бути `const` і жити у flash замість RAM.
+- Двозначний `gpio_RequestState_t` однаковий у кожному модулі (його генерує шаблон). Це просте й єдине рішення, правильне для GPIO, а модулям із реальними збоями рано чи пізно знадобиться більше.
 
-## The principles, short
+## Принципи коротко
 
-1. **Hide the hardware, not the intent.** The user says *which pin* and *what polarity*, not *which register*.
-2. **Make the invalid state visible.** A status for everything that can fail, and an output only on success.
-3. **Put the knowledge into data.** The board is a table that a loop reads.
-4. **Let the function own the order** when the hardware cares about it.
-5. **Keep the interface the same, and say honestly where it is bent** (`Init` with a parameter) and where the abstraction leaks (the vendor constants in the types).
+1. **Ховайте апаратуру, а не намір.** Користувач каже *який пін* і *яка полярність*, а не *який регістр*.
+2. **Робіть недійсний стан видимим.** Статус для всього, що може зазнати невдачі, а вихідні дані — лише за успіху.
+3. **Кладіть знання в дані.** Плата — це таблиця, яку читає цикл.
+4. **Нехай функція володіє порядком,** коли апаратура про нього дбає.
+5. **Тримайте інтерфейс єдиним і чесно кажіть, де він гнеться** (`Init` з параметром) та де абстракція протікає (константи вендора в типах).
 
-An interface has two readers: the user of today, and the maintainer of the next year. The decisions above are written for both, and the comments in the headers are the proof that somebody thought about the second.
+Інтерфейс має двох читачів: користувача сьогодні й супровідника наступного року. Наведені вище рішення написані для обох, а коментарі в заголовках — доказ того, що хтось подумав про другого.

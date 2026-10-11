@@ -1,20 +1,20 @@
 ---
-title: "Interrupts and main(): how to share data safely"
+title: "Přerušení a main(): jak bezpečně sdílet data"
 slug: interrupts-and-main-shared-data
 date: 2026-10-06T14:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, stm32]
 ---
 
-An interrupt handler and the main loop are two programs that run in the same memory and do not know about each other. The C compiler does not know that the interrupt exists, and the CPU does not know that two variables belong together. The programmer is the only one who knows, and the bugs that follow are the worst kind: they appear once in a thousand runs, they disappear when you attach the debugger and they never appear in the code review, because the code looks right.
+Obsluha přerušení a hlavní smyčka jsou dva programy, které běží ve stejné paměti a o sobě nevědí. Překladač C neví, že přerušení existuje, a CPU neví, že dvě proměnné patří k sobě. Ví to jen programátor a chyby, které z toho vznikají, jsou ty nejhorší: objeví se jednou za tisíc běhů, zmizí, když připojíte debugger, a při code review se nikdy neukážou, protože kód vypadá správně.
 
-This article goes through the three problems of the shared data, one by one, with the code that **fails**, and then shows the patterns that work. The experiments run on a Cortex-M4 (in QEMU, on a model of an STM32F4 board) or on a PC, and the outputs are real.
+Tento článek prochází tři problémy sdílených dat, jeden po druhém, s kódem, který **selhává**, a potom ukazuje vzory, které fungují. Experimenty běží na Cortex-M4 (v QEMU, na modelu desky s STM32F4) nebo na PC a výstupy jsou skutečné.
 
 <!-- truncate -->
 
-## Problem 1: the compiler does not see the interrupt
+## Problém 1: překladač přerušení nevidí
 
-The simplest communication between an interrupt and the main loop is a flag. The interrupt sets it, the main loop waits for it:
+Nejjednodušší komunikace mezi přerušením a hlavní smyčkou je příznak (flag). Přerušení ho nastaví, hlavní smyčka na něj čeká:
 
 ```c title="main.c (a part)"
 #ifdef USE_VOLATILE
@@ -43,7 +43,7 @@ int main(void)
 }
 ```
 
-This is the whole program, and with the optimization `-O2` it **never finishes**. I ran it in QEMU with the SysTick as the interrupt source (the interrupt fires and sets the flag), and compared the version with and without `volatile`:
+To je celý program a s optimalizací `-O2` **nikdy neskončí**. Spustil jsem ho v QEMU s SysTick jako zdrojem přerušení (přerušení se spustí a nastaví příznak) a porovnal verzi s `volatile` a bez něj:
 
 ```text
 --- without volatile
@@ -52,7 +52,7 @@ This is the whole program, and with the optimization `-O2` it **never finishes**
 the interrupt was seen
 ```
 
-Why? Look at what the compiler generated for the loop in the first version:
+Proč? Podívejte se, co překladač vygeneroval pro smyčku v první verzi:
 
 ```text
  8000062:  ldrb  r3, [r1, #0]       @ read the flag once
@@ -60,7 +60,7 @@ Why? Look at what the compiler generated for the loop in the first version:
  8000066:  b.n   8000066            @ zero: jump to itself, forever
 ```
 
-The compiler reasons about the code of `main()` alone, and in that code nobody writes to `dataReady`. So the value cannot change, it is enough to read it once, and the loop becomes an infinite loop. Exactly what you asked for, from its point of view. With `volatile` the compiler has to read the variable from the memory at every pass:
+Překladač uvažuje jen o kódu `main()` a v tom kódu do `dataReady` nikdo nezapisuje. Hodnota se tedy nemůže změnit, stačí ji přečíst jednou a smyčka se stane nekonečnou. Přesně to, oč jste z jeho pohledu požádali. S `volatile` musí překladač číst proměnnou z paměti při každém průchodu:
 
 ```text
  8000062:  ldrb  r3, [r2, #0]       @ read the flag in every pass
@@ -68,11 +68,11 @@ The compiler reasons about the code of `main()` alone, and in that code nobody w
  8000066:  beq.n 8000062
 ```
 
-The lesson: **every variable that is shared between an interrupt and the main code has to be `volatile`.** The same is true for every register of a peripheral, which is the reason why the register definitions in the CMSIS headers are `volatile`. Keep in mind that this works in the debug build (`-O0`) without it, and fails in the release build, which is why the bug is found late.
+Poučení: **každá proměnná sdílená mezi přerušením a hlavním kódem musí být `volatile`.** Totéž platí pro každý registr periferie, což je důvod, proč jsou definice registrů v hlavičkách CMSIS `volatile`. Mějte na paměti, že bez toho to v debug buildu (`-O0`) funguje a v release buildu selže, a proto se chyba najde pozdě.
 
-## Problem 2: `volatile` does not make it atomic
+## Problém 2: `volatile` nezaručuje atomicitu
 
-`volatile` says "read and write the memory every time". It does not say "all at once". The innocent line `counter++` is three instructions:
+`volatile` říká „čti a zapisuj paměť pokaždé“. Neříká „všechno najednou“. Nevinný řádek `counter++` jsou tři instrukce:
 
 ```text
 Increment_Plain:
@@ -82,16 +82,16 @@ Increment_Plain:
    str   r3, [r2, #0]       @ 3. store it back
 ```
 
-If the interrupt arrives between the load and the store, and the interrupt also increments the counter, then one of the two increments is **lost**: the main code stores the old value plus one over the value that the interrupt has just stored. The timeline:
+Pokud přerušení přijde mezi načtením a uložením a přerušení také inkrementuje čítač, jedna ze dvou inkrementací se **ztratí**: hlavní kód uloží starou hodnotu plus jedna přes hodnotu, kterou právě uložilo přerušení. Časová osa:
 
-| Step | Main code | Interrupt | Counter |
+| Krok | Hlavní kód | Přerušení | Čítač |
 |---|---|---|---|
-| 1 | loads 5 | | 5 |
-| 2 | | loads 5, adds 1, stores 6 | 6 |
-| 3 | adds 1 (it has 5 in the register) | | 6 |
-| 4 | stores 6 | | **6, should be 7** |
+| 1 | načte 5 | | 5 |
+| 2 | | načte 5, přičte 1, uloží 6 | 6 |
+| 3 | přičte 1 (v registru má 5) | | 6 |
+| 4 | uloží 6 | | **6, mělo být 7** |
 
-I wanted to show it on the Cortex-M4 too, and it did not work: in 200 000 increments with an interrupt every few instructions, QEMU lost nothing. That is probably because QEMU checks for the interrupts between the blocks of the translated code, so one never lands between the `ldr` and the `str`. It is a useful reminder that **a simulator does not prove the absence of a race condition**: the real MCU can interrupt after every instruction. The same race, in a place where it is easy to reproduce, is two threads on a PC:
+Chtěl jsem to ukázat i na Cortex-M4 a nevyšlo to: ve 200 000 inkrementacích s přerušením každých pár instrukcí QEMU nic neztratilo. Pravděpodobně proto, že QEMU kontroluje přerušení mezi bloky přeloženého kódu, takže žádné nikdy nepřistane mezi `ldr` a `str`. Je to užitečná připomínka, že **simulátor neprokazuje nepřítomnost race condition**: skutečné MCU může přerušit po každé instrukci. Stejný race, na místě, kde se snadno reprodukuje, jsou dvě vlákna na PC:
 
 ```c title="host_race.c"
 #include <pthread.h>
@@ -136,17 +136,17 @@ plain counter   2652421 (lost 1347579)
 atomic counter  4000000 (lost 0)
 ```
 
-A third of all increments is lost, and the results differ from run to run. The thread on a PC and the interrupt on an MCU are in this respect the same thing: a second flow of control that can strike between two instructions. The same applies to everything that is bigger than the word of the CPU: a 64-bit timestamp or a structure with two fields can be read half old and half new (*torn read*).
+Třetina všech inkrementací se ztratí a výsledky se běh od běhu liší. Vlákno na PC a přerušení na MCU jsou v tomto ohledu totéž: druhý tok řízení, který může udeřit mezi dvěma instrukcemi. Totéž platí pro všechno, co je větší než slovo CPU: 64bitové časové razítko nebo struktura se dvěma poli se může přečíst napůl staré a napůl nové (*torn read*).
 
-## Three ways to solve it
+## Tři způsoby řešení
 
-### 1. One writer for every variable (the best one)
+### 1. Jeden zapisovatel pro každou proměnnou (nejlepší)
 
-The most robust solution is to design the data so that **every variable is written by one side only**. The interrupt writes the flag, the main code only reads it and does not clear it (or the other way around). Without two writers there is nothing to lose. If both sides need to change the same thing, they should not share it: each one has its own variable (the counter of the interrupts is `isrCalls`, the counter of the main code is a different one), and the sum is made by the reader.
+Nejrobustnější řešení je navrhnout data tak, aby **každou proměnnou zapisovala jen jedna strana**. Přerušení zapisuje příznak, hlavní kód ho jen čte a nemaže (nebo naopak). Bez dvou zapisovatelů není co ztratit. Pokud obě strany potřebují měnit tutéž věc, neměly by ji sdílet: každá má vlastní proměnnou (čítač přerušení je `isrCalls`, čítač hlavního kódu je jiný) a součet vytvoří čtenář.
 
-### 2. A critical section
+### 2. Kritická sekce
 
-When two writers are unavoidable, the interrupts are disabled for the time of the operation. The correct way is to **save the state and restore it**, and not to enable the interrupts at the end blindly, because the function may have been called with the interrupts already disabled:
+Když se dvěma zapisovatelům nelze vyhnout, přerušení se na dobu operace zakážou. Správný způsob je **uložit stav a obnovit ho**, a ne na konci slepě přerušení povolit, protože funkce mohla být zavolána s již zakázanými přerušeními:
 
 ```text
 Increment_CriticalSection:
@@ -158,11 +158,11 @@ Increment_CriticalSection:
    msr   PRIMASK, r1        @ restore the state, as it was
 ```
 
-The price is the latency: during the section no interrupt can run. So the section has to be as short as a few instructions, and without a function call, a loop or a wait inside.
+Cenou je latence: během sekce nemůže běžet žádné přerušení. Sekce proto musí být krátká jako pár instrukcí a bez volání funkce, smyčky nebo čekání uvnitř.
 
-### 3. An atomic operation
+### 3. Atomická operace
 
-For a single word (a counter, a flag with a count) the processor has the instructions `LDREX` and `STREX`: the store succeeds only if nothing touched the address since the load, and when it does not, the loop repeats. The compiler generates them for you from the standard operation:
+Pro jediné slovo (čítač, příznak s počtem) má procesor instrukce `LDREX` a `STREX`: uložení uspěje, jen pokud se adresy od načtení nic nedotklo, a když ne, smyčka se opakuje. Překladač je za vás vygeneruje ze standardní operace:
 
 ```text
 Increment_Atomic:
@@ -173,11 +173,11 @@ Increment_Atomic:
    bne.n Increment_Atomic   @ somebody did: try again
 ```
 
-in C it is one line, `__atomic_fetch_add(&counter, 1u, __ATOMIC_RELAXED)` (or `atomic_fetch_add()` from `<stdatomic.h>`). It does not disable the interrupts, so it does not add the latency. It works for a single variable; for two variables that belong together it does not help.
+v C je to jeden řádek, `__atomic_fetch_add(&counter, 1u, __ATOMIC_RELAXED)` (nebo `atomic_fetch_add()` z `<stdatomic.h>`). Nezakazuje přerušení, takže nepřidává latenci. Funguje pro jedinou proměnnou; pro dvě proměnné, které patří k sobě, nepomůže.
 
-## The pattern that is used the most: a ring buffer
+## Nejpoužívanější vzor: kruhový buffer
 
-The most common thing that an interrupt gives to the main code is a stream of data: the bytes received by the UART, the samples of the ADC. The interrupt cannot process them (it has to be short), so it puts them in a **queue**, and the main code takes them out in a quiet moment. This is the producer-consumer problem with *one producer* (the interrupt) and *one consumer* (the main code), and for this exact case a ring buffer needs **no lock**:
+Nejčastější věc, kterou přerušení předává hlavnímu kódu, je proud dat: bajty přijaté UARTem, vzorky ADC. Přerušení je nemůže zpracovat (musí být krátké), a tak je vloží do **fronty** a hlavní kód je vybere v klidné chvíli. Je to problém producent-konzument s *jedním producentem* (přerušení) a *jedním konzumentem* (hlavní kód) a právě pro tento případ kruhový buffer **nepotřebuje žádný zámek**:
 
 ```c title="Ring.h"
 #ifndef RING_H
@@ -235,20 +235,20 @@ static inline bool Ring_Pop(ring_t *ring, uint32_t *item)
 #endif
 ```
 
-Why is it correct?
+Proč je správný?
 
-- `head` is written **only by the producer** and `tail` **only by the consumer**. There is no variable with two writers, so no update can be lost: this is the first solution above, built into the structure.
-- The counters are free-running (they are never reset). The number of items is `head - tail`, and thanks to the unsigned arithmetic it is correct even after the counters overflow. With the size a power of two, the position is a simple mask instead of a division.
-- The **order** matters: the producer writes the item and **after that** publishes it by moving `head` (`memory_order_release`), and the consumer reads `head` first (`memory_order_acquire`) and only then the item. On a single Cortex-M core the order in which the compiler writes is the only thing that matters, and the atomics keep it. On an MCU with two cores (some of the STM32H7 have two) or with a cache, the same code is still correct, which is the reason to write it in this form and not with a `volatile` that happens to work.
-- The producer does not wait. A full buffer means "drop the item and count it", because an interrupt cannot wait for anybody. The counter of the drops tells you in the test that the buffer is too small.
+- `head` zapisuje **jen producent** a `tail` **jen konzument**. Neexistuje proměnná se dvěma zapisovateli, takže se nemůže ztratit žádná aktualizace: je to první řešení výše, zabudované do struktury.
+- Čítače jsou volně běžící (nikdy se neresetují). Počet položek je `head - tail` a díky aritmetice bez znaménka je správný i po přetečení čítačů. Při velikosti, která je mocninou dvou, je pozice jednoduchá maska místo dělení.
+- Záleží na **pořadí**: producent zapíše položku a **teprve potom** ji zveřejní posunutím `head` (`memory_order_release`) a konzument čte nejprve `head` (`memory_order_acquire`) a až potom položku. Na jednom jádru Cortex-M záleží jen na pořadí, v jakém překladač zapisuje, a atomiky ho zachovávají. Na MCU se dvěma jádry (některé STM32H7 mají dvě) nebo s cache je stejný kód stále správný, a to je důvod, proč ho psát v této podobě a ne s `volatile`, které náhodou funguje.
+- Producent nečeká. Plný buffer znamená „zahoď položku a započítej to“, protože přerušení nemůže na nikoho čekat. Čítač zahozených položek vám v testu řekne, že buffer je příliš malý.
 
-I tested it two ways. On a PC with two threads, a producer and a consumer, pass 20 million items through a buffer of 16 slots:
+Otestoval jsem ho dvěma způsoby. Na PC se dvěma vlákny, producentem a konzumentem, projde 20 milionů položek bufferem o 16 slotech:
 
 ```text
 items 20000000, order errors 0
 ```
 
-and on the Cortex-M4 in QEMU: the SysTick interrupt is the producer and `main()` is the consumer, with 5000 items:
+a na Cortex-M4 v QEMU: přerušení SysTick je producent a `main()` konzument, s 5000 položkami:
 
 ```text
 items received  5000
@@ -256,26 +256,26 @@ order errors    0
 full buffer hits 0
 ```
 
-The first test is the harder one (the two threads really run in parallel on two cores), the second one is the real situation of an MCU. It is also a perfect candidate for the unit test on a PC, as in the article about [unit testing with Unity and CMock](/blog/unit-testing-unity-cmock): the module is independent of the hardware.
+První test je těžší (obě vlákna skutečně běží paralelně na dvou jádrech), druhý je skutečná situace MCU. Je to také ideální kandidát na unit test na PC, jako v článku o [unit testování s Unity a CMock](/blog/unit-testing-unity-cmock): modul je nezávislý na hardwaru.
 
-## Rules for the interrupt handlers
+## Pravidla pro obsluhu přerušení
 
-1. **Short.** Read the register, save the data, set the flag, clear the pending flag, return. The processing is done in the main code.
-2. **No waiting, no allocation, no `printf`.** Nothing that blocks, takes a long time or calls a function that is not safe to call from an interrupt (it is *non-reentrant*, if it uses a static buffer inside).
-3. **Everything shared is `volatile` or atomic**, and every variable has a defined writer.
-4. **Do not share more than you must.** A flag or a queue between the sides, and not a structure of ten fields.
-5. **Think about the priority.** An interrupt of a higher priority can interrupt another interrupt. A variable shared between two interrupts has the same problem as one shared with the main code.
+1. **Krátká.** Přečíst registr, uložit data, nastavit příznak, vymazat pending flag, vrátit se. Zpracování se dělá v hlavním kódu.
+2. **Žádné čekání, žádná alokace, žádný `printf`.** Nic, co blokuje, trvá dlouho nebo volá funkci, která není bezpečná pro volání z přerušení (je *non-reentrant*, pokud uvnitř používá statický buffer).
+3. **Vše sdílené je `volatile` nebo atomické** a každá proměnná má definovaného zapisovatele.
+4. **Nesdílejte víc, než musíte.** Příznak nebo fronta mezi stranami, ne struktura o deseti polích.
+5. **Myslete na prioritu.** Přerušení s vyšší prioritou může přerušit jiné přerušení. Proměnná sdílená mezi dvěma přerušeními má stejný problém jako ta sdílená s hlavním kódem.
 
-In the Embedbits BSP, the peripheral modules (e.g. USART) have a polling, an interrupt and a DMA variant of the data handling, and the interrupt variant is exactly this: a handler on the MCAL level that takes the data from the peripheral and passes it to the application through a buffer, while the `Task` of the module runs in the main loop and does the processing.
+V BSP Embedbits mají periferní moduly (např. USART) variantu zpracování dat s pollingem, s přerušením a s DMA a varianta s přerušením je přesně tohle: handler na úrovni MCAL, který vezme data z periferie a předá je aplikaci přes buffer, zatímco `Task` modulu běží v hlavní smyčce a provádí zpracování.
 
-## Summary
+## Shrnutí
 
-| The problem | The symptom | The cure |
+| Problém | Příznak | Lék |
 |---|---|---|
-| The compiler does not see the interrupt | Works with `-O0`, an endless loop with `-O2` | `volatile` on every shared variable |
-| `counter++` is not atomic | A count that is sometimes too small | One writer per variable, a critical section or `atomic_fetch_add` |
-| More than a word | Half old, half new value | A critical section, or a sequence number, or a queue |
-| A stream of data | Lost or mixed bytes | A ring buffer with one producer and one consumer |
-| The test passes in the simulator | A bug in the field | Remember that the simulator interrupts in different places than the MCU |
+| Překladač nevidí přerušení | Funguje s `-O0`, nekonečná smyčka s `-O2` | `volatile` na každé sdílené proměnné |
+| `counter++` není atomické | Počet, který je občas příliš malý | Jeden zapisovatel na proměnnou, kritická sekce nebo `atomic_fetch_add` |
+| Více než slovo | Napůl stará, napůl nová hodnota | Kritická sekce, sekvenční číslo nebo fronta |
+| Proud dat | Ztracené nebo promíchané bajty | Kruhový buffer s jedním producentem a jedním konzumentem |
+| Test projde v simulátoru | Chyba v terénu | Pamatujte, že simulátor přerušuje na jiných místech než MCU |
 
-The three kinds of code in this article had one thing in common: they all *looked* right.
+Tři druhy kódu v tomto článku měly jedno společné: všechny *vypadaly* správně.

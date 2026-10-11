@@ -1,28 +1,28 @@
 ---
-title: "CMake for embedded firmware: a build that you can read"
+title: "CMake pre embedded firmware: build, ktorý si môžete prečítať"
 slug: cmake-for-embedded-firmware
 date: 2026-10-06T18:00:00
 authors: [Mr.Nobody]
 tags: [embedded, cmake, stm32]
 ---
 
-An IDE project is a file that nobody reads: a few thousand lines of XML that the IDE writes and the IDE reads, and that nobody can review in a pull request. The build then exists only on the computer where somebody clicked it together. CMake solves it with a different philosophy: **the build is a text that you read, review, version and run in the CI** exactly the same way as on your desk.
+Projekt z IDE je súbor, ktorý nikto nečíta: niekoľko tisíc riadkov XML, ktoré IDE zapisuje a IDE číta a ktoré sa nedajú skontrolovať v pull requeste. Build potom existuje len na počítači, kde ho niekto naklikal. CMake to rieši inou filozofiou: **build je text, ktorý čítate, kontrolujete, verzujete a spúšťate v CI** presne tak isto ako na svojom stole.
 
-The build system of the Embedbits platform (EmBi_Platform) is made in CMake, and this article explains the pieces that every embedded CMake build needs, on a small project that I built and ran: a toolchain file, flags with names, build types, the modules as libraries, the linker script, the files after the link and a test that runs the firmware in a simulator. All numbers and outputs are real.
+Build systém platformy Embedbits (EmBi_Platform) je postavený na CMake a tento článok vysvetľuje súčasti, ktoré potrebuje každý embedded build v CMake, na malom projekte, ktorý som zostavil a spustil: toolchain file, flagy s menami, typy buildu, moduly ako knižnice, linker script, súbory po linkovaní a test, ktorý spustí firmware v simulátore. Všetky čísla a výstupy sú skutočné.
 
 <!-- truncate -->
 
-## Two layers: the project and the platform
+## Dve vrstvy: projekt a platforma
 
-The platform splits the build into two parts, and the idea is worth stealing even for a small project. The root `CMakeLists.txt` of the product is a minimal entry point, and everything complicated lives in a separate script that is **versioned and shared** (a Git submodule), which the root includes:
+Platforma delí build na dve časti a túto myšlienku stojí za to ukradnúť aj pre malý projekt. Koreňový `CMakeLists.txt` produktu je minimálny vstupný bod a všetko komplikované žije v samostatnom skripte, ktorý je **verzovaný a zdieľaný** (submodul Gitu) a ktorý koreň includuje:
 
 ```cmake
 include(${CMAKE_CURRENT_LIST_DIR}/CMake/Build.cmake)
 ```
 
-The platform script knows the build types (`Debug`, `Release`, `UnitTest`, `IntegrationTest`), the checks of the parameters, the toolchain, the include paths and the registration of the modules. The product only fills in what is specific for it. A fix of the build is then a new version of the submodule and not an edit of ten products. The example below has both parts in one project to be short, but it keeps the same separation: `cmake/` is the "platform" and `CMakeLists.txt` is the "product".
+Skript platformy pozná typy buildu (`Debug`, `Release`, `UnitTest`, `IntegrationTest`), kontroly parametrov, toolchain, include cesty a registráciu modulov. Produkt dopĺňa iba to, čo je preň špecifické. Oprava buildu je potom nová verzia submodulu, nie úprava desiatich produktov. Príklad nižšie má obe časti v jednom projekte, aby bol krátky, ale zachováva rovnaké oddelenie: `cmake/` je „platforma“ a `CMakeLists.txt` je „produkt“.
 
-## The example project
+## Ukážkový projekt
 
 ```text
 cmake/
@@ -34,9 +34,9 @@ Application/                main.c
 CMakeLists.txt
 ```
 
-## The toolchain file: the compiler is not the PC
+## Toolchain file: kompilátor nie je PC
 
-CMake assumes that you build for the computer that you sit at. A toolchain file says otherwise:
+CMake predpokladá, že zostavujete pre počítač, pri ktorom sedíte. Toolchain file hovorí niečo iné:
 
 ```cmake title="cmake/arm-none-eabi.cmake"
 # Toolchain file: tells CMake that the target is a bare-metal ARM and not the PC.
@@ -57,7 +57,7 @@ set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
 set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 ```
 
-The line that people forget is `CMAKE_TRY_COMPILE_TARGET_TYPE`. At the beginning CMake builds a test program to check that the compiler works, and a bare-metal compiler cannot link a program for a PC (there is no operating system, no `main` that is called by anybody). With a static library as the target of the check, the test passes. The toolchain is given on the command line, once, when the build folder is created:
+Riadok, na ktorý ľudia zabúdajú, je `CMAKE_TRY_COMPILE_TARGET_TYPE`. Na začiatku CMake zostaví testovací program, aby overil, že kompilátor funguje, a bare-metal kompilátor nevie zlinkovať program pre PC (nie je operačný systém, nie je `main`, ktorý by niekto volal). Ak je cieľom kontroly statická knižnica, test prejde. Toolchain sa zadáva na príkazovom riadku, raz, pri vytvorení build priečinka:
 
 ```bash
 cmake -S . -B build-debug -G Ninja \
@@ -65,11 +65,11 @@ cmake -S . -B build-debug -G Ninja \
 cmake --build build-debug
 ```
 
-The same source folder with another `-B` is another build: a `build-release` next to it, or one for the unit tests on the PC, without the toolchain file.
+Rovnaký zdrojový priečinok s iným `-B` je iný build: `build-release` vedľa neho alebo build pre unit testy na PC, bez toolchain file.
 
-## Flags with names
+## Flagy s menami
 
-A line like `-mcpu=cortex-m4 -mthumb -mfloat-abi=soft -ffunction-sections ...` is hard to review, because nobody knows which part of it is important. The platform has a file `Flags.cmake` with a variable for every flag, with a comment (`THUMB_MODE`, `ENABLE_ALL_WARNINGS`, `REMOVE_UNUSED_FUNCTIONS`, `ENABLE_GC_SECTIONS`, `PRINT_MEMORY_USAGE` and so on, plus the CPU and FPU variants from the Cortex-M0 to the M85). The project then reads like a sentence. Mine has only what the example needs:
+Riadok ako `-mcpu=cortex-m4 -mthumb -mfloat-abi=soft -ffunction-sections ...` sa ťažko kontroluje, pretože nikto nevie, ktorá jeho časť je dôležitá. Platforma má súbor `Flags.cmake` s premennou pre každý flag a s komentárom (`THUMB_MODE`, `ENABLE_ALL_WARNINGS`, `REMOVE_UNUSED_FUNCTIONS`, `ENABLE_GC_SECTIONS`, `PRINT_MEMORY_USAGE` a tak ďalej, plus varianty CPU a FPU od Cortex-M0 po M85). Projekt sa potom číta ako veta. Môj obsahuje len to, čo príklad potrebuje:
 
 ```cmake title="cmake/Flags.cmake"
 # Flags with names, so the CMakeLists.txt reads like a sentence.
@@ -83,9 +83,9 @@ set(DEBUG_OPTIONS         -Og -g3)
 set(RELEASE_OPTIONS       -Os -g0)
 ```
 
-## The CMakeLists.txt
+## CMakeLists.txt
 
-The whole root file of the example, 80 lines:
+Celý koreňový súbor príkladu, 80 riadkov:
 
 ```cmake title="CMakeLists.txt"
 cmake_minimum_required(VERSION 3.19)
@@ -170,29 +170,29 @@ if(QEMU)
 endif()
 ```
 
-Let me explain a few lines that decide whether the firmware will be right.
+Vysvetlím niekoľko riadkov, od ktorých závisí, či bude firmware správny.
 
-**Build types with explicit flags.** There are only two, `Debug` (`-Og -g3`: fast enough and debuggable) and `Release` (`-Os -g0`: small and without the debug information), and anything else stops the configuration with an error message. The platform has two more, `UnitTest` and `IntegrationTest`: in the first one the `TARGET_MCU` is not even needed, because it builds for the PC.
+**Typy buildu s explicitnými flagmi.** Sú len dva, `Debug` (`-Og -g3`: dosť rýchly a laditeľný) a `Release` (`-Os -g0`: malý a bez ladiacich informácií) a čokoľvek iné zastaví konfiguráciu s chybovou hláškou. Platforma má ďalšie dva, `UnitTest` a `IntegrationTest`: v prvom z nich sa `TARGET_MCU` ani nevyžaduje, pretože sa zostavuje pre PC.
 
-**The default flags of CMake.** This is a trap. CMake adds its own flags to each configuration, `-O3 -DNDEBUG` for `Release` and `-g` for `Debug`, before your own. In the first version of the example the compile command of the release looked like this:
+**Predvolené flagy CMake.** Toto je pasca. CMake pridáva do každej konfigurácie vlastné flagy, `-O3 -DNDEBUG` pre `Release` a `-g` pre `Debug`, pred vaše vlastné. V prvej verzii príkladu vyzeral kompilačný príkaz release takto:
 
 ```text
 -O3 -DNDEBUG -std=gnu11 -mcpu=cortex-m4 ... -Os -g0 -ffunction-sections ...
 ```
 
-The last `-O` wins, so it was `-Os`, but the `-DNDEBUG` (which switches the `assert()` off) was there although I never asked for it. If you want to know what you build, clear the defaults (`set(CMAKE_C_FLAGS_RELEASE "")`) and write everything in your own file. The way to see what really goes to the compiler is `compile_commands.json`, which the `CMAKE_EXPORT_COMPILE_COMMANDS` option creates: it is also the file that the editors and `clang-tidy` read.
+Posledné `-O` vyhráva, takže to bolo `-Os`, ale `-DNDEBUG` (ktoré vypína `assert()`) tam bolo, hoci som oň nikdy nepožiadal. Ak chcete vedieť, čo zostavujete, vymažte predvolené hodnoty (`set(CMAKE_C_FLAGS_RELEASE "")`) a všetko napíšte do vlastného súboru. Spôsob, ako vidieť, čo skutočne ide do kompilátora, je `compile_commands.json`, ktorý vytvorí voľba `CMAKE_EXPORT_COMPILE_COMMANDS`: je to aj súbor, ktorý čítajú editory a `clang-tidy`.
 
-**The startup code is an `OBJECT` library.** The objects of such a library are put into the executable directly, without relying on the linker to pull them out of an archive.
+**Startup kód je knižnica `OBJECT`.** Objekty takej knižnice sa dostanú do spustiteľného súboru priamo, bez spoliehania sa na to, že ich linker vytiahne z archívu.
 
-**The linker script is a dependency** (`LINK_DEPENDS`): when it changes, the firmware is linked again.
+**Linker script je závislosť** (`LINK_DEPENDS`): keď sa zmení, firmware sa zlinkuje znova.
 
-## The modules are libraries
+## Moduly sú knižnice
 
-Each module is a static library with a list of its **own** sources and its public headers ([the article about the file organization](/blog/file-organization-embedded-c) explains why). The application links the library, and with it gets the include path of the public headers and nothing else. In the CMake file of the module there is no `file(GLOB ...)`: the sources are listed one by one, so a new file is a visible change in a pull request and a file that is left in the folder by accident does not end up in the firmware.
+Každý modul je statická knižnica so zoznamom svojich **vlastných** zdrojákov a verejných hlavičiek ([článok o organizácii súborov](/blog/file-organization-embedded-c) vysvetľuje prečo). Aplikácia knižnicu zlinkuje a dostane s ňou include cestu k verejným hlavičkám a nič iné. V súbore CMake modulu nie je `file(GLOB ...)`: zdrojáky sú vymenované jeden po druhom, takže nový súbor je viditeľná zmena v pull requeste a súbor, ktorý v priečinku zostal omylom, sa do firmvéru nedostane.
 
-## `TARGET_MCU`: one name, several definitions
+## `TARGET_MCU`: jeden názov, viac definícií
 
-The platform builds are started with `-DTARGET_MCU=STM32G474xE`. The script takes the name apart with a regular expression, and from one parameter it makes the definitions for the code (`STM32G474xx` and `STM32G4xx`), which the vendor headers use to select the right device. The same logic, run on four names:
+Buildy platformy sa spúšťajú s `-DTARGET_MCU=STM32G474xE`. Skript rozloží názov regulárnym výrazom a z jedného parametra vytvorí definície pre kód (`STM32G474xx` a `STM32G4xx`), ktoré hlavičky výrobcu používajú na výber správneho zariadenia. Rovnaká logika spustená na štyroch názvoch:
 
 ```text
 STM32G474xE  ->  MCU_ID STM32G474xx, MCU_FAMILY_ID STM32G4xx
@@ -201,11 +201,11 @@ STM32F407VG  ->  MCU_ID STM32F407xx, MCU_FAMILY_ID STM32F4xx
 STM32H563ZI  ->  MCU_ID STM32H563xx, MCU_FAMILY_ID STM32H5xx
 ```
 
-This is the link to the article about the [STM32 families and the branches](/blog/bsp-stm32-families-git-branches): the family decides which branch of the BSP is in the tree, and the MCU name decides the definitions and the linker script.
+To je spojenie s článkom o [rodinách STM32 a vetvách](/blog/bsp-stm32-families-git-branches): rodina rozhoduje, ktorá vetva BSP je v strome, a názov MCU rozhoduje o definíciách a linker scripte.
 
-## What the linker tells you
+## Čo vám povie linker
 
-`-Wl,--print-memory-usage` prints at the end of every link how much of each memory is used, `-Wl,-Map=firmware.map` writes the address of everything, and the post-build step prints the size:
+`-Wl,--print-memory-usage` na konci každého linkovania vypíše, koľko z ktorej pamäte je využité, `-Wl,-Map=firmware.map` zapíše adresu všetkého a krok po builde vypíše veľkosť:
 
 ```text
 Memory region         Used Size  Region Size  %age Used
@@ -215,28 +215,28 @@ Memory region         Used Size  Region Size  %age Used
     276	      0	      8	    284	    11c	firmware.elf
 ```
 
-Two experiments that I did with these numbers show why the flags are in the build and not in somebody's head.
+Dva experimenty, ktoré som s týmito číslami urobil, ukazujú, prečo sú flagy v builde a nie v niekoho hlave.
 
-**The linker can throw away what nobody calls.** With `-ffunction-sections -fdata-sections` every function is in its own section, and `-Wl,--gc-sections` lets the linker remove the unreferenced ones. The example has a function `Unused_Checksum()` that nobody calls:
+**Linker vie zahodiť to, čo nikto nevolá.** S `-ffunction-sections -fdata-sections` je každá funkcia vo vlastnej sekcii a `-Wl,--gc-sections` dovolí linkeru odstrániť nereferencované. Príklad má funkciu `Unused_Checksum()`, ktorú nikto nevolá:
 
-| Build | Code size |
+| Build | Veľkosť kódu |
 |---|---|
-| Release, without the section flags and without `--gc-sections` | 324 B |
-| Release, with them (`-DGC_SECTIONS=ON`) | **276 B** |
+| Release, bez flagov sekcií a bez `--gc-sections` | 324 B |
+| Release, s nimi (`-DGC_SECTIONS=ON`) | **276 B** |
 
-The 48 bytes difference is exactly the checksum function. In a real project with a vendor library, which has hundreds of functions of which you call ten, the difference is in kilobytes.
+Rozdiel 48 bajtov je presne funkcia kontrolného súčtu. V reálnom projekte s knižnicou od výrobcu, ktorá má stovky funkcií a vy volíte desať, je rozdiel v kilobajtoch.
 
-**The compiler can add memory behind your back.** The first release build of the example had **772 B**, almost three times more than the debug build (288 B). The map file showed `memcpy` and `memset` from the standard library. The cause: when the optimization is on, GCC recognizes the loops in the startup code (the copy of `.data` and the zeroing of `.bss`) as a copy and a fill, and replaces them with calls of these two functions, which then come with their code from the library. One flag on the startup object fixes it, and the result is **276 B**:
+**Kompilátor vie pridať pamäť za vaším chrbtom.** Prvý release build príkladu mal **772 B**, takmer trikrát viac než debug build (288 B). Map súbor ukázal `memcpy` a `memset` zo štandardnej knižnice. Príčina: keď je optimalizácia zapnutá, GCC rozpozná cykly v startup kóde (kopírovanie `.data` a nulovanie `.bss`) ako kopírovanie a vyplnenie a nahradí ich volaniami týchto dvoch funkcií, ktoré potom prinesú svoj kód z knižnice. Opraví to jeden flag na startup objekte a výsledok je **276 B**:
 
 ```cmake
 target_compile_options(Startup PRIVATE -fno-tree-loop-distribute-patterns)
 ```
 
-Apart from the size, there is a second reason to care: the startup code runs *before* the memory is initialized, and the less library code it uses, the less can go wrong (see the article about [what happens before `main()`](/blog/before-main-startup-linker)).
+Okrem veľkosti je tu druhý dôvod, prečo sa o to starať: startup kód beží *skôr*, než je pamäť inicializovaná, a čím menej knižničného kódu používa, tým menej sa môže pokaziť (pozrite si článok o tom, [čo sa deje pred `main()`](/blog/before-main-startup-linker)).
 
-## After the link: what you flash, and what you test
+## Po linkovaní: čo flashujete a čo testujete
 
-The `POST_BUILD` command makes `firmware.bin` and `firmware.hex` (the formats that the programmers read) from the ELF file and prints the size. The last part of the example is a test: `add_test` runs the firmware in QEMU and `ctest` checks that it printed the expected text:
+Príkaz `POST_BUILD` vytvorí z ELF súboru `firmware.bin` a `firmware.hex` (formáty, ktoré čítajú programátory) a vypíše veľkosť. Posledná časť príkladu je test: `add_test` spustí firmware v QEMU a `ctest` skontroluje, že vypísal očakávaný text:
 
 ```bash
 ctest --test-dir build-debug
@@ -248,16 +248,16 @@ ctest --test-dir build-debug
 100% tests passed, 0 tests failed out of 1
 ```
 
-It is a *smoke test* (does the firmware start and reach its `main()`?), and it runs in a fraction of a second on every commit. It does not replace a test on the hardware, but a build that does not start is found in the CI and not at the desk. The tests of the modules on the PC are a different build of the same CMake project (the [article about Unity and CMock](/blog/unit-testing-unity-cmock) shows one).
+Je to *smoke test* (naštartuje firmware a dostane sa do svojho `main()`?) a beží zlomok sekundy pri každom commite. Nenahrádza test na hardvéri, ale build, ktorý nenaštartuje, sa nájde v CI a nie pri stole. Testy modulov na PC sú iný build toho istého projektu CMake (ukazuje ho [článok o Unity a CMock](/blog/unit-testing-unity-cmock)).
 
-## A checklist
+## Checklist
 
-1. A toolchain file, and `CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY`.
-2. The flags in one file with names, the CMake defaults of the configurations cleared.
-3. Each module is a library with an explicit list of sources and public headers.
-4. `-ffunction-sections -fdata-sections` and `--gc-sections`, always.
-5. `--print-memory-usage` and the map file in every link, `size` after it.
-6. `compile_commands.json` for the editor and the static analysis.
-7. The linker script is a dependency of the firmware.
-8. A smoke test in a simulator in the CI.
-9. Look at the size of the *release* build from time to time. If it grows without a reason, the map file knows why.
+1. Toolchain file a `CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY`.
+2. Flagy v jednom súbore s menami, predvolené hodnoty konfigurácií CMake vymazané.
+3. Každý modul je knižnica s explicitným zoznamom zdrojákov a verejných hlavičiek.
+4. `-ffunction-sections -fdata-sections` a `--gc-sections`, vždy.
+5. `--print-memory-usage` a map súbor pri každom linkovaní, po ňom `size`.
+6. `compile_commands.json` pre editor a statickú analýzu.
+7. Linker script je závislosť firmvéru.
+8. Smoke test v simulátore v CI.
+9. Občas sa pozrite na veľkosť *release* buildu. Ak rastie bez dôvodu, map súbor vie prečo.

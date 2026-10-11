@@ -1,34 +1,34 @@
 ---
-title: "Doxygen for embedded C: documentation that cannot be forgotten"
+title: "Doxygen pro embedded C: dokumentace, na kterou nelze zapomenout"
 slug: doxygen-embedded-c
 date: 2026-10-06T20:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, cmake]
 ---
 
-Every project has documentation, and every project has documentation that lies. A Word file with the description of the interface was correct in the week when it was written. A comment above the function is more honest, because it is a few lines from the code that it describes, but it is also written by the same people who forget. The way out is not more discipline, it is a **tool that reads the comments, builds the documentation from them and fails the build when something is missing**. That tool is Doxygen.
+Každý projekt má dokumentaci a každý projekt má dokumentaci, která lže. Word soubor s popisem rozhraní byl správný v týdnu, kdy vznikl. Komentář nad funkcí je poctivější, protože je pár řádků od kódu, který popisuje, ale píší ho tytéž lidé, kteří zapomínají. Cesta ven nevede přes větší disciplínu, ale přes **nástroj, který komentáře přečte, sestaví z nich dokumentaci a shodí build, když něco chybí**. Tím nástrojem je Doxygen.
 
-This article shows what a documented module looks like in my projects, how it is generated, and how to make the documentation a part of the CI that cannot be skipped. The examples were built with Doxygen 1.9.8 and Graphviz, and the outputs are real.
+Tento článek ukazuje, jak vypadá zdokumentovaný modul v mých projektech, jak se generuje a jak z dokumentace udělat součást CI, kterou nelze přeskočit. Příklady vznikly s Doxygen 1.9.8 a Graphviz a výstupy jsou skutečné.
 
 <!-- truncate -->
 
-## What to document, and what not
+## Co dokumentovat a co ne
 
-My [coding style](/docs/platform/embi-platform/coding-style) has one paragraph about it: Doxygen-style comments for all **public** functions, types and macros, in English, short and precise, *why* and not *what*. A few examples of the difference:
+Můj [coding style](/docs/platform/embi-platform/coding-style) o tom má jeden odstavec: komentáře ve stylu Doxygen pro všechny **veřejné** funkce, typy a makra, v angličtině, krátké a přesné, *proč* a ne *co*. Pár příkladů rozdílu:
 
-| A comment that costs nothing | A comment that helps |
+| Komentář, který nic nestojí | Komentář, který pomáhá |
 |---|---|
 | `/* initializes the module */` | `Clears the filter and marks the value as not valid. The module does not report a value until Temperature_Task() has run at least once.` |
 | `/* returns the value */` | `Returns TEMPERATURE_REQUEST_OK if a valid value is available, TEMPERATURE_REQUEST_ERROR if the task has not run yet.` |
 | `/* value */` (for a parameter) | `Filtered temperature in tenths of a degree Celsius. Must not be NULL. Written only if the function returns TEMPERATURE_REQUEST_OK.` |
 
-The first column repeats the name of the function, which the reader can already see. The second column says what the reader **cannot** see: the unit, the valid range, who owns the memory, whether the output is written in the case of an error, from where the function can be called, what has to be done before it. For an embedded interface it is also the place for the information that is dangerous to guess: *is it safe to call it from an interrupt*, *how long can it block*, *is the pointer allowed to be NULL*.
+První sloupec opakuje název funkce, který čtenář už vidí. Druhý sloupec říká to, co čtenář **vidět nemůže**: jednotku, platný rozsah, kdo vlastní paměť, zda se výstup zapisuje v případě chyby, odkud lze funkci volat, co je třeba udělat předtím. Pro embedded rozhraní je to také místo pro informace, které je nebezpečné hádat: *je bezpečné volat to z přerušení*, *jak dlouho může blokovat*, *smí být ukazatel NULL*.
 
-## The module in the files of the platform
+## Modul v souborech platformy
 
-The templates of EmBi_Platform, from which every module starts, have the same documentation skeleton: the header of the file, with `\author`, `\file`, `\ingroup` and `\brief`, and above every function a block with a `\brief`, a description and a `\return`. The finite state machine template adds `\pre` for the preconditions and a block `\par Used global variables` with a list of the variables that the function reads (`in`), writes (`out`) or both (`in,out`), which is a surprisingly useful kind of documentation: the data flow of a function in three lines.
+Šablony EmBi_Platform, z nichž každý modul začíná, mají stejnou dokumentační kostru: hlavičku souboru s `\author`, `\file`, `\ingroup` a `\brief` a nad každou funkcí blok s `\brief`, popisem a `\return`. Šablona konečného automatu přidává `\pre` pro předpoklady a blok `\par Used global variables` se seznamem proměnných, které funkce čte (`in`), zapisuje (`out`) nebo obojí (`in,out`), což je překvapivě užitečný druh dokumentace: tok dat funkce na třech řádcích.
 
-The whole module is one **group** in Doxygen. The `\ingroup Temperature` in each file says that the file belongs to the module, and the group itself is defined once, in the port file:
+Celý modul je v Doxygenu jedna **skupina**. `\ingroup Temperature` v každém souboru říká, že soubor patří k modulu, a samotná skupina se definuje jednou, v port souboru:
 
 ```c title="Temperature_Port.h"
 /**
@@ -99,7 +99,7 @@ temperature_RequestState_t Temperature_Get_Value( temperature_Value_t * const va
 #endif /* TEMPERATURE_TEMPERATURE_PORT_H */
 ```
 
-The types have a short description of the type and of every value (the `/**< ... */` comment behind a member documents the member on the same line):
+Typy mají krátký popis typu a každé hodnoty (komentář `/**< ... */` za členem dokumentuje člen na stejném řádku):
 
 ```c title="Temperature_Types.h"
 /**
@@ -131,9 +131,9 @@ typedef enum
 #endif /* TEMPERATURE_TEMPERATURE_TYPES_H */
 ```
 
-## Generating it
+## Generování
 
-Doxygen is configured by a file with a few hundred options. Writing it by hand is a mistake that is easy to avoid: the platform has the file as a template (`Doxyfile.in` in the Doxygen artifact) and fills it from CMake variables, and the projects only set the ones that differ from the defaults. The same is possible with the module of CMake itself, and this is the whole configuration of the example:
+Doxygen se konfiguruje souborem s několika sty voleb. Psát ho ručně je chyba, které se snadno vyhnete: platforma má soubor jako šablonu (`Doxyfile.in` v artefaktu Doxygen) a plní ho z proměnných CMake a projekty nastavují jen ty, které se liší od výchozích. Totéž umožňuje modul samotného CMake a toto je celá konfigurace příkladu:
 
 ```cmake title="CMakeLists.txt"
 cmake_minimum_required(VERSION 3.19)
@@ -163,22 +163,22 @@ set(DOXYGEN_DOT_IMAGE_FORMAT         svg)
 doxygen_add_docs(docs Temperature COMMENT "Generating the documentation")
 ```
 
-and the build is one target:
+a build je jeden target:
 
 ```bash
 cmake -S . -B build -G Ninja
 cmake --build build --target docs
 ```
 
-The result is a folder with the HTML pages. The group of the module, with the files that belong to it and the description from the port file, looks like this:
+Výsledkem je složka s HTML stránkami. Skupina modulu se soubory, které k ní patří, a popisem z port souboru vypadá takto:
 
-![The page of the Temperature group in the generated HTML documentation](/img/blog/doxygen-module-group.png)
+![Stránka skupiny Temperature ve vygenerované HTML dokumentaci](/img/blog/doxygen-module-group.png)
 
-Doxygen also draws the **include graph** of every file and the **call graph** and **caller graph** of every documented function (`HAVE_DOT`, Graphviz: that is the reason why the platform has an artifact for it). The include graphs are worth a look from time to time: an arrow from an application file to an internal header of a module is the same problem that the [article about the file organization](/blog/file-organization-embedded-c) describes, only seen from above.
+Doxygen také kreslí **include graph** každého souboru a **call graph** a **caller graph** každé zdokumentované funkce (`HAVE_DOT`, Graphviz: proto má platforma pro něj artefakt). Include grafy stojí za občasný pohled: šipka z aplikačního souboru do interní hlavičky modulu je tentýž problém, který popisuje [článek o organizaci souborů](/blog/file-organization-embedded-c), jen viděný shora.
 
-## The documentation as a test
+## Dokumentace jako test
 
-This is the part that changes the discipline. Four options turn missing documentation from a "we should" into a "the build is red":
+Tohle je část, která mění disciplínu. Čtyři volby změní chybějící dokumentaci z „měli bychom“ na „build je červený“:
 
 ```cmake
 set(DOXYGEN_WARN_IF_UNDOCUMENTED   YES)   # a public member without a description
@@ -187,7 +187,7 @@ set(DOXYGEN_WARN_NO_PARAMDOC       YES)   # a function whose parameters are not 
 set(DOXYGEN_WARN_AS_ERROR          FAIL_ON_WARNINGS)
 ```
 
-With `FAIL_ON_WARNINGS` Doxygen goes through everything, prints **all** the warnings and only then fails (the plain `YES` stops at the first one). I tried it: I deleted the description of `Temperature_Task()` and the `\param` of `Temperature_Get_Value()` from the port file, and the build said:
+S `FAIL_ON_WARNINGS` Doxygen projde vše, vypíše **všechna** varování a teprve potom skončí chybou (prosté `YES` se zastaví u prvního). Vyzkoušel jsem to: z port souboru jsem smazal popis `Temperature_Task()` a `\param` u `Temperature_Get_Value()` a build ohlásil:
 
 ```text
 Temperature/Temperature_Port.h:40: error: Member Temperature_Task(void) (function) of file Temperature_Port.h is not documented.
@@ -195,30 +195,30 @@ Temperature/Temperature_Port.h:45: error: parameters of member Temperature_Get_V
 ninja: build stopped: subcommand failed.
 ```
 
-(The exit code of the command is 1, so the CI is red.) With the descriptions back, the same build finishes with no output at all and an exit code 0. A new function without a comment now cannot get to the main branch by mistake, and nobody has to be the one who remembers it in a review.
+(Návratový kód příkazu je 1, takže CI je červené.) Po vrácení popisů stejný build skončí bez jakéhokoli výstupu a s návratovým kódem 0. Nová funkce bez komentáře se tak už nemůže omylem dostat do hlavní větve a nikdo nemusí být tím, kdo si to při review pohlídá.
 
-## What a good documentation of an interface contains
+## Co obsahuje dobrá dokumentace rozhraní
 
-For each function of a public interface, check the list:
+U každé funkce veřejného rozhraní projděte seznam:
 
-1. **What it does**, in one sentence, with the verb (`\brief`).
-2. **The parameters**: the direction (`[in]`, `[out]`, `[in,out]`), the unit, the range, whether `NULL` is allowed.
-3. **The return value**: every value that can be returned and what it means.
-4. **The preconditions** (`\pre`): what has to be done before, for example the initialization.
-5. **The context**: can it be called from an interrupt, does it block, how long does it take.
-6. **The side effects**: what else it changes (a global state, a peripheral).
+1. **Co dělá**, jednou větou, se slovesem (`\brief`).
+2. **Parametry**: směr (`[in]`, `[out]`, `[in,out]`), jednotka, rozsah, zda je povoleno `NULL`.
+3. **Návratová hodnota**: každá hodnota, která může být vrácena, a co znamená.
+4. **Předpoklady** (`\pre`): co je třeba udělat předtím, například inicializaci.
+5. **Kontext**: lze funkci volat z přerušení, blokuje, jak dlouho trvá.
+6. **Vedlejší efekty**: co dalšího mění (globální stav, periferii).
 
-If a function does not have an answer to one of these questions, the answer is in the code and the reader has to read it. That is the sign that the interface is not finished, and the exercise of writing the comment is often the moment when you find it.
+Pokud funkce nemá odpověď na jednu z těchto otázek, odpověď je v kódu a čtenář si ji musí přečíst. To je znamení, že rozhraní není dokončené, a psaní komentáře je často okamžik, kdy to zjistíte.
 
-## Where it fits in the platform
+## Kam to v platformě zapadá
 
-Each module of the platform has in its `CMakeLists.txt` a call that registers its folder for the documentation (when the Doxygen artifact is available in the project), and the root build has an option `DOXYGEN_ENABLED`. So the documentation of the whole firmware is generated by the same build as the firmware: `-DDOXYGEN_ENABLED=ON`. The artifacts (the Doxygen and Graphviz) are fetched in the version that the project has pinned, so the pages of today and of the next year look the same.
+Každý modul platformy má ve svém `CMakeLists.txt` volání, které registruje jeho složku pro dokumentaci (když je v projektu dostupný artefakt Doxygen), a kořenový build má volbu `DOXYGEN_ENABLED`. Dokumentace celého firmwaru se tedy generuje stejným buildem jako firmware: `-DDOXYGEN_ENABLED=ON`. Artefakty (Doxygen a Graphviz) se stahují ve verzi, kterou má projekt připnutou, takže stránky z dneška a z příštího roku vypadají stejně.
 
-## A checklist
+## Kontrolní seznam
 
-1. Every public function, type and macro has a description. The internal ones only where it is not obvious.
-2. The description says what the reader cannot see in the signature: units, ranges, the context, the errors.
-3. One group per module (`\defgroup` in the port file, `\ingroup` in the others).
-4. `WARN_IF_UNDOCUMENTED`, `WARN_NO_PARAMDOC` and `FAIL_ON_WARNINGS` in the CI.
-5. The graphs are on, and somebody looks at the include graph of the application once in a while.
-6. The documentation is generated from the same build as the firmware, with the pinned tools.
+1. Každá veřejná funkce, typ a makro má popis. Interní jen tam, kde to není zřejmé.
+2. Popis říká to, co čtenář nevidí v signatuře: jednotky, rozsahy, kontext, chyby.
+3. Jedna skupina na modul (`\defgroup` v port souboru, `\ingroup` v ostatních).
+4. `WARN_IF_UNDOCUMENTED`, `WARN_NO_PARAMDOC` a `FAIL_ON_WARNINGS` v CI.
+5. Grafy jsou zapnuté a někdo se čas od času podívá na include graph aplikace.
+6. Dokumentace se generuje ze stejného buildu jako firmware, s připnutými nástroji.

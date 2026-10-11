@@ -1,31 +1,31 @@
 ---
-title: "One BSP, many STM32 families: why Git branches, and what they cost"
+title: "Один BSP, багато родин STM32: чому гілки Git і чого вони коштують"
 slug: bsp-stm32-families-git-branches
 date: 2026-10-05T18:00:00
 authors: [Mr.Nobody]
 tags: [embedded, architecture, stm32]
 ---
 
-STM32 is not one microcontroller, it is a dozen families: the G4, the H5, the U5, the F4 and so on. They have the same Cortex-M core, but different peripherals, different register names and a different vendor driver package. If you want one firmware architecture to run on all of them, you have to decide where the differences live. There is no free option, and this article describes the one that I chose for the Embedbits BSP, what the numbers from the real repositories say about it, and what it costs.
+STM32 - це не один мікроконтролер, а десяток родин: G4, H5, U5, F4 і так далі. Вони мають те саме ядро Cortex-M, але різну периферію, різні назви регістрів і різний пакет драйверів від виробника. Якщо ви хочете, щоб одна архітектура firmware працювала на всіх них, потрібно вирішити, де житимуть відмінності. Безкоштовного варіанту немає, і ця стаття описує той, який я обрав для Embedbits BSP, що про нього кажуть цифри зі справжніх репозиторіїв і чого він коштує.
 
 <!-- truncate -->
 
-All the numbers below are from the repositories on 5 October 2026, measured with a small script that you will find at the end of the section about the costs. A word about the date: at that moment **STM32F4 is the only family with a complete release** of the BSP, and the release of the others (U5 first) was just being done. So the numbers show a platform in the middle of a migration, not the final state, and that is what makes them interesting. Run the script again after the release and compare.
+Усі наведені нижче цифри взято з репозиторіїв на 5 жовтня 2026 року, виміряні невеликим скриптом, який ви знайдете наприкінці розділу про вартість. Кілька слів про дату: на той момент **STM32F4 - єдина родина з повним релізом** BSP, а реліз інших (першою U5) саме робився. Тож цифри показують платформу посеред міграції, а не кінцевий стан, і саме це робить їх цікавими. Запустіть скрипт ще раз після релізу й порівняйте.
 
-## Four ways to support many families
+## Чотири способи підтримати багато родин
 
-| Approach | How it looks | Problem |
+| Підхід | Як це виглядає | Проблема |
 |---|---|---|
-| **One tree, `#ifdef`** | `#if defined(STM32G4) ... #elif defined(STM32U5) ...` in the code | The code fills with the conditions, most of it is dead for any given build (see the rules about dead code in the article about [MISRA](/blog/misra-c-rules-in-practice)), and nobody dares to touch it |
-| **Copy and paste** | A folder per family, a copy of everything | Every fix has to be done N times, by hand, and one of them is forgotten |
-| **One repository per family** | `Bsp-G4`, `Bsp-U5`, ... | The same as the copy, only with more repositories |
-| **Abstraction + a branch per family** | One interface, the family lives in a branch | A branch can drift away from the others (see below) |
+| **Одне дерево, `#ifdef`** | `#if defined(STM32G4) ... #elif defined(STM32U5) ...` у коді | Код наповнюється умовами, більша його частина мертва для будь-якої конкретної збірки (див. правила щодо мертвого коду в статті про [MISRA](/blog/misra-c-rules-in-practice)), і ніхто не наважується його чіпати |
+| **Copy and paste** | Тека на родину, копія всього | Кожне виправлення треба робити N разів, вручну, і одне з них забувається |
+| **Один репозиторій на родину** | `Bsp-G4`, `Bsp-U5`, ... | Те саме, що й копіювання, тільки з більшою кількістю репозиторіїв |
+| **Абстракція + гілка на родину** | Один інтерфейс, родина живе в гілці | Гілка може віддалитися від інших (див. нижче) |
 
-I use the last one. The idea is that the user selects the family **once**, and from then on the tree contains only the code of that family.
+Я використовую останній. Ідея в тому, що користувач обирає родину **один раз**, і відтоді дерево містить лише код цієї родини.
 
-## How it works in the BSP
+## Як це працює в BSP
 
-Each STM32 family is a **Git branch** of the BSP repository (`STM32G4`, `STM32H5`, `STM32U5`, ...). The same is true for the modules of the BSP: the MCAL modules, the linker and the RAL. The platform does the rest. When you run the setup script of EmBi_Platform and choose *Configure BSP module*, it lists the branches:
+Кожна родина STM32 - це **гілка Git** репозиторію BSP (`STM32G4`, `STM32H5`, `STM32U5`, ...). Те саме стосується модулів BSP: модулів MCAL, linker і RAL. Решту робить платформа. Коли ви запускаєте скрипт налаштування EmBi_Platform і обираєте *Configure BSP module*, він показує список гілок:
 
 ```text
 Available BSP Families:
@@ -38,13 +38,13 @@ Available BSP Families:
 Enter branch ID (numerical):
 ```
 
-and after your choice it adds the BSP modules as Git submodules, checks out the branch and the commits of the family, and updates the CMake files. A project is pinned to the exact commits, so it builds the same tomorrow. The entries with `_Dev` are the development branches of the family and `master` contains the latest unreleased changes of all families, so it is meant for the work on the platform and not for a product. Switching to another family means running the same option again.
+а після вашого вибору додає модулі BSP як підмодулі Git, робить checkout гілки та комітів родини й оновлює файли CMake. Проєкт прив'язаний до точних комітів, тож завтра збирається так само. Записи з `_Dev` - це гілки розробки родини, а `master` містить найновіші нерелізні зміни всіх родин, тому призначений для роботи над платформою, а не для продукту. Перемикання на іншу родину означає повторний запуск тієї самої опції.
 
-The vendor driver package follows the same scheme. The RAL has branches `STM32<family>` for the family, `STM32<family>_<major>.x` for a major release of the ST drivers and `STM32<family>_<major>.<minor>` for a minor one. When ST publishes a new version, there is a new branch and the old one stays available for the projects that use it.
+Пакет драйверів виробника йде за тією самою схемою. RAL має гілки `STM32<family>` для родини, `STM32<family>_<major>.x` для мажорного релізу драйверів ST і `STM32<family>_<major>.<minor>` для мінорного. Коли ST публікує нову версію, з'являється нова гілка, а стара лишається доступною для проєктів, які її використовують.
 
-## Where the differences really are
+## Де насправді відмінності
 
-I wanted to know how much of the code is actually different between the families, so I compared the branches. Here is the GPIO module, `Bsp-Mcal-Gpio`, with the released STM32F4 as the reference. The numbers are the changed lines (added plus removed) in each file:
+Я хотів знати, яка частина коду справді відрізняється між родинами, тож порівняв гілки. Ось модуль GPIO, `Bsp-Mcal-Gpio`, з релізною STM32F4 як еталоном. Числа - це змінені рядки (додані плюс видалені) у кожному файлі:
 
 ```text
 file               STM32F4 vs STM32G4   STM32F4 vs STM32H5   STM32F4 vs STM32U5
@@ -54,20 +54,20 @@ Gpio_Port.h        3                    0                    0
 Gpio_Types.h       35                   5                    28
 ```
 
-The public interface, `Gpio_Port.h`, is **identical** on the F4 and the H5 and differs in three lines of a comment on the G4 and the U5. The G4 and the U5 are close to each other (their `Gpio.c` differs in three lines, again only a comment): they are the older generation of the module that is waiting for the release. Why is the *code of the module* so similar across two different families? Because the difference was moved out of the module, to the lowest layer. The RAL has a `Port` folder with one header for every peripheral, and the whole difference between the families in `Stm32_gpio.h` is this:
+Публічний інтерфейс, `Gpio_Port.h`, **ідентичний** на F4 і H5, а на G4 та U5 відрізняється трьома рядками коментаря. G4 і U5 близькі одна до одної (їхні `Gpio.c` відрізняються трьома рядками, знову лише коментар): це старіше покоління модуля, яке чекає на реліз. Чому *код модуля* такий схожий у двох різних родинах? Тому що відмінність винесено з модуля на найнижчий рівень. RAL має теку `Port` з одним заголовком на кожну периферію, і вся різниця між родинами в `Stm32_gpio.h` - це ось що:
 
 ```diff
 -#include "stm32g4xx_ll_gpio.h"              /* GPIO peripheral access layer   */
 +#include "stm32u5xx_ll_gpio.h"              /* GPIO peripheral access layer   */
 ```
 
-One line. The MCAL module includes `Stm32_gpio.h` and never knows which vendor driver is behind it. The same is true for the other peripherals I compared between the G4 and the U5 (`Stm32_rcc.h`, `Stm32_usart.h`, `Stm32_tim.h`): two differing lines in 32. That is the whole idea of a layered architecture, applied to the question of the families.
+Один рядок. Модуль MCAL включає `Stm32_gpio.h` і ніколи не знає, який драйвер виробника за ним стоїть. Те саме стосується інших периферій, які я порівняв між G4 та U5 (`Stm32_rcc.h`, `Stm32_usart.h`, `Stm32_tim.h`): два відмінні рядки з 32. У цьому вся ідея шарової архітектури, застосована до питання родин.
 
-What does differ are the **sets of peripherals**. The `Port` folder of the G4 has headers for the HRTIM and the DMAMUX, which the U5 does not have, and the U5 has the caches, the PKA, the SDMMC and the low-power GPIO, which the G4 does not have. A module for a peripheral that a family does not have is simply not present in its branch, and that is where the *family support* table on the page about the [MCAL](/docs/bsp/mcal) comes from.
+Що справді відрізняється, так це **набори периферії**. Тека `Port` для G4 має заголовки для HRTIM і DMAMUX, яких немає в U5, а U5 має кеші, PKA, SDMMC і low-power GPIO, яких немає в G4. Модуль для периферії, якої родина не має, просто відсутній у її гілці, і звідси береться таблиця *підтримки родин* на сторінці про [MCAL](/docs/bsp/mcal).
 
-### Two levels: the family and the MCU
+### Два рівні: родина і MCU
 
-A branch handles the difference between the *families*. There is a smaller difference *inside* a family: the individual MCUs have a different number of the ports (an MCU in a small package has fewer GPIO ports than the one in a big package). That one is solved by a condition on the macros that the device header of the vendor already defines, not by a branch:
+Гілка вирішує відмінність між *родинами*. Існує менша відмінність *всередині* родини: окремі MCU мають різну кількість портів (MCU в малому корпусі має менше портів GPIO, ніж у великому). Її розв'язують умовою на макроси, які заголовок пристрою від виробника вже визначає, а не гілкою:
 
 ```c
 static const gpio_PortConfig_t      gpio_PeriphConf[ GPIO_PORT_CNT ] =
@@ -85,35 +85,35 @@ static const gpio_PortConfig_t      gpio_PeriphConf[ GPIO_PORT_CNT ] =
 };
 ```
 
-and, in the types, a port that does not exist is mapped to the value `GPIO_PORT_CNT`, so the other modules still compile and the use of such a port can be recognized as an invalid one. The rule: **a branch for a different family, `#if defined` of the vendor's macro for a different MCU in the same family.**
+а в типах порт, якого не існує, відображається на значення `GPIO_PORT_CNT`, тож інші модулі й далі компілюються, а використання такого порту можна розпізнати як некоректне. Правило: **гілка для іншої родини, `#if defined` макросу виробника для іншого MCU в тій самій родині.**
 
-## What you get
+## Що ви отримуєте
 
-- **The code of the family only.** There are no `#ifdef` forests, nothing is dead, and the diff of a change shows only the code that is built.
-- **A clean separation of the vendor code.** The drivers of ST for each family are mirrored in their own branches of the RAL, and they are not modified. Your code does not contain them.
-- **A stable interface for the application.** The application calls `Gpio_Set_PinLevel()`, and it does not know the family, so a change of the MCU is a different branch and not a rewrite of the application.
-- **The pinned versions.** The project says exactly which commit of which branch it uses, so an update is a conscious decision.
+- **Лише код родини.** Жодних лісів `#ifdef`, нічого мертвого, а diff зміни показує тільки той код, який збирається.
+- **Чітке відокремлення коду виробника.** Драйвери ST для кожної родини віддзеркалені у власних гілках RAL і не модифікуються. Ваш код їх не містить.
+- **Стабільний інтерфейс для застосунку.** Застосунок викликає `Gpio_Set_PinLevel()` і не знає родини, тож зміна MCU - це інша гілка, а не переписування застосунку.
+- **Зафіксовані версії.** Проєкт точно каже, який коміт якої гілки він використовує, тож оновлення - це свідоме рішення.
 
-## What it costs: the drift
+## Чого це коштує: дрейф
 
-The weakness of the branches is that they live their own lives. A fix that is done in one branch is not in the others, unless somebody takes it there. The measurement above shows two *generations* of the same module at the same time. The released F4 (and the H5, which follows it) has a refined initialization of the GPIO (the output level is set *before* the pin mode is switched to output, so the pin does not glitch), documented parameters and a `Tests` folder with the **unit tests and the integration tests**. The G4 and the U5 do not have any of that yet. The public interface of the USART in `Usart_Port.h` shows it even better:
+Слабкість гілок у тому, що вони живуть власним життям. Виправлення, зроблене в одній гілці, не потрапляє в інші, якщо хтось його туди не перенесе. Вимірювання вище показує два *покоління* того самого модуля одночасно. Релізна F4 (і H5, яка йде за нею) має вдосконалену ініціалізацію GPIO (рівень виходу встановлюється *до* перемикання режиму піна на вихід, тож пін не дає глітчу), задокументовані параметри та теку `Tests` з **модульними й інтеграційними тестами**. G4 і U5 нічого з цього ще не мають. Публічний інтерфейс USART у `Usart_Port.h` показує це ще краще:
 
-| Branch | Public functions | Compared to the F4 |
+| Гілка | Публічні функції | Порівняно з F4 |
 |---|---|---|
-| STM32F4 (released) | 79 | the reference |
-| STM32H5 | 79 | the same set of functions, the header differs in 2 lines |
-| STM32G4 | 82 | 12 functions that the F4 does not have (`Usart_StartTransmit`, `Usart_Set_TransmitBytes`, ...) and 9 that it has and the G4 does not (`Usart_Set_TxStart`, `Usart_Set_DataConfig`, ...) |
-| STM32U5 | 83 | 13 functions only on the U5, 9 only on the F4 |
+| STM32F4 (реліз) | 79 | еталон |
+| STM32H5 | 79 | той самий набір функцій, заголовок відрізняється у 2 рядках |
+| STM32G4 | 82 | 12 функцій, яких немає в F4 (`Usart_StartTransmit`, `Usart_Set_TransmitBytes`, ...) і 9, які є в F4, а в G4 немає (`Usart_Set_TxStart`, `Usart_Set_DataConfig`, ...) |
+| STM32U5 | 83 | 13 функцій лише в U5, 9 лише в F4 |
 
-At this moment, a code that is written against the interface of the F4 compiles on the H5 and does not compile on the G4 and the U5. This is not a flaw of the approach, it is the normal state of a platform in the middle of a release. But it shows the price: the promise "the same BSP interface for all families" is true for a family only **after its branch has been released**, and the time between the release of the first family and of the last one is the period in which the branches drift away from each other. During it nobody should write an application for the family that is not ready.
+Наразі код, написаний під інтерфейс F4, компілюється на H5 і не компілюється на G4 та U5. Це не вада підходу, а нормальний стан платформи посеред релізу. Але він показує ціну: обіцянка «той самий інтерфейс BSP для всіх родин» вірна для родини лише **після того, як її гілку випущено**, а час між релізом першої та останньої родини - це період, коли гілки віддаляються одна від одної. У цей час ніхто не повинен писати застосунок для родини, яка ще не готова.
 
-### How to keep the drift under control
+### Як тримати дрейф під контролем
 
-1. **Have a reference branch and a list of what is ported.** One family leads (here the F4), the others follow, and the status is visible: that is the table of the family support on the MCAL page, extended with "the same version of the interface as the reference".
-2. **Make the release one operation.** A release script that goes through all the modules of one family (the way the U5 release is being done) is better than a hand-made merge: the family is either ready as a whole, or it is not.
-3. **Measure the drift.** The script below compares one module on several branches and prints the number of the changed lines per file. Zero or a comment means "the same", a big number is the work that is waiting. It takes a second and fits into a CI job.
-4. **Let one test suite check all branches.** The unit tests that exist on the F4 (and the H5) are the specification of the module. If the same `Test_Gpio.c` has to pass on every family branch, the interface cannot silently diverge. The article about the [unit testing](/blog/unit-testing-unity-cmock) shows how such a test is built.
-5. **Keep the difference at the bottom.** Everything that can be moved to the `Port` headers of the RAL (a single `#include`, as shown above) is a difference that does not need to be maintained per branch. The more code is *identical*, the easier it is to take a fix from one branch to another (`git cherry-pick`).
+1. **Майте еталонну гілку та список того, що портовано.** Одна родина веде (тут F4), інші наздоганяють, а статус видимий: це таблиця підтримки родин на сторінці MCAL, розширена колонкою «та сама версія інтерфейсу, що й в еталона».
+2. **Зробіть реліз однією операцією.** Скрипт релізу, що проходить усі модулі однієї родини (так робиться реліз U5), кращий за ручний merge: родина або готова вся, або не готова.
+3. **Вимірюйте дрейф.** Скрипт нижче порівнює один модуль на кількох гілках і виводить кількість змінених рядків на файл. Нуль або коментар означає «те саме», велике число - це робота, що чекає. Він виконується за секунду і вміщається в job CI.
+4. **Нехай один набір тестів перевіряє всі гілки.** Модульні тести, що існують на F4 (і H5), - це специфікація модуля. Якщо той самий `Test_Gpio.c` має проходити на кожній гілці родини, інтерфейс не може непомітно розійтися. Стаття про [модульне тестування](/blog/unit-testing-unity-cmock) показує, як будується такий тест.
+5. **Тримайте відмінність внизу.** Усе, що можна перенести в заголовки `Port` у RAL (один `#include`, як показано вище), - це відмінність, яку не треба підтримувати на кожній гілці. Чим більше коду *ідентичного*, тим легше перенести виправлення з однієї гілки в іншу (`git cherry-pick`).
 
 ```sh title="branch-drift.sh"
 #!/usr/bin/env bash
@@ -148,13 +148,13 @@ done
 rm -rf "$work"
 ```
 
-Used on the branches of the GPIO module (the table above is its output):
+Використання на гілках модуля GPIO (таблиця вище - його вивід):
 
 ```bash
 ./branch-drift.sh https://github.com/Embedbits/Bsp-Mcal-Gpio STM32F4 STM32G4 STM32H5 STM32U5
 ```
 
-For the other modules the picture is different, and that is useful to know before you plan the work:
+Для інших модулів картина інша, і це корисно знати до того, як планувати роботу:
 
 ```text
 file             F4 vs G4   F4 vs H5   F4 vs U5
@@ -164,12 +164,12 @@ Usart_Port.h     55         2          28
 Usart.c          3734       2301       3927
 ```
 
-The EXTI has an unchanged public header on all the branches and a different implementation (the peripherals differ, the interface does not). The USART differs in the interface of the G4 and the U5 and in a big part of the implementation, which is a measure of how much work the release of those two is.
+EXTI має незмінний публічний заголовок на всіх гілках і різну реалізацію (периферія відрізняється, інтерфейс ні). USART відрізняється інтерфейсом на G4 та U5 і значною частиною реалізації, що є мірою того, скільки роботи потребує реліз цих двох.
 
-## Which approach to choose
+## Який підхід обрати
 
-- **Branches per family** fit when the families differ in the *set* of peripherals and in the vendor drivers, when the product is built for several families and when you can afford to maintain the interface (the drift is manageable with a few families and a tool).
-- **`#ifdef` in one tree** is acceptable when the differences are small: one family with a few MCU variants, a single register that is named differently.
-- **Neither of them** helps without the **abstraction at the bottom**. The branch only decides which implementation of the interface is in the tree. If the application includes the vendor headers, a branch per family does not save you from anything.
+- **Гілки на родину** підходять, коли родини відрізняються *набором* периферії та драйверами виробника, коли продукт збирається для кількох родин і коли ви можете дозволити собі підтримувати інтерфейс (дрейфом можна керувати при кількох родинах і з інструментом).
+- **`#ifdef` в одному дереві** прийнятний, коли відмінності малі: одна родина з кількома варіантами MCU, один регістр, що називається по-іншому.
+- **Жоден із них** не допоможе без **абстракції внизу**. Гілка лише вирішує, яка реалізація інтерфейсу лежить у дереві. Якщо застосунок включає заголовки виробника, гілка на родину ні від чого вас не врятує.
 
-And whatever you choose, write down which family is the reference one and keep one number in a CI job: how far the others are.
+І що б ви не обрали, запишіть, яка родина еталонна, і тримайте в job CI одне число: наскільки від неї відстають інші.

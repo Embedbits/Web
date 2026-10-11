@@ -1,34 +1,34 @@
 ---
-title: "Unit testing embedded C on your PC with Unity and CMock"
+title: "Unit-тестування вбудованого C на вашому ПК за допомогою Unity і CMock"
 slug: unit-testing-unity-cmock
 date: 2026-10-05T10:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, testing]
 ---
 
-"Embedded software cannot be unit tested, you need the hardware." I hear it often, and it is true for exactly one kind of code: the code that touches the registers. All the rest, the state machines, the protocol parsers, the control logic, the conversion of the values, is plain C that compiles on your PC. And on your PC it runs in milliseconds, without a debugger, without a cable and without flashing.
+«Вбудоване ПЗ неможливо тестувати unit-тестами, для цього потрібна апаратна частина». Я чую це часто, і це правда рівно для одного виду коду: того, що торкається регістрів. Усе решта — скінченні автомати, парсери протоколів, логіка керування, перетворення значень — це звичайний C, який компілюється на вашому ПК. А на вашому ПК він виконується за мілісекунди, без налагоджувача, без кабелю і без прошивання.
 
-This article shows how to test a module with [Unity](https://github.com/ThrowTheSwitch/Unity) (the test framework) and [CMock](https://github.com/ThrowTheSwitch/CMock) (the generator of mocks), from the design that makes it possible to the CMake file that builds it. Everything was built and run, and the output below is the real one.
+Ця стаття показує, як тестувати модуль за допомогою [Unity](https://github.com/ThrowTheSwitch/Unity) (тестовий фреймворк) і [CMock](https://github.com/ThrowTheSwitch/CMock) (генератор моків) — від дизайну, який це уможливлює, до файлу CMake, що все збирає. Усе було зібрано й запущено, а вивід нижче справжній.
 
 <!-- truncate -->
 
-## What you need to test, and what you need to remove
+## Що потрібно тестувати і що потрібно прибрати
 
-A unit test runs one module in isolation. The module under test calls the lower layer (the BSP, a driver, another module), and **that** is the problem: the lower layer needs hardware. The solution is not to give the module a simulated hardware, but to replace the whole lower layer with something the test controls. That something is a **mock**: a function with the same signature as the real one, which does not do anything real. It only remembers how it was called and returns what the test told it to return.
+Unit-тест запускає один модуль в ізоляції. Модуль, що тестується, викликає нижній шар (BSP, драйвер, інший модуль), і **саме в цьому** проблема: нижньому шару потрібна апаратна частина. Рішення — не давати модулю симульовану апаратну частину, а замінити весь нижній шар чимось, чим керує тест. Це «щось» — **мок** (mock): функція з тим самим сигнатурою, що й справжня, яка не робить нічого справжнього. Вона лише запам'ятовує, як її викликали, і повертає те, що їй наказав повернути тест.
 
-This works only if the module has a place where the lower layer can be replaced. In the article about [SOLID principles](/blog/solid-principles-c-cpp) there was the *link-time injection*: the module calls a function that is declared in a header (`Bsp_Thermostat.h`), and the build system decides which source file implements it. On the target it is the real BSP, in the unit test it is the mock. This is the same principle as the architecture from the article about [design and architecture](/blog/design-architecture): when the layers have clean interfaces, every layer can be tested without the layers below.
+Це працює лише тоді, коли в модулі є місце, де нижній шар можна замінити. У статті про [принципи SOLID](/blog/solid-principles-c-cpp) йшлося про *link-time injection*: модуль викликає функцію, оголошену в заголовку (`Bsp_Thermostat.h`), а система збірки вирішує, який вихідний файл її реалізує. На цільовій платформі це справжній BSP, в unit-тесті — мок. Це той самий принцип, що й в архітектурі зі статті про [дизайн і архітектуру](/blog/design-architecture): коли шари мають чисті інтерфейси, кожен шар можна тестувати без шарів під ним.
 
-## The tools
+## Інструменти
 
-- **Unity** is a framework with assertions (`TEST_ASSERT_TRUE`, `TEST_ASSERT_EQUAL_UINT8`, `TEST_ASSERT_EQUAL_FLOAT`, `TEST_ASSERT_EQUAL_MEMORY` and many more) and a small script that generates the `main()` with the list of the tests from your test file, so you never have to register a test by hand. It is a few C files that are compiled together with the test.
-- **CMock** reads a header file and generates the mock of every function in it: `MockBsp_Thermostat.c/.h`. It is written in Ruby, but only the *generator* is, the generated mock is plain C.
-- **Ruby** is needed for the two generators, which run at build time. It does not end up in the tested code.
+- **Unity** — фреймворк з перевірками (`TEST_ASSERT_TRUE`, `TEST_ASSERT_EQUAL_UINT8`, `TEST_ASSERT_EQUAL_FLOAT`, `TEST_ASSERT_EQUAL_MEMORY` та багато інших) і невеликий скрипт, що генерує `main()` зі списком тестів з вашого тестового файлу, тож вам ніколи не доведеться реєструвати тест вручну. Це кілька C-файлів, які компілюються разом із тестом.
+- **CMock** читає заголовковий файл і генерує мок кожної функції в ньому: `MockBsp_Thermostat.c/.h`. Він написаний на Ruby, але на Ruby написаний лише *генератор*, а згенерований мок — звичайний C.
+- **Ruby** потрібен для двох генераторів, які виконуються під час збірки. У тестований код він не потрапляє.
 
-In the Embedbits platform these three are artifacts (`unity`, `cmock` and `ruby`), so the project does not depend on what is installed on the PC of the developer. The versions are in `ArtifactsConfig.txt` (the syntax is `<artifact_name>;<binary_version>;<handler_version>`). In this article I used Unity 2.6.1 and CMock 2.6.0 with plain CMake, so that the example works everywhere.
+На платформі Embedbits ці три інструменти — артефакти (`unity`, `cmock` і `ruby`), тож проєкт не залежить від того, що встановлено на ПК розробника. Версії зберігаються в `ArtifactsConfig.txt` (синтаксис `<artifact_name>;<binary_version>;<handler_version>`). У цій статті я використав Unity 2.6.1 та CMock 2.6.0 зі звичайним CMake, щоб приклад працював усюди.
 
-## The module under test
+## Модуль, що тестується
 
-A thermostat with a hysteresis. It reads the temperature from the BSP and switches a heater on below 20 °C and off above 22 °C. If the sensor does not answer, it switches the heater off, because a heater without a measurement is a fire. The interface to the hardware is a header with two functions:
+Термостат із гістерезисом. Він зчитує температуру з BSP, вмикає нагрівач нижче 20 °C і вимикає вище 22 °C. Якщо датчик не відповідає, він вимикає нагрівач, бо нагрівач без вимірювання — це пожежа. Інтерфейс до апаратної частини — заголовок із двома функціями:
 
 ```c title="Bsp_Thermostat.h"
 #ifndef BSP_THERMOSTAT_H
@@ -46,7 +46,7 @@ void Bsp_Set_Heater(bool on);
 #endif
 ```
 
-The public port of the module and its implementation:
+Публічний порт модуля та його реалізація:
 
 ```c title="Thermostat_Port.h"
 #ifndef THERMOSTAT_THERMOSTAT_PORT_H
@@ -108,11 +108,11 @@ bool Thermostat_Is_HeaterOn(void)
 }
 ```
 
-The module does not include any hardware header, it does not know STM32 and it can be compiled with the compiler of your PC. This is the first test of the design: if it does not compile, it is not separated enough.
+Модуль не підключає жодного апаратного заголовка, нічого не знає про STM32 і може бути скомпільований компілятором вашого ПК. Це перший тест дизайну: якщо він не компілюється, модуль відокремлено недостатньо.
 
-## The test
+## Тест
 
-The test file includes the header of the module under test and the header of the **mock**, which does not exist yet. It is generated from `Bsp_Thermostat.h` during the build.
+Тестовий файл підключає заголовок модуля, що тестується, і заголовок **моку**, якого ще не існує. Його генерують із `Bsp_Thermostat.h` під час збірки.
 
 ```c title="test_Thermostat.c"
 #include "unity.h"
@@ -189,25 +189,25 @@ void test_HeaterSwitchesOffWhenSensorFails(void)
 }
 ```
 
-Let us read it from the top.
+Прочитаймо його згори.
 
-- `setUp()` is called by Unity before every test. The module keeps its state in a `static` variable, so each test starts with `Thermostat_Init()`, and `Bsp_Set_Heater_Expect(false)` tells the mock that the initialization switches the heater off. Without this reset the tests would depend on each other and on their order.
-- `Sensor_Returns()` is a helper that says "the next call of `Bsp_Get_Celsius()` returns `true` and sets the value to this temperature". `_ExpectAnyArgsAndReturn` means "I do not care about the pointer", and `_ReturnThruPtr_celsius` fills the output parameter.
-- Each test is a short story in three parts: the sensor says something, the module is run (`Thermostat_Task()`), the result is checked. The expectation `Bsp_Set_Heater_Expect(true)` is also an assertion: if the module calls the function with another value, or does not call it, the test fails.
-- The third test shows the strength of mocks. Inside the hysteresis band nothing is expected, and that is the assertion: the mock fails the test as soon as the module calls `Bsp_Set_Heater()`.
+- `setUp()` викликається Unity перед кожним тестом. Модуль зберігає свій стан у `static`-змінній, тож кожен тест починається з `Thermostat_Init()`, а `Bsp_Set_Heater_Expect(false)` повідомляє моку, що ініціалізація вимикає нагрівач. Без цього скидання тести залежали б одне від одного та від порядку їх виконання.
+- `Sensor_Returns()` — допоміжна функція, яка каже: «наступний виклик `Bsp_Get_Celsius()` повертає `true` і встановлює значення в цю температуру». `_ExpectAnyArgsAndReturn` означає «мені байдуже, який вказівник», а `_ReturnThruPtr_celsius` заповнює вихідний параметр.
+- Кожен тест — це коротка історія з трьох частин: датчик щось повідомляє, модуль запускається (`Thermostat_Task()`), результат перевіряється. Очікування `Bsp_Set_Heater_Expect(true)` також є перевіркою: якщо модуль викличе функцію з іншим значенням або не викличе її взагалі, тест впаде.
+- Третій тест показує силу моків. Усередині смуги гістерезису нічого не очікується, і це і є перевірка: мок валить тест, щойно модуль викликає `Bsp_Set_Heater()`.
 
-A trap that is worth knowing: `_ReturnThruPtr_celsius(&value)` does not copy the value in the moment of the call, it remembers the **pointer** and reads the value when the module calls the mock. If `value` is a local variable of the helper, it is gone by then. The first version of the example for this article had the helper written this way, and the result was four failed tests with a message that looks like a bug in the module:
+Пастка, про яку варто знати: `_ReturnThruPtr_celsius(&value)` не копіює значення в момент виклику, а запам'ятовує **вказівник** і зчитує значення, коли модуль викликає мок. Якщо `value` — локальна змінна допоміжної функції, до того часу її вже не існує. Перша версія прикладу для цієї статті мала допоміжну функцію, написану саме так, і результатом стали чотири впалі тести з повідомленням, що виглядає як помилка в модулі:
 
 ```text
 test_HeaterSwitchesOnBelowLowerLimit:FAIL: Expected 1 Was 0. Function Bsp_Set_Heater
 Argument on. Function called with unexpected argument value.
 ```
 
-The module was correct, the variable was garbage. That is why the example has the `static float sensorCelsius` with the comment.
+Модуль був правильним, а змінна — сміттям. Ось чому в прикладі є `static float sensorCelsius` з коментарем.
 
-## The build
+## Збірка
 
-Two generators and one executable. CMake runs the generators before the compilation, and a change of a header regenerates the mock:
+Два генератори й один виконуваний файл. CMake запускає генератори перед компіляцією, а зміна заголовка перегенеровує мок:
 
 ```yaml title="cmock.yml"
 :cmock:
@@ -260,7 +260,7 @@ target_compile_options(${TEST_NAME} PRIVATE -Wall -Wextra)
 add_test(NAME ${TEST_NAME} COMMAND ${TEST_NAME})
 ```
 
-The configuration of CMock (`cmock.yml`) has only the list of the plugins: `ignore`, `expect_any_args` and `return_thru_ptr`, which give the `_Ignore`, `_ExpectAnyArgs` and `_ReturnThruPtr_` functions that the test above uses. The `mock_path` is relative to the folder where the generator runs, which is the build directory.
+Конфігурація CMock (`cmock.yml`) містить лише список плагінів: `ignore`, `expect_any_args` і `return_thru_ptr`, які дають функції `_Ignore`, `_ExpectAnyArgs` та `_ReturnThruPtr_`, що використовує тест вище. `mock_path` задається відносно папки, з якої запускається генератор, тобто каталогу збірки.
 
 ```bash
 cmake -S . -B build
@@ -279,11 +279,11 @@ test_Thermostat.c:61:test_HeaterSwitchesOffWhenSensorFails:PASS
 OK
 ```
 
-Notice what is *not* in the executable: no startup code, no linker script, no HAL, no ST header. Only the module, the mock, the test and the framework. It builds in a couple of seconds and runs in milliseconds, so it can run on every save and on every commit.
+Зверніть увагу, чого у виконуваному файлі *немає*: ні startup-коду, ні linker script, ні HAL, ні заголовків ST. Лише модуль, мок, тест і фреймворк. Він збирається за пару секунд і виконується за мілісекунди, тож його можна запускати при кожному збереженні та кожному коміті.
 
-## Does the test really test something?
+## Чи справді тест щось тестує?
 
-A test that cannot fail is worth nothing. The cheapest check is a **mutation**: break the code on purpose and see whether a test notices. I changed the upper limit from 22 °C to 20 °C, which removes the hysteresis:
+Тест, який не може впасти, нічого не вартий. Найдешевша перевірка — **мутація**: навмисно зламати код і подивитися, чи помітить це якийсь тест. Я змінив верхню межу з 22 °C на 20 °C, що прибирає гістерезис:
 
 ```text
 test_HeaterSwitchesOnBelowLowerLimit:PASS
@@ -294,32 +294,32 @@ test_HeaterSwitchesOffWhenSensorFails:PASS
 4 Tests 1 Failures 0 Ignored
 ```
 
-The hysteresis test caught the bug, and the message says what happened: the module called `Bsp_Set_Heater()` when it should not. It is a good habit to do it once for every new test.
+Тест гістерезису виявив помилку, а повідомлення каже, що сталося: модуль викликав `Bsp_Set_Heater()`, коли не мав. Корисна звичка — робити так один раз для кожного нового тесту.
 
-## What to mock and what not
+## Що мокати, а що ні
 
-- **Mock the boundary of the module, not its insides.** The mock replaces the interface of the lower layer (here `Bsp_Thermostat.h`). Do not mock your own helper functions in the same module: the test then describes how the code is written and breaks with every refactoring, even when the behavior is the same.
-- **Test through the public port.** The test includes `Thermostat_Port.h` and nothing else of the module. If you need the internal header to test something, it is a sign that the module has two responsibilities. Read the article about [file organization](/blog/file-organization-embedded-c) for how the public and the internal files are separated.
-- **One behavior, one test.** The name says what is expected (`HeaterSwitchesOffWhenSensorFails`), so a red test tells you what is broken before you open it.
-- **The same pattern works in every layer.** A module of the application is tested with the mock of the BSP interface, a module of the MCAL with the mock of the RAL port. In every case the layer below is replaced and the layer under test is real.
-- **Call order.** CMock can check that the calls of different mocks happen in a given order (the option `:enforce_strict_ordering`). It is useful for initialization sequences, but use it only where the order is a requirement and not an accident of the implementation.
+- **Мокайте межу модуля, а не його нутрощі.** Мок замінює інтерфейс нижнього шару (тут `Bsp_Thermostat.h`). Не мокайте власні допоміжні функції в тому самому модулі: тоді тест описує, як написаний код, і ламається при кожному рефакторингу, навіть коли поведінка та сама.
+- **Тестуйте через публічний порт.** Тест підключає `Thermostat_Port.h` і більше нічого з модуля. Якщо для тестування чогось потрібен внутрішній заголовок, це ознака того, що модуль має дві відповідальності. Про те, як розділяються публічні та внутрішні файли, читайте у статті про [організацію файлів](/blog/file-organization-embedded-c).
+- **Одна поведінка — один тест.** Назва каже, чого очікується (`HeaterSwitchesOffWhenSensorFails`), тож червоний тест повідомляє, що зламалося, ще до того, як ви його відкриєте.
+- **Той самий шаблон працює на кожному шарі.** Модуль застосунку тестується з моком інтерфейсу BSP, модуль MCAL — з моком порту RAL. У кожному випадку нижній шар замінюється, а шар, що тестується, залишається справжнім.
+- **Порядок викликів.** CMock може перевіряти, що виклики різних моків відбуваються в заданому порядку (опція `:enforce_strict_ordering`). Це корисно для послідовностей ініціалізації, але використовуйте її лише там, де порядок є вимогою, а не випадковістю реалізації.
 
-## What the host test cannot tell you
+## Чого host-тест не скаже
 
-I do not want to sell the host tests as everything. They do not find:
+Я не хочу продавати host-тести як усе. Вони не знаходять:
 
-- the **timing**, the interrupts and the race conditions between them,
-- the **registers**: that the pin really goes high, that the peripheral clock was switched on. That is the job of the code in the RAL and the MCAL and it needs a simulator or the real hardware,
-- the **differences between the PC and the MCU**: the width of `int`, the alignment, the optimizer of the target compiler. The tests on the PC show the logic is right, not that the firmware is.
+- **таймінги**, переривання та гонки між ними,
+- **регістри**: що пін справді піднявся у високий рівень, що тактування периферії було ввімкнено. Це завдання коду в RAL і MCAL, і для нього потрібен симулятор або справжня апаратна частина,
+- **відмінності між ПК і MCU**: ширину `int`, вирівнювання, оптимізатор компілятора цільової платформи. Тести на ПК показують, що логіка правильна, а не що правильна прошивка.
 
-That is why the host tests are the bottom of the pyramid: many, fast, and they run on every commit. Above them are a simulator (for example Renode) and the hardware tests, which are fewer and slower and cover what the PC cannot.
+Ось чому host-тести — це основа піраміди: їх багато, вони швидкі й запускаються на кожен коміт. Над ними стоять симулятор (наприклад, Renode) і апаратні тести, яких менше й які повільніші та покривають те, чого ПК не може.
 
-## Summary
+## Підсумок
 
-1. Design the module so that everything under it is behind a header (the *seam*).
-2. Let CMock generate the mock from that header, and Unity the runner from the test file.
-3. Build one small executable for the PC: the module, the mock, the test, the framework.
-4. Write the tests as stories: the mock says what the world looks like, the module acts, the assertion checks the result.
-5. Break the code once on purpose to see that the test fails.
+1. Проєктуйте модуль так, щоб усе під ним було за заголовком (*seam*).
+2. Нехай CMock згенерує мок із цього заголовка, а Unity — runner із тестового файлу.
+3. Зберіть один маленький виконуваний файл для ПК: модуль, мок, тест, фреймворк.
+4. Пишіть тести як історії: мок каже, як виглядає світ, модуль діє, перевірка підтверджує результат.
+5. Один раз навмисно зламайте код, щоб побачити, що тест падає.
 
-The whole example is about 150 lines of code, and the next time somebody asks you whether the thermostat really switches the heater off when the sensor fails, you do not need a heater. You run `ctest`.
+Увесь приклад займає близько 150 рядків коду, і наступного разу, коли хтось запитає вас, чи справді термостат вимикає нагрівач, коли датчик виходить з ладу, вам не потрібен нагрівач. Ви запускаєте `ctest`.
