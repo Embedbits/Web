@@ -1,0 +1,39 @@
+embedded:
+  label: Embedded
+  permalink: /embedded
+  description: Embedded software engineering
+
+stm32:
+  label: STM32
+  permalink: /stm32
+  description: STM32 microcontrollers
+
+architecture:
+  label: Architecture
+  permalink: /architecture
+  description: Software architecture and design
+
+c:
+  label: C
+  permalink: /c
+  description: Embedded C
+
+cpp:
+  label: C++
+  permalink: /cpp
+  description: C++ for embedded systems
+
+misra:
+  label: MISRA
+  permalink: /misra
+  description: MISRA C coding guidelines
+
+testing:
+  label: Testing
+  permalink: /testing
+  description: Testing of embedded software
+
+cmake:
+  label: CMake
+  permalink: /cmake
+  description: CMake build systems for embedded software

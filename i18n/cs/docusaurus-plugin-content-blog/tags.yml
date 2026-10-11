@@ -1,0 +1,39 @@
+embedded:
+  label: Embedded
+  permalink: /embedded
+  description: Vývoj embedded softwaru
+
+stm32:
+  label: STM32
+  permalink: /stm32
+  description: Mikrokontroléry STM32
+
+architecture:
+  label: Architektura
+  permalink: /architecture
+  description: Softwarová architektura a návrh
+
+c:
+  label: C
+  permalink: /c
+  description: Embedded C
+
+cpp:
+  label: C++
+  permalink: /cpp
+  description: C++ pro vestavěné systémy
+
+misra:
+  label: MISRA
+  permalink: /misra
+  description: Pravidla pro programování MISRA C
+
+testing:
+  label: Testování
+  permalink: /testing
+  description: Testování embedded softwaru
+
+cmake:
+  label: CMake
+  permalink: /cmake
+  description: Build systémy CMake pro embedded software

@@ -1,0 +1,39 @@
+embedded:
+  label: Вбудовані системи
+  permalink: /embedded
+  description: Розробка вбудованого програмного забезпечення
+
+stm32:
+  label: STM32
+  permalink: /stm32
+  description: Мікроконтролери STM32
+
+architecture:
+  label: Архітектура
+  permalink: /architecture
+  description: Архітектура та проєктування програмного забезпечення
+
+c:
+  label: C
+  permalink: /c
+  description: Вбудований C
+
+cpp:
+  label: C++
+  permalink: /cpp
+  description: C++ для вбудованих систем
+
+misra:
+  label: MISRA
+  permalink: /misra
+  description: Правила кодування MISRA C
+
+testing:
+  label: Тестування
+  permalink: /testing
+  description: Тестування вбудованого програмного забезпечення
+
+cmake:
+  label: CMake
+  permalink: /cmake
+  description: Системи збірки CMake для вбудованого програмного забезпечення

@@ -1,0 +1,30 @@
+{
+  "version.label": {
+    "message": "Наступна",
+    "description": "The label for version current"
+  },
+  "sidebar.docs.category.Platform": {
+    "message": "Платформа",
+    "description": "The label for category 'Platform' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.EmBi Platform": {
+    "message": "EmBi Platform",
+    "description": "The label for category 'EmBi Platform' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.BSP": {
+    "message": "BSP",
+    "description": "The label for category 'BSP' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.RAL": {
+    "message": "RAL",
+    "description": "The label for category 'RAL' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.MCAL": {
+    "message": "MCAL",
+    "description": "The label for category 'MCAL' in sidebar 'docs'"
+  },
+  "sidebar.docs.category.Artifacts": {
+    "message": "Artifacts",
+    "description": "The label for category 'Artifacts' in sidebar 'docs'"
+  }
+}

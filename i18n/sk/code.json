@@ -1,0 +1,518 @@
+{
+  "contact.emailLabel": {
+    "message": "Email:"
+  },
+  "contact.confirmHuman": {
+    "message": "Please confirm that you are human to see the e-mail address."
+  },
+  "contact.noscript": {
+    "message": "JavaScript is required to show the e-mail address."
+  },
+  "about.title": {
+    "message": "About"
+  },
+  "about.metaDescription": {
+    "message": "About Embedbits: reusable, well-documented building blocks for maintainable STM32 development."
+  },
+  "about.heading": {
+    "message": "About Embedbits"
+  },
+  "about.intro": {
+    "message": "Embedbits is a collection of embedded software projects, tools and articles focused on maintainable STM32 development. It started as a personal answer to a familiar problem: every project ends up with its own build scripts, its own drivers and its own way of doing things. Embedbits tries to turn that into reusable, well-documented building blocks."
+  },
+  "about.who.heading": {
+    "message": "Who is behind it"
+  },
+  "about.who.text": {
+    "message": "I'm Mr.Nobody, an embedded software engineer with a background in the automotive industry. The coding style, the state machine template and many of the architecture ideas here come from real projects, then simplified and published as open source. The licence of each project is stated in its repository."
+  },
+  "about.find.heading": {
+    "message": "What you will find here"
+  },
+  "about.find.projects": {
+    "message": "Projects"
+  },
+  "about.find.projects.text": {
+    "message": "EmBi_Platform, the BSP (RAL and MCAL) and Artifacts, the build tools fetched automatically."
+  },
+  "about.find.docs": {
+    "message": "Documentation"
+  },
+  "about.find.docs.text": {
+    "message": "the READMEs of all repositories in one place, including which STM32 families each module supports."
+  },
+  "about.find.articles": {
+    "message": "Articles"
+  },
+  "about.find.articles.text": {
+    "message": "notes about software architecture, state machines and embedded C."
+  },
+  "about.principles.heading": {
+    "message": "Principles"
+  },
+  "about.principles.1": {
+    "message": "Readable code beats clever code."
+  },
+  "about.principles.2": {
+    "message": "One module, one responsibility, one interface."
+  },
+  "about.principles.3": {
+    "message": "Reproducible builds: the same project builds the same way on every machine."
+  },
+  "about.principles.4": {
+    "message": "If it can be tested, it should be."
+  },
+  "about.contact.heading": {
+    "message": "Get in touch"
+  },
+  "about.contact.text": {
+    "message": "See the {contact} page or visit {github}."
+  },
+  "about.contact.link": {
+    "message": "Contact"
+  },
+  "contact.title": {
+    "message": "Contact"
+  },
+  "contact.metaDescription": {
+    "message": "Contact Embedbits"
+  },
+  "contact.heading": {
+    "message": "Contact"
+  },
+  "contact.intro": {
+    "message": "Get in touch regarding projects, collaboration, commercial licensing or embedded software development."
+  },
+  "contact.contributions": {
+    "message": "Contributions are welcome. Please open a pull request in the relevant repository."
+  },
+  "projects.platform.description": {
+    "message": "Setup scripts, CMake helpers, STM32CubeIDE templates and updater that tie a project together."
+  },
+  "projects.bsp.description": {
+    "message": "Board Support Package with one branch per STM32 family: linker, startup, RAL and MCAL."
+  },
+  "projects.ral.description": {
+    "message": "Register abstraction layer around CMSIS and STM32 LL for a unified low-level interface."
+  },
+  "projects.mcal.description": {
+    "message": "Peripheral drivers with a consistent API: GPIO, USART, I2C, ADC, DMA, NVIC, TIM and more."
+  },
+  "projects.artifacts.description": {
+    "message": "Versioned build tools such as GCC, Ninja, Doxygen, Unity, CMock and Renode, fetched automatically."
+  },
+  "home.exploreProject": {
+    "message": "Explore project →"
+  },
+  "home.title": {
+    "message": "Embedded software engineering"
+  },
+  "home.metaDescription": {
+    "message": "Embedded software engineering, projects, documentation and articles."
+  },
+  "home.eyebrow": {
+    "message": "EMBEDDED SOFTWARE ENGINEERING"
+  },
+  "home.headline1": {
+    "message": "Building embedded software"
+  },
+  "home.headline2": {
+    "message": "without unnecessary complexity."
+  },
+  "home.description": {
+    "message": "Reusable embedded software projects, engineering documentation and practical articles covering architecture, STM32, tooling, testing and development infrastructure."
+  },
+  "home.exploreProjects": {
+    "message": "Explore projects"
+  },
+  "home.readArticles": {
+    "message": "Read articles"
+  },
+  "home.motto1": {
+    "message": "Always write your code, as if the guy, who ends up maintaining your code,"
+  },
+  "home.motto2": {
+    "message": "will be a violent psychopath who knows where you live."
+  },
+  "home.sectionEyebrow": {
+    "message": "OPEN SOURCE & ENGINEERING"
+  },
+  "home.projects": {
+    "message": "Projects"
+  },
+  "home.viewAll": {
+    "message": "View all →"
+  },
+  "home.feature1.title": {
+    "message": "Documentation"
+  },
+  "home.feature1.text": {
+    "message": "Architecture, configuration and practical guides for embedded software projects."
+  },
+  "home.feature1.link": {
+    "message": "Browse documentation →"
+  },
+  "home.feature2.title": {
+    "message": "Articles"
+  },
+  "home.feature2.text": {
+    "message": "Practical notes about embedded C, STM32, software architecture, build systems and development tools."
+  },
+  "home.feature2.link": {
+    "message": "Read articles →"
+  },
+  "home.feature3.title": {
+    "message": "Engineering"
+  },
+  "home.feature3.text": {
+    "message": "Focused on maintainable software, reproducible builds, testing and reusable infrastructure."
+  },
+  "home.feature3.link": {
+    "message": "About Embedbits →"
+  },
+  "projects.title": {
+    "message": "Projects"
+  },
+  "projects.metaDescription": {
+    "message": "Embedbits embedded software projects."
+  },
+  "projects.eyebrow": {
+    "message": "EMBEDBITS PROJECTS"
+  },
+  "projects.heading": {
+    "message": "Projects"
+  },
+  "projects.intro": {
+    "message": "Reusable software components and development infrastructure for embedded systems."
+  },
+  "projects.explore": {
+    "message": "Explore →"
+  },
+  "theme.ErrorPageContent.title": {
+    "message": "This page crashed.",
+    "description": "The title of the fallback page when the page crashed"
+  },
+  "theme.BackToTopButton.buttonAriaLabel": {
+    "message": "Scroll back to top",
+    "description": "The ARIA label for the back to top button"
+  },
+  "theme.blog.archive.title": {
+    "message": "Archive",
+    "description": "The page & hero title of the blog archive page"
+  },
+  "theme.blog.archive.description": {
+    "message": "Archive",
+    "description": "The page & hero description of the blog archive page"
+  },
+  "theme.blog.paginator.navAriaLabel": {
+    "message": "Blog list page navigation",
+    "description": "The ARIA label for the blog pagination"
+  },
+  "theme.blog.paginator.newerEntries": {
+    "message": "Newer entries",
+    "description": "The label used to navigate to the newer blog posts page (previous page)"
+  },
+  "theme.blog.paginator.olderEntries": {
+    "message": "Older entries",
+    "description": "The label used to navigate to the older blog posts page (next page)"
+  },
+  "theme.blog.post.paginator.navAriaLabel": {
+    "message": "Blog post page navigation",
+    "description": "The ARIA label for the blog posts pagination"
+  },
+  "theme.blog.post.paginator.newerPost": {
+    "message": "Newer post",
+    "description": "The blog post button label to navigate to the newer/previous post"
+  },
+  "theme.blog.post.paginator.olderPost": {
+    "message": "Older post",
+    "description": "The blog post button label to navigate to the older/next post"
+  },
+  "theme.tags.tagsPageLink": {
+    "message": "View all tags",
+    "description": "The label of the link targeting the tag list page"
+  },
+  "theme.colorToggle.ariaLabel.mode.system": {
+    "message": "system mode",
+    "description": "The name for the system color mode"
+  },
+  "theme.colorToggle.ariaLabel.mode.light": {
+    "message": "light mode",
+    "description": "The name for the light color mode"
+  },
+  "theme.colorToggle.ariaLabel.mode.dark": {
+    "message": "dark mode",
+    "description": "The name for the dark color mode"
+  },
+  "theme.colorToggle.ariaLabel": {
+    "message": "Switch between dark and light mode (currently {mode})",
+    "description": "The ARIA label for the color mode toggle"
+  },
+  "theme.docs.breadcrumbs.navAriaLabel": {
+    "message": "Breadcrumbs",
+    "description": "The ARIA label for the breadcrumbs"
+  },
+  "theme.docs.paginator.navAriaLabel": {
+    "message": "Docs pages",
+    "description": "The ARIA label for the docs pagination"
+  },
+  "theme.docs.paginator.previous": {
+    "message": "Previous",
+    "description": "The label used to navigate to the previous doc"
+  },
+  "theme.docs.paginator.next": {
+    "message": "Next",
+    "description": "The label used to navigate to the next doc"
+  },
+  "theme.docs.tagDocListPageTitle.nDocsTagged": {
+    "message": "One doc tagged|{count} docs tagged",
+    "description": "Pluralized label for \"{count} docs tagged\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+  },
+  "theme.docs.tagDocListPageTitle": {
+    "message": "{nDocsTagged} with \"{tagName}\"",
+    "description": "The title of the page for a docs tag"
+  },
+  "theme.docs.versionBadge.label": {
+    "message": "Version: {versionLabel}"
+  },
+  "theme.docs.versions.unreleasedVersionLabel": {
+    "message": "This is unreleased documentation for {siteTitle} {versionLabel} version.",
+    "description": "The label used to tell the user that he's browsing an unreleased doc version"
+  },
+  "theme.docs.versions.unmaintainedVersionLabel": {
+    "message": "This is documentation for {siteTitle} {versionLabel}, which is no longer actively maintained.",
+    "description": "The label used to tell the user that he's browsing an unmaintained doc version"
+  },
+  "theme.docs.versions.latestVersionSuggestionLabel": {
+    "message": "For up-to-date documentation, see the {latestVersionLink} ({versionLabel}).",
+    "description": "The label used to tell the user to check the latest version"
+  },
+  "theme.docs.versions.latestVersionLinkLabel": {
+    "message": "latest version",
+    "description": "The label used for the latest version suggestion link label"
+  },
+  "theme.common.editThisPage": {
+    "message": "Edit this page",
+    "description": "The link label to edit the current page"
+  },
+  "theme.common.headingLinkTitle": {
+    "message": "Direct link to {heading}",
+    "description": "Title for link to heading"
+  },
+  "theme.lastUpdated.atDate": {
+    "message": " on {date}",
+    "description": "The words used to describe on which date a page has been last updated"
+  },
+  "theme.lastUpdated.byUser": {
+    "message": " by {user}",
+    "description": "The words used to describe by who the page has been last updated"
+  },
+  "theme.lastUpdated.lastUpdatedAtBy": {
+    "message": "Last updated{atDate}{byUser}",
+    "description": "The sentence used to display when a page has been last updated, and by who"
+  },
+  "theme.navbar.mobileVersionsDropdown.label": {
+    "message": "Versions",
+    "description": "The label for the navbar versions dropdown on mobile view"
+  },
+  "theme.NotFound.title": {
+    "message": "Page Not Found",
+    "description": "The title of the 404 page"
+  },
+  "theme.tags.tagsListLabel": {
+    "message": "Tags:",
+    "description": "The label alongside a tag list"
+  },
+  "theme.admonition.caution": {
+    "message": "caution",
+    "description": "The default label used for the Caution admonition (:::caution)"
+  },
+  "theme.admonition.danger": {
+    "message": "danger",
+    "description": "The default label used for the Danger admonition (:::danger)"
+  },
+  "theme.admonition.info": {
+    "message": "info",
+    "description": "The default label used for the Info admonition (:::info)"
+  },
+  "theme.admonition.note": {
+    "message": "note",
+    "description": "The default label used for the Note admonition (:::note)"
+  },
+  "theme.admonition.tip": {
+    "message": "tip",
+    "description": "The default label used for the Tip admonition (:::tip)"
+  },
+  "theme.admonition.warning": {
+    "message": "warning",
+    "description": "The default label used for the Warning admonition (:::warning)"
+  },
+  "theme.AnnouncementBar.closeButtonAriaLabel": {
+    "message": "Close",
+    "description": "The ARIA label for close button of announcement bar"
+  },
+  "theme.blog.sidebar.navAriaLabel": {
+    "message": "Blog recent posts navigation",
+    "description": "The ARIA label for recent posts in the blog sidebar"
+  },
+  "theme.DocSidebarItem.expandCategoryAriaLabel": {
+    "message": "Expand sidebar category '{label}'",
+    "description": "The ARIA label to expand the sidebar category"
+  },
+  "theme.DocSidebarItem.collapseCategoryAriaLabel": {
+    "message": "Collapse sidebar category '{label}'",
+    "description": "The ARIA label to collapse the sidebar category"
+  },
+  "theme.IconExternalLink.ariaLabel": {
+    "message": "(opens in new tab)",
+    "description": "The ARIA label for the external link icon"
+  },
+  "theme.NavBar.navAriaLabel": {
+    "message": "Main",
+    "description": "The ARIA label for the main navigation"
+  },
+  "theme.navbar.mobileLanguageDropdown.label": {
+    "message": "Languages",
+    "description": "The label for the mobile language switcher dropdown"
+  },
+  "theme.NotFound.p1": {
+    "message": "We could not find what you were looking for.",
+    "description": "The first paragraph of the 404 page"
+  },
+  "theme.NotFound.p2": {
+    "message": "Please contact the owner of the site that linked you to the original URL and let them know their link is broken.",
+    "description": "The 2nd paragraph of the 404 page"
+  },
+  "theme.TOCCollapsible.toggleButtonLabel": {
+    "message": "On this page",
+    "description": "The label used by the button on the collapsible TOC component"
+  },
+  "theme.blog.post.readMore": {
+    "message": "Read more",
+    "description": "The label used in blog post item excerpts to link to full blog posts"
+  },
+  "theme.blog.post.readMoreLabel": {
+    "message": "Read more about {title}",
+    "description": "The ARIA label for the link to full blog posts from excerpts"
+  },
+  "theme.blog.post.readingTime.plurals": {
+    "message": "One min read|{readingTime} min read",
+    "description": "Pluralized label for \"{readingTime} min read\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+  },
+  "theme.CodeBlock.copy": {
+    "message": "Copy",
+    "description": "The copy button label on code blocks"
+  },
+  "theme.CodeBlock.copied": {
+    "message": "Copied",
+    "description": "The copied button label on code blocks"
+  },
+  "theme.CodeBlock.copyButtonAriaLabel": {
+    "message": "Copy code to clipboard",
+    "description": "The ARIA label for copy code blocks button"
+  },
+  "theme.CodeBlock.wordWrapToggle": {
+    "message": "Toggle word wrap",
+    "description": "The title attribute for toggle word wrapping button of code block lines"
+  },
+  "theme.docs.breadcrumbs.home": {
+    "message": "Home page",
+    "description": "The ARIA label for the home page in the breadcrumbs"
+  },
+  "theme.docs.sidebar.collapseButtonTitle": {
+    "message": "Collapse sidebar",
+    "description": "The title attribute for collapse button of doc sidebar"
+  },
+  "theme.docs.sidebar.collapseButtonAriaLabel": {
+    "message": "Collapse sidebar",
+    "description": "The title attribute for collapse button of doc sidebar"
+  },
+  "theme.docs.sidebar.navAriaLabel": {
+    "message": "Docs sidebar",
+    "description": "The ARIA label for the sidebar navigation"
+  },
+  "theme.docs.sidebar.closeSidebarButtonAriaLabel": {
+    "message": "Close navigation bar",
+    "description": "The ARIA label for close button of mobile sidebar"
+  },
+  "theme.navbar.mobileSidebarSecondaryMenu.backButtonLabel": {
+    "message": "← Back to main menu",
+    "description": "The label of the back button to return to main menu, inside the mobile navbar sidebar secondary menu (notably used to display the docs sidebar)"
+  },
+  "theme.docs.sidebar.toggleSidebarButtonAriaLabel": {
+    "message": "Toggle navigation bar",
+    "description": "The ARIA label for hamburger menu button of mobile navigation"
+  },
+  "theme.navbar.mobileDropdown.collapseButton.expandAriaLabel": {
+    "message": "Expand the dropdown",
+    "description": "The ARIA label of the button to expand the mobile dropdown navbar item"
+  },
+  "theme.navbar.mobileDropdown.collapseButton.collapseAriaLabel": {
+    "message": "Collapse the dropdown",
+    "description": "The ARIA label of the button to collapse the mobile dropdown navbar item"
+  },
+  "theme.docs.sidebar.expandButtonTitle": {
+    "message": "Expand sidebar",
+    "description": "The ARIA label and title attribute for expand button of doc sidebar"
+  },
+  "theme.docs.sidebar.expandButtonAriaLabel": {
+    "message": "Expand sidebar",
+    "description": "The ARIA label and title attribute for expand button of doc sidebar"
+  },
+  "theme.blog.post.plurals": {
+    "message": "One post|{count} posts",
+    "description": "Pluralized label for \"{count} posts\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+  },
+  "theme.blog.tagTitle": {
+    "message": "{nPosts} tagged with \"{tagName}\"",
+    "description": "The title of the page for a blog tag"
+  },
+  "theme.blog.author.pageTitle": {
+    "message": "{authorName} - {nPosts}",
+    "description": "The title of the page for a blog author"
+  },
+  "theme.blog.authorsList.pageTitle": {
+    "message": "Authors",
+    "description": "The title of the authors page"
+  },
+  "theme.blog.authorsList.viewAll": {
+    "message": "View all authors",
+    "description": "The label of the link targeting the blog authors page"
+  },
+  "theme.blog.author.noPosts": {
+    "message": "This author has not written any posts yet.",
+    "description": "The text for authors with 0 blog post"
+  },
+  "theme.contentVisibility.unlistedBanner.title": {
+    "message": "Unlisted page",
+    "description": "The unlisted content banner title"
+  },
+  "theme.contentVisibility.unlistedBanner.message": {
+    "message": "This page is unlisted. Search engines will not index it, and only users having a direct link can access it.",
+    "description": "The unlisted content banner message"
+  },
+  "theme.contentVisibility.draftBanner.title": {
+    "message": "Draft page",
+    "description": "The draft content banner title"
+  },
+  "theme.contentVisibility.draftBanner.message": {
+    "message": "This page is a draft. It will only be visible in dev and be excluded from the production build.",
+    "description": "The draft content banner message"
+  },
+  "theme.docs.DocCard.categoryDescription.plurals": {
+    "message": "1 item|{count} items",
+    "description": "The default description for a category card in the generated index about how many items this category includes"
+  },
+  "theme.ErrorPageContent.tryAgain": {
+    "message": "Try again",
+    "description": "The label of the button to try again rendering when the React error boundary captures an error"
+  },
+  "theme.common.skipToMainContent": {
+    "message": "Skip to main content",
+    "description": "The skip to content label used for accessibility, allowing to rapidly navigate to main content with keyboard tab/enter navigation"
+  },
+  "theme.tags.tagsPageTitle": {
+    "message": "Tags",
+    "description": "The title of the tag list page"
+  }
+}
