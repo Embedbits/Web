@@ -1,53 +1,53 @@
 ---
-title: "Reproducible builds: pin the tools, pin the sources, remove the clock"
+title: "Reprodukovatelné buildy: připněte nástroje, připněte zdroje, odstraňte hodiny"
 slug: reproducible-builds-embedded
 date: 2026-10-07T14:00:00
 authors: [Mr.Nobody]
 tags: [embedded, cmake, architecture]
 ---
 
-A customer calls about a firmware that you delivered fourteen months ago. You check out the tag, build it, flash it and the bug is not there. Is the bug gone, or is it a different firmware? If your build is not **reproducible**, you cannot tell. Nobody can tell, because the binary that you have just built differs from the delivered one in ways that you can neither see nor explain: another version of the compiler, a library that was updated on the PC, the path of the folder, the time of the day.
+Zákazník volá kvůli firmware, který jste dodali před čtrnácti měsíci. Vyberete tag, přeložíte ho, nahrajete a chyba tam není. Zmizela chyba, nebo je to jiný firmware? Pokud váš build není **reprodukovatelný**, nedokážete to říct. Nikdo to nedokáže, protože binárka, kterou jste právě přeložili, se od dodané liší způsoby, které nevidíte ani nedokážete vysvětlit: jiná verze překladače, knihovna aktualizovaná na PC, cesta ke složce, denní doba.
 
-A reproducible build has a simple definition: **the same inputs give the same bytes**. This article shows what the inputs of a firmware build are, how the Embedbits platform pins them (the Artifacts Handler), and an experiment that I did: two builds of the same source, in two folders at two different times, give two different binaries. Then three changes later they give the same one, to the last bit.
+Reprodukovatelný build má jednoduchou definici: **stejné vstupy dají stejné bajty**. Tento článek ukazuje, jaké jsou vstupy buildu firmware, jak je platforma Embedbits připíná (Artifacts Handler) a experiment, který jsem udělal: dva buildy stejného zdroje, ve dvou složkách ve dvou různých časech, dají dvě různé binárky. Po třech změnách pak dají tu samou, co do posledního bitu.
 
 <!-- truncate -->
 
-## The inputs of a build
+## Vstupy buildu
 
-A build is a function. What goes into it?
+Build je funkce. Co do ní vstupuje?
 
-| Input | Where it comes from | How to pin it |
+| Vstup | Odkud pochází | Jak ho připnout |
 |---|---|---|
-| **The source** | Git | a tag or a commit, the submodules pinned by their commits |
-| **The tools** (compiler, linker, Ninja, Doxygen) | installed on the PC, or fetched | exact versions, from one source |
-| **The build description** (flags, linker script) | CMake files | in the repository, nothing set by hand |
-| **The platform scripts** | the EmBi_Platform submodule | the submodule commit, updated by the Updater, deliberately |
-| **The environment** | the PC | nothing in the output should depend on it: the path, the time, the user name |
+| **Zdroj** | Git | tag nebo commit, submoduly připnuté svými commity |
+| **Nástroje** (překladač, linker, Ninja, Doxygen) | nainstalované na PC, nebo stažené | přesné verze z jednoho zdroje |
+| **Popis buildu** (flagy, linker script) | soubory CMake | v repozitáři, nic nastavené ručně |
+| **Skripty platformy** | submodul EmBi_Platform | commit submodulu, aktualizovaný pomocí Updateru, záměrně |
+| **Prostředí** | PC | nic na výstupu by na něm nemělo záviset: cesta, čas, jméno uživatele |
 
-The first, third and fourth are in Git, so they are pinned by design. The tools and the environment are where a build usually breaks, and each of them has its own answer.
+První, třetí a čtvrtý vstup jsou v Gitu, takže jsou připnuté už návrhem. Nástroje a prostředí jsou místa, kde se build obvykle rozbije, a každé z nich má vlastní odpověď.
 
-## The tools: the Artifacts Handler
+## Nástroje: Artifacts Handler
 
-"Install GCC 13.2 and Ninja 1.12" in a README is a sentence that nobody follows to the letter. The platform solves it by making the tools a part of the project. The Artifacts Handler is a CMake script that reads a list of the tools and their versions from a file, `ArtifactsConfig.txt`, and prepares them. Its documentation says that the only software that the user needs is Git and CMake, and that every other component of the build is delivered by the handler. In steps:
+„Nainstalujte GCC 13.2 a Ninja 1.12“ v README je věta, kterou nikdo nedodržuje doslova. Platforma to řeší tím, že z nástrojů dělá součást projektu. Artifacts Handler je skript CMake, který ze souboru `ArtifactsConfig.txt` přečte seznam nástrojů a jejich verzí a připraví je. Jeho dokumentace uvádí, že jediný software, který uživatel potřebuje, je Git a CMake, a že každou další komponentu buildu dodá handler. Po krocích:
 
-1. **Clone** the root repository of the artifacts (without the submodules, to save the traffic).
-2. **Locate** the artifact in it (every tool is a submodule, the names are compared without the case).
-3. **Check out** the requested version (a shallow clone, `--depth=1`). The releases are tagged by the version and the operating system (`Win`, `Unix`, `DarwinARM`).
-4. **Install** it: unpack the archive into the cache folder.
-5. **Initialize** it: in most cases it puts the folder of the tool at the *beginning* of the `PATH`, so the project tool wins over any tool installed in the system.
+1. **Naklonuje** kořenový repozitář artefaktů (bez submodulů, aby se ušetřil provoz).
+2. **Najde** v něm artefakt (každý nástroj je submodul, názvy se porovnávají bez ohledu na velikost písmen).
+3. **Checkoutne** požadovanou verzi (mělký klon, `--depth=1`). Vydání jsou označena tagem podle verze a operačního systému (`Win`, `Unix`, `DarwinARM`).
+4. **Nainstaluje** ho: rozbalí archiv do složky cache.
+5. **Inicializuje** ho: ve většině případů vloží složku nástroje na *začátek* `PATH`, takže nástroj projektu vyhraje nad jakýmkoli nástrojem nainstalovaným v systému.
 
-The configuration has one line for each tool, `name;version;handler version`, for example the lines from the platform documentation:
+Konfigurace má jeden řádek na nástroj, `name;version;handler version`, například řádky z dokumentace platformy:
 
 ```text
 ninja;1.12.1;1
 gcc-arm-none-eabi;13.2.rel1;2
 ```
 
-The first number is the version of the tool itself (the *binary*), the second one is the version of the handler script of that artifact (it can change independently, for example when the way of setting the `PATH` is fixed). The cache has one folder per tool and per version, so several versions live side by side and a project that needs the older one does not disturb the project that needs the newer.
+První číslo je verze samotného nástroje (*binárky*), druhé je verze skriptu handleru daného artefaktu (může se měnit nezávisle, například když se opraví způsob nastavení `PATH`). Cache má jednu složku na nástroj a verzi, takže několik verzí žije vedle sebe a projekt, který potřebuje starší, neruší projekt, který potřebuje novější.
 
-### Why not `latest`
+### Proč ne `latest`
 
-The handler also accepts `latest` instead of a number. It is comfortable and it breaks the whole idea. I ran the handler with the line `ninja;latest;latest`, and it printed what it resolved it to on 5 October 2026:
+Handler také přijímá `latest` místo čísla. Je to pohodlné a rozbíjí to celou myšlenku. Spustil jsem handler s řádkem `ninja;latest;latest` a vypsal, na co to 5. října 2026 přeložil:
 
 ```text
 -- Processing artifact ninja with Bin version latest and Core version latest.
@@ -55,26 +55,26 @@ The handler also accepts `latest` instead of a number. It is comfortable and it 
 -- The version 1.13.2 of artifacts Bin part will be used.
 ```
 
-(The run stopped at the download of the release, because my environment cannot reach the GitHub API, but the resolution happened.) `latest` is a **moving target**: with the documentation saying that the list of the versions is downloaded once a day, the same file gives the 1.13.2 today and something else after the next release. A build that is correct today can be a different build tomorrow, and nothing in your repository says so. The rule is therefore simple: **`latest` is for trying a new version, and a released project pins every number.**
+(Běh se zastavil při stahování vydání, protože moje prostředí nedosáhne na GitHub API, ale vyřešení proběhlo.) `latest` je **pohyblivý cíl**: dokumentace říká, že seznam verzí se stahuje jednou denně, takže stejný soubor dnes dá 1.13.2 a po dalším vydání něco jiného. Build, který je dnes správný, může být zítra jiný build a nic ve vašem repozitáři to neříká. Pravidlo je proto jednoduché: **`latest` je pro zkoušení nové verze a vydaný projekt připíná každé číslo.**
 
-### The other settings that help
+### Další nastavení, která pomáhají
 
-- **An offline mode** (`-DOFFLINE_MODE=true`): only the local cache is checked and nothing is downloaded. It is the way to prove that the build does not depend on the network, and the way to build in a place where the network is not.
-- **The location of the cache** (`ARTIFACTS_HANDLER_CACHE_PATH`) and **of the root repository** (`ARTIFACTS_HANDLER_ROOT_REPO_URL`) can be set in the configuration file, in the environment or on the command line. A company can run its own mirror of the artifacts, so the build does not depend on a public server either.
-- **A checksum.** Each release of an artifact is published with a SHA-256 file next to the archive, so a corrupted or exchanged file is not accepted silently.
+- **Offline režim** (`-DOFFLINE_MODE=true`): kontroluje se jen lokální cache a nic se nestahuje. Je to způsob, jak dokázat, že build nezávisí na síti, a způsob, jak stavět tam, kde síť není.
+- **Umístění cache** (`ARTIFACTS_HANDLER_CACHE_PATH`) a **kořenového repozitáře** (`ARTIFACTS_HANDLER_ROOT_REPO_URL`) lze nastavit v konfiguračním souboru, v prostředí nebo na příkazové řádce. Firma může provozovat vlastní zrcadlo artefaktů, takže build nezávisí ani na veřejném serveru.
+- **Kontrolní součet.** Každé vydání artefaktu je publikováno se souborem SHA-256 vedle archivu, takže poškozený nebo vyměněný soubor není tiše přijat.
 
-The tools are the first half of the answer. The second half is something that you can check yourself, with the command below.
+Nástroje jsou první polovina odpovědi. Druhá polovina je něco, co si můžete ověřit sami, pomocí příkazu níže.
 
-## The environment: an experiment
+## Prostředí: experiment
 
-I took the example project from the article about [CMake](/blog/cmake-for-embedded-firmware) and added a file that most firmwares have in some form: the **build information**. It stores the time of the build and the path of the source file, because someone once wanted to see "when was this built" in the debugger:
+Vzal jsem ukázkový projekt z článku o [CMake](/blog/cmake-for-embedded-firmware) a přidal soubor, který má většina firmware v nějaké podobě: **informace o buildu**. Ukládá čas buildu a cestu ke zdrojovému souboru, protože někdo kdysi chtěl v debuggeru vidět „kdy se to přeložilo“:
 
 ```c
 const char buildFile[] = __FILE__;
 const char buildTime[] = __DATE__ " " __TIME__;
 ```
 
-Then I built the same source twice: in two different folders (`a` and `b`), the second one three seconds later. The `strings` command applied to the two binaries shows what is inside:
+Pak jsem stejný zdroj přeložil dvakrát: ve dvou různých složkách (`a` a `b`), druhý o tři sekundy později. Příkaz `strings` použitý na obě binárky ukazuje, co je uvnitř:
 
 ```text
 Oct  5 2026 15:46:02
@@ -84,25 +84,25 @@ Oct  5 2026 15:46:05
 /tmp/.../repro/b/Application/BuildInfo.c
 ```
 
-and the SHA-256 of the two `firmware.bin` files differ:
+a SHA-256 obou souborů `firmware.bin` se liší:
 
 ```text
 f2366319462b6fee...
 d634c24c3c431799...
 ```
 
-Two builds of one source, two different binaries. The time is obvious, but the **path** is the one that people forget: `__FILE__` (and also `assert()` and the debug information) writes the full path of the file into the program, and the path is different on the PC of every developer and in every CI job. A binary built in `/home/anna/project` and the same one built in `/builds/job-4711/project` are two different files.
+Dva buildy jednoho zdroje, dvě různé binárky. Čas je zřejmý, ale **cesta** je ta, na kterou lidé zapomínají: `__FILE__` (a také `assert()` a ladicí informace) zapisuje do programu plnou cestu k souboru a cesta je jiná na PC každého vývojáře a v každé úloze CI. Binárka přeložená v `/home/anna/project` a ta samá přeložená v `/builds/job-4711/project` jsou dva různé soubory.
 
-### Three changes
+### Tři změny
 
-**1. Remove the clock.** The macros `__DATE__` and `__TIME__` have no place in a firmware that has to be reproducible. The compiler can enforce it, so nobody adds them back by accident:
+**1. Odstraňte hodiny.** Makra `__DATE__` a `__TIME__` nemají místo ve firmware, který má být reprodukovatelný. Překladač to dokáže vynutit, takže je nikdo omylem nepřidá zpět:
 
 ```text
 BuildInfo.c:5:26: error: macro "__DATE__" might prevent reproducible builds [-Werror=date-time]
 BuildInfo.c:5:39: error: macro "__TIME__" might prevent reproducible builds [-Werror=date-time]
 ```
 
-**2. The version is an input.** If you want to know "what is this firmware", the build gets the answer from the outside: a version, a tag or a commit hash that the build system passes as a definition. The same source has the same version, so the same bytes:
+**2. Verze je vstup.** Pokud chcete vědět, „co je to za firmware“, build dostane odpověď zvenku: verzi, tag nebo hash commitu, který build systém předá jako definici. Stejný zdroj má stejnou verzi, tedy stejné bajty:
 
 ```c
 #ifndef BUILD_VERSION
@@ -112,7 +112,7 @@ BuildInfo.c:5:39: error: macro "__TIME__" might prevent reproducible builds [-We
 const char buildVersion[] = BUILD_VERSION;
 ```
 
-**3. Remove the paths.** The option `-ffile-prefix-map=OLD=NEW` replaces the prefix of every path that GCC puts into the output (`__FILE__`, the debug information, the assertions). The source folder of the project is replaced by a dot:
+**3. Odstraňte cesty.** Volba `-ffile-prefix-map=OLD=NEW` nahradí prefix každé cesty, kterou GCC vloží do výstupu (`__FILE__`, ladicí informace, aserce). Zdrojová složka projektu se nahradí tečkou:
 
 ```cmake title="CMakeLists.txt (a part)"
 # The version of the firmware is an input of the build, not the time of the build.
@@ -125,7 +125,7 @@ add_compile_options(${MCU_FLAGS} ${WARNING_FLAGS} ${BUILD_OPTIONS}
                     -ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
 ```
 
-With these three, the same check gives:
+S těmito třemi změnami dá stejná kontrola:
 
 ```text
 first : 1bedc9d2b1d78452a77fa3440851d5ed3d9f6568d96edd4c4a18be3b828dc313
@@ -133,11 +133,11 @@ second: 1bedc9d2b1d78452a77fa3440851d5ed3d9f6568d96edd4c4a18be3b828dc313
 REPRODUCIBLE
 ```
 
-The `.bin` is identical, and so is the `.elf`, in the release (`-Os -g0`) and also in the debug build (`-Og -g3`), whose debug information is full of paths. With `-ffile-prefix-map` the `strings` of the binary shows `./Application/BuildInfo.c` and the version `1.2.3`, and nothing about the PC that built it.
+`.bin` je identický, stejně jako `.elf`, v release (`-Os -g0`) i v debug buildu (`-Og -g3`), jehož ladicí informace jsou plné cest. Díky `-ffile-prefix-map` ukazuje `strings` binárky `./Application/BuildInfo.c` a verzi `1.2.3` a nic o PC, které ji přeložilo.
 
-## A test that never gets old
+## Test, který nezestárne
 
-It is not enough to make a build reproducible once, because the first `__TIME__` that somebody adds destroys it. So make it a **test**: build the source twice and compare. This is the script that I used for the numbers above; it copies the project into two folders, builds both with a pause between and compares the SHA-256:
+Nestačí udělat build reprodukovatelným jednou, protože první `__TIME__`, který někdo přidá, ho zničí. Udělejte z něj proto **test**: přeložte zdroj dvakrát a porovnejte. Tohle je skript, kterým jsem získal čísla výše; zkopíruje projekt do dvou složek, přeloží oba s pauzou mezi nimi a porovná SHA-256:
 
 ```bash title="check-reproducible.sh"
 #!/usr/bin/env bash
@@ -165,25 +165,25 @@ echo "second: $second"
 if [ "$first" = "$second" ]; then echo "REPRODUCIBLE"; else echo "NOT REPRODUCIBLE"; exit 1; fi
 ```
 
-Run in the CI on every merge, it is the guard. I used it on the broken version of the build information too, to be sure that it can fail, and it did (`NOT REPRODUCIBLE`, exit code 1, two different hashes). A test that has never failed is a test that you do not know.
+Spouštěný v CI při každém mergi je strážcem. Použil jsem ho i na rozbitou verzi informací o buildu, abych si byl jistý, že umí selhat, a selhal (`NOT REPRODUCIBLE`, návratový kód 1, dva různé hashe). Test, který nikdy neselhal, je test, který neznáte.
 
-## What else breaks a reproducible build
+## Co dalšího reprodukovatelný build rozbíjí
 
-I tested the three things above. The following are the other well-known sources of the trouble that you should keep in mind (I did not need them in the example, so I only name them):
+Otestoval jsem tři věci výše. Následující jsou další dobře známé zdroje potíží, které byste měli mít na paměti (v příkladu jsem je nepotřeboval, takže je jen jmenuji):
 
-- **The order of files** that comes from a `file(GLOB ...)` or from a directory listing. The sources should be listed explicitly, as in the CMake files of the platform modules.
-- **A timestamp in an archive** (a static library made by `ar`). The modern versions of the tools have a deterministic mode, but an old toolchain may not.
-- **Generated code.** The mocks and the runners of the unit tests, or the linker script generated for an MCU, have to be generated the same way from the same inputs. Sorting and no timestamps in the output are the rules.
-- **The compiler itself.** The same version of the same compiler from two sources (a distribution package and an archive of the vendor) can differ in the libraries it links. That is the reason to take the compiler from one place, which is the whole point of the artifacts.
-- **The build with a different number of threads.** A correct build system gives the same result with `-j1` and `-j16`, and a test of that is a cheap addition to the one above.
+- **Pořadí souborů** pocházející z `file(GLOB ...)` nebo z výpisu adresáře. Zdroje by měly být vypsané explicitně, jako v souborech CMake modulů platformy.
+- **Časové razítko v archivu** (statická knihovna vytvořená `ar`). Moderní verze nástrojů mají deterministický režim, ale starý toolchain ho mít nemusí.
+- **Generovaný kód.** Mocky a runnery unit testů nebo linker script generovaný pro MCU se musí generovat stejně ze stejných vstupů. Pravidla jsou řazení a žádná časová razítka na výstupu.
+- **Samotný překladač.** Stejná verze stejného překladače ze dvou zdrojů (balíček distribuce a archiv výrobce) se může lišit v knihovnách, které linkuje. To je důvod, proč brát překladač z jednoho místa, což je smyslem artefaktů.
+- **Build s jiným počtem vláken.** Správný build systém dá stejný výsledek s `-j1` i `-j16` a test toho je levným doplňkem k tomu výše.
 
-## A checklist
+## Kontrolní seznam
 
-1. Every tool is pinned to an exact version in `ArtifactsConfig.txt`. No `latest` in a release.
-2. The submodules (the BSP, the platform) are pinned by commits, and the update is a visible commit.
-3. Nothing in the firmware depends on the time or the path: `-Werror=date-time`, `-ffile-prefix-map`.
-4. The version is a parameter of the build, derived from a tag, and is stored in the firmware.
-5. The CI builds twice and compares. It also builds offline, from the cache, once in a while.
-6. The delivered binary is stored together with its SHA-256 and the tag, so "is it the same file" has an answer without a rebuild.
+1. Každý nástroj je v `ArtifactsConfig.txt` připnutý na přesnou verzi. Žádné `latest` ve vydání.
+2. Submoduly (BSP, platforma) jsou připnuté commity a aktualizace je viditelný commit.
+3. Nic ve firmware nezávisí na čase ani cestě: `-Werror=date-time`, `-ffile-prefix-map`.
+4. Verze je parametr buildu, odvozený z tagu, a je uložená ve firmware.
+5. CI staví dvakrát a porovnává. Čas od času také staví offline, z cache.
+6. Dodaná binárka je uložena spolu se svým SHA-256 a tagem, takže otázka „je to stejný soubor“ má odpověď bez nového buildu.
 
-The reward is a sentence that you will use at the telephone with the customer: *"I have built exactly your firmware, and the bug is (not) in it."*
+Odměnou je věta, kterou použijete do telefonu se zákazníkem: *„Přeložil jsem přesně váš firmware a chyba v něm (ne)je.“*

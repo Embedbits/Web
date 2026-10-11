@@ -1,20 +1,20 @@
 ---
-title: "File organization in embedded C: how a folder becomes a module"
+title: "Організація файлів у вбудованому C: як тека стає модулем"
 slug: file-organization-embedded-c
 date: 2026-10-04T14:00:00
 authors: [Mr.Nobody]
 tags: [embedded, architecture, c]
 ---
 
-My [coding style](/docs/platform/embi-platform/coding-style) says that file names start with the module name and that "the complete file organization is described elsewhere". This is the elsewhere.
+Мій [стиль кодування](/docs/platform/embi-platform/coding-style) каже, що імена файлів починаються з імені модуля і що «повна організація файлів описана в іншому місці». Ось це інше місце.
 
-C has no `private`, no namespaces and no packages. Once the code is split into files, the files and the build system are the **only** tools you have to say what belongs together, what is public and what is nobody else's business. So the file organization is not a matter of taste, it is a part of the design. This article describes how I organize an embedded project on three levels: the project, the module and the single file.
+У C немає `private`, просторів імен і пакетів. Щойно код розділено на файли, файли та система збірки — **єдині** інструменти, які в нас є, щоб сказати, що належить разом, що є публічним, а що нікого більше не стосується. Тож організація файлів — це не питання смаку, а частина дизайну. Ця стаття описує, як я організовую вбудований проєкт на трьох рівнях: проєкт, модуль і окремий файл.
 
 <!-- truncate -->
 
-## Level 1: the project
+## Рівень 1: проєкт
 
-A project created with EmBi_Platform has the same layout every time:
+Проєкт, створений за допомогою EmBi_Platform, щоразу має однакову структуру:
 
 ```text
 Project_root/
@@ -38,19 +38,19 @@ Project_root/
 └── CMakeLists.txt        project root build file
 ```
 
-Every folder answers one question, and the answer is the reason why the code lives there.
+Кожна тека відповідає на одне питання, і ця відповідь — причина, чому код живе саме там.
 
-**Application** is what makes the product different from every other product on the same MCU. It has its own inner layers, and their names are the levels of the "tree" from the [article about architecture](/blog/design-architecture): `AppMain` starts everything, `AppCore` is the top of the tree with the logic of the whole device, `AppFun` contains the individual functionalities, `AppComp` the low level components they are built from and `AppCom` the communication with the outside world. The calls go from the top to the bottom, never the other way.
+**Application** — це те, що відрізняє продукт від усіх інших продуктів на тому самому MCU. Він має власні внутрішні шари, і їхні назви — це рівні «дерева» зі [статті про архітектуру](/blog/design-architecture): `AppMain` усе запускає, `AppCore` — верхівка дерева з логікою всього пристрою, `AppFun` містить окремі функціональності, `AppComp` — низькорівневі компоненти, з яких вони складені, а `AppCom` — комунікацію із зовнішнім світом. Виклики йдуть згори вниз, ніколи навпаки.
 
-**Middlewares** have two places for every component, and this is on purpose. `ThirdParty/FreeRTOS` is the vendor code, checked out as a Git submodule in a version that you choose, and you **never edit it**. Everything that is yours (the port layer, the configuration) lives next to it in `Middlewares/FreeRTOS`, and it is not overwritten when you switch the vendor code to another version. When the vendor releases a fix, you update a submodule and not a patched copy.
+**Middlewares** мають два місця для кожного компонента, і це зроблено навмисно. `ThirdParty/FreeRTOS` — це код вендора, підключений як Git submodule у вибраній вами версії, і його **ніколи не редагують**. Усе, що є вашим (port-шар, конфігурація), живе поруч у `Middlewares/FreeRTOS` і не перезаписується, коли ви переходите на іншу версію коду вендора. Коли вендор випускає виправлення, ви оновлюєте submodule, а не пропатчену копію.
 
-**Bsp** is described in the [BSP documentation](/docs/bsp), the short version is: `Ral` knows the registers, `Mcal` the peripherals and `Hal` the board. Each STM32 family has its own branch of the BSP, so the folders look the same for every MCU.
+**Bsp** описано в [документації BSP](/docs/bsp), а коротка версія така: `Ral` знає регістри, `Mcal` — периферію, а `Hal` — плату. Кожне сімейство STM32 має власну гілку BSP, тому теки виглядають однаково для кожного MCU.
 
-**EmBi_Platform** and **STM32CubeIDE** are tools. They do not end up in the binary, and the IDE project is generated, so it can be thrown away and created again.
+**EmBi_Platform** і **STM32CubeIDE** — це інструменти. Вони не потрапляють у бінарний файл, а проєкт IDE генерується, тож його можна викинути й створити заново.
 
-## Level 2: the module
+## Рівень 2: модуль
 
-A module is a folder with a fixed set of files. You do not have to create them by hand, the platform generates them (see the end of the article), and the result looks like this:
+Модуль — це тека з фіксованим набором файлів. Створювати їх вручну не потрібно, платформа генерує їх сама (див. кінець статті), і результат виглядає так:
 
 ```text
 Temperature/
@@ -62,15 +62,15 @@ Temperature/
 └── Temperature_Filter.c     (a component, see below)
 ```
 
-| File | Role | Who may include it |
+| Файл | Роль | Хто може його підключати |
 |---|---|---|
-| `Temperature_Types.h` | Public types, enumerations and macros | everybody |
-| `Temperature_Port.h` | Public functions: the **only** entry point of the module | everybody |
-| `Temperature.h` | Internal types and functions shared by the files of the module | only the module itself |
-| `Temperature.c` | Implementation | (a source file) |
-| `CMakeLists.txt` | Creates the static library `Temperature_Lib` | the build |
+| `Temperature_Types.h` | Публічні типи, перелічення та макроси | усі |
+| `Temperature_Port.h` | Публічні функції: **єдина** точка входу в модуль | усі |
+| `Temperature.h` | Внутрішні типи та функції, спільні для файлів модуля | лише сам модуль |
+| `Temperature.c` | Реалізація | (вихідний файл) |
+| `CMakeLists.txt` | Створює статичну бібліотеку `Temperature_Lib` | збірка |
 
-The idea is that a user of the module reads **two** files and nothing else. The first one are the types (the generated file also contains the version type and the usual enumerations for the request and function states, I trimmed it here to what the example needs):
+Ідея в тому, що користувач модуля читає **два** файли і більше нічого. Перший — це типи (згенерований файл також містить тип версії та звичайні перелічення для станів запиту й функції, тут я скоротив його до того, що потрібно для прикладу):
 
 ```c title="Temperature_Types.h"
 /**
@@ -98,7 +98,7 @@ typedef enum
 #endif /* TEMPERATURE_TEMPERATURE_TYPES_H */
 ```
 
-The second one is the port, which is the whole interface of the module. Everything that is not here does not exist for the others:
+Другий — це порт, який є всім інтерфейсом модуля. Усього, чого тут немає, для інших не існує:
 
 ```c title="Temperature_Port.h"
 /**
@@ -131,7 +131,7 @@ temperature_RequestState_t Temperature_Get_Value( temperature_Value_t * const va
 #endif /* TEMPERATURE_TEMPERATURE_PORT_H */
 ```
 
-The internal header has the data and the functions that the files of the module need to share, and that nobody outside should ever see:
+Внутрішній заголовок містить дані та функції, які потрібні файлам модуля спільно і яких ніхто ззовні ніколи не повинен бачити:
 
 ```c title="Temperature.h"
 /**
@@ -162,7 +162,7 @@ temperature_Value_t Temperature_Filter_Apply( temperature_Value_t rawValue );
 #endif /* TEMPERATURE_TEMPERATURE_H */
 ```
 
-And the implementation uses all of it:
+А реалізація використовує все це:
 
 ```c title="Temperature.c"
 #include "Temperature.h"
@@ -197,11 +197,11 @@ temperature_RequestState_t Temperature_Get_Value( temperature_Value_t * const va
 }
 ```
 
-Notice that the state is `static` in the `.c` file. There is no global variable, so there is no `extern` (which my coding style prohibits). The only way to the data is the function `Temperature_Get_Value()`, a getter that also tells the caller whether the value is valid.
+Зверніть увагу, що стан є `static` у `.c`-файлі. Глобальної змінної немає, отже, немає й `extern` (який мій стиль кодування забороняє). Єдиний шлях до даних — функція `Temperature_Get_Value()`, геттер, який також повідомляє викликачу, чи дійсне значення.
 
-### The build system makes the file the encapsulation
+### Система збірки робить файл інкапсуляцією
 
-"Include only the port" would be just a wish if nothing enforced it. The `CMakeLists.txt` of every module does. It builds a static library and **copies only the public headers** to a separate folder in the build directory. That folder is the only one that the users of the library get on their include path:
+«Підключайте лише порт» було б просто побажанням, якби цього ніщо не забезпечувало. Забезпечує `CMakeLists.txt` кожного модуля. Він збирає статичну бібліотеку і **копіює лише публічні заголовки** в окрему теку в каталозі збірки. Лише ця тека потрапляє в include path користувачів бібліотеки:
 
 ```cmake title="CMakeLists.txt"
 # Source files list for current library generation
@@ -241,7 +241,7 @@ target_include_directories( Temperature_Lib
 )
 ```
 
-(This is a simplified version of the template that the platform generates, which also handles the dependencies between the libraries and the Doxygen paths.) Now the application only links `Temperature_Lib`:
+(Це спрощена версія шаблону, який генерує платформа, що також опрацьовує залежності між бібліотеками та шляхи Doxygen.) Тепер застосунок лише лінкує `Temperature_Lib`:
 
 ```c title="AppMain.c"
 #include <stdio.h>
@@ -261,23 +261,23 @@ int main(void)
 }
 ```
 
-I tried what happens if the application includes the internal header of the module, and the compiler says what you want it to say:
+Я спробував, що буде, якщо застосунок підключить внутрішній заголовок модуля, і компілятор каже те, що ви від нього хочете почути:
 
 ```text
 AppMain_Cheat.c:1:10: fatal error: Temperature.h: No such file or directory
 ```
 
-The folder with the public headers in the build directory contains exactly two files: `Temperature_Port.h` and `Temperature_Types.h`.
+Тека з публічними заголовками в каталозі збірки містить рівно два файли: `Temperature_Port.h` і `Temperature_Types.h`.
 
-**An honest warning:** it is the protection of the build system, not of the language. If somebody writes `#include "../../Middlewares/Temperature/Temperature.h"`, it compiles without a complaint (I tried that too). The cure is cheap: reject relative paths with `..` in the includes in the CI.
+**Чесне застереження:** це захист системи збірки, а не мови. Якщо хтось напише `#include "../../Middlewares/Temperature/Temperature.h"`, воно скомпілюється без жодних скарг (це я теж пробував). Лік дешевий: відхиляйте в CI відносні шляхи з `..` в include.
 
 ```bash
 grep -rEn '#include "[^"]*\.\./' Application Middlewares/*/ && exit 1
 ```
 
-### When the module grows: components
+### Коли модуль росте: компоненти
 
-A module with a thousand lines in one file is the next problem. The answer is a **component**: another pair of files `Module_Component.c/.h` in the same folder. In the example above it is the filter:
+Модуль з тисячею рядків в одному файлі — наступна проблема. Відповідь — **компонент**: ще одна пара файлів `Module_Component.c/.h` у тій самій теці. У прикладі вище це фільтр:
 
 ```c title="Temperature_Filter.c"
 #include "Temperature.h"
@@ -291,11 +291,11 @@ temperature_Value_t Temperature_Filter_Apply( temperature_Value_t rawValue )
 }
 ```
 
-The component header is internal as well (it is not in the list of the public headers), so the component can be exchanged or split without anyone noticing. The user of the module still sees the same two files. The rule that the file name starts with the module name makes the component visible in every file list, and the function name `Temperature_Filter_Apply()` tells where to find it.
+Заголовок компонента також внутрішній (його немає у списку публічних заголовків), тож компонент можна замінити або розділити так, що ніхто цього не помітить. Користувач модуля й надалі бачить ті самі два файли. Правило, що ім'я файлу починається з імені модуля, робить компонент помітним у будь-якому списку файлів, а ім'я функції `Temperature_Filter_Apply()` підказує, де її шукати.
 
-## Level 3: inside a file
+## Рівень 3: усередині файлу
 
-Every `.c` and `.h` file generated by the platform has the same skeleton with a banner for each section, in the same order:
+Кожен `.c`- і `.h`-файл, згенерований платформою, має однаковий каркас із банером для кожної секції в однаковому порядку:
 
 ```c
 /**
@@ -317,47 +317,47 @@ Every `.c` and `.h` file generated by the platform has the same skeleton with a 
 /* ================================ TASKS =================================== */
 ```
 
-It looks like a decoration, and it is a map. When you open a file that you have never seen, you know that the local variables are in the fifth section and the interrupt handlers in the tenth, and you do not have to read the file to find them. The headers have the same idea, wrapped in an include guard and in `extern "C"` for the C++ users:
+Це схоже на прикрасу, а насправді — карта. Коли ви відкриваєте файл, якого ніколи не бачили, ви знаєте, що локальні змінні в п'ятій секції, а обробники переривань — у десятій, і вам не потрібно читати файл, щоб їх знайти. Заголовки мають ту саму ідею, загорнуту в include guard і в `extern "C"` для користувачів C++:
 
-- the guard has the form `MODULE_FILE_H`, for example `TEMPERATURE_TEMPERATURE_PORT_H`,
-- the Doxygen header (`\file`, `\ingroup`, `\brief`) is on the top of every file, so the documentation of the module is generated from the same folder,
-- the includes are ordered `<system>`, then the project, then the module.
+- guard має вигляд `MODULE_FILE_H`, наприклад `TEMPERATURE_TEMPERATURE_PORT_H`,
+- заголовок Doxygen (`\file`, `\ingroup`, `\brief`) є на початку кожного файлу, тож документація модуля генерується з тієї самої теки,
+- підключення впорядковані так: `<system>`, потім проєкт, потім модуль.
 
-## One name in all places
+## Одне ім'я скрізь
 
-The strength of this organization is that the name of the module is the same everywhere, so you can guess a name without looking it up:
+Сила цієї організації в тому, що ім'я модуля скрізь однакове, тож ім'я можна вгадати, не шукаючи його:
 
-| What | Example |
+| Що | Приклад |
 |---|---|
-| Folder | `Temperature/` |
-| Library in CMake | `Temperature_Lib` |
-| Files | `Temperature.c`, `Temperature_Port.h`, `Temperature_Types.h` |
-| Functions | `Temperature_Init()`, `Temperature_Get_Value()` |
-| Types | `temperature_Value_t`, `temperature_RequestState_t` |
-| Macros and enumerators | `TEMPERATURE_REQUEST_OK` |
+| Тека | `Temperature/` |
+| Бібліотека в CMake | `Temperature_Lib` |
+| Файли | `Temperature.c`, `Temperature_Port.h`, `Temperature_Types.h` |
+| Функції | `Temperature_Init()`, `Temperature_Get_Value()` |
+| Типи | `temperature_Value_t`, `temperature_RequestState_t` |
+| Макроси та перелічувані значення | `TEMPERATURE_REQUEST_OK` |
 | Include guard | `TEMPERATURE_TEMPERATURE_PORT_H` |
 
-If you see `Gpio_Set_PinLevel()` in a stack trace, you know that it is in the folder `Gpio`, in the library `Gpio_Lib` and that its types start with `gpio_`.
+Якщо ви бачите `Gpio_Set_PinLevel()` у стеку викликів, ви знаєте, що вона в теці `Gpio`, у бібліотеці `Gpio_Lib`, а її типи починаються з `gpio_`.
 
-### The same lifecycle for every module
+### Один життєвий цикл для кожного модуля
 
-The generated module comes with the four functions that every module has: `Get_ModuleVersion()`, `Init()`, `Deinit()` and `Task()`. `Init` sets up the module and handles its own failures, `Task` is called periodically from the main loop or from a scheduler. The consequence is that the code on top (`AppMain`) can treat all modules in the same way, and a new module does not need a new concept.
+Згенерований модуль постачається з чотирма функціями, які має кожен модуль: `Get_ModuleVersion()`, `Init()`, `Deinit()` і `Task()`. `Init` налаштовує модуль і обробляє власні збої, `Task` викликається періодично з основного циклу або з планувальника. Наслідок у тому, що код нагорі (`AppMain`) може поводитися з усіма модулями однаково, а новому модулю не потрібна нова концепція.
 
-## Creating a module
+## Створення модуля
 
-You do not create these files by hand. The project tools of the platform (the *Create module* entry of the menu, described on the page [Project tools](/docs/platform/embi-platform/cmake-helpertools)) ask for the name and the location, and generate the folder with all the files above and the `CMakeLists.txt`. The *Add component* entry adds a `Module_Component.c/.h` pair to an existing module. A module that was generated once is never overwritten, so it is safe to run the tool again.
+Ці файли не створюють вручну. Інструменти проєкту платформи (пункт меню *Create module*, описаний на сторінці [Project tools](/docs/platform/embi-platform/cmake-helpertools)) запитують назву та розташування й генерують теку з усіма файлами вище та `CMakeLists.txt`. Пункт *Add component* додає пару `Module_Component.c/.h` до наявного модуля. Модуль, що був згенерований раз, ніколи не перезаписується, тож інструмент можна безпечно запускати знову.
 
-## The rules in a short form
+## Правила коротко
 
-1. One module is one folder, and it has its own library.
-2. Other modules include **only** `Module_Port.h` and `Module_Types.h`.
-3. Internal headers are not in the list of public headers.
-4. The data is `static` in the `.c` file, access goes through functions. No `extern` variables.
-5. The file name begins with the module name, and so does every function, type and macro.
-6. Vendor code is never edited. Your changes live in the handler folder next to it.
-7. The calls go down in the layers, never up.
-8. Everything in a file is in its section, in the same order.
+1. Один модуль — одна тека, і в нього є власна бібліотека.
+2. Інші модулі підключають **лише** `Module_Port.h` і `Module_Types.h`.
+3. Внутрішніх заголовків немає у списку публічних заголовків.
+4. Дані — `static` у `.c`-файлі, доступ — через функції. Ніяких `extern`-змінних.
+5. Ім'я файлу починається з імені модуля, так само як і кожна функція, тип і макрос.
+6. Код вендора ніколи не редагується. Ваші зміни живуть у теці обробника поруч із ним.
+7. Виклики в шарах ідуть вниз, ніколи вгору.
+8. Усе у файлі розташоване у своїй секції, в однаковому порядку.
 
-None of these rules is clever. The point is that all of them are the same in all modules, so after you have read one module, you know how to read all the others. That is also the reason why the platform generates the files: a convention that takes work to follow is a convention that is not followed.
+Жодне з цих правил не хитре. Суть у тому, що всі вони однакові в усіх модулях, тож прочитавши один модуль, ви знаєте, як читати всі інші. Це також причина, чому платформа генерує файли: конвенція, дотримання якої потребує зусиль, — це конвенція, яку не дотримуються.
 
-The same ideas, from a different point of view, are in the articles about [SOLID principles](/blog/solid-principles-c-cpp) (the port header is the interface that other modules depend on) and about [MISRA C](/blog/misra-c-rules-in-practice) (several of the rules are much easier to follow when the code is organized like this).
+Ті самі ідеї з іншої точки зору є у статтях про [принципи SOLID](/blog/solid-principles-c-cpp) (заголовок порту — це інтерфейс, від якого залежать інші модулі) і про [MISRA C](/blog/misra-c-rules-in-practice) (кілька правил значно легше дотримуватися, коли код організований так).

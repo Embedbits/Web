@@ -1,53 +1,53 @@
 ---
-title: "Reproducible builds: pin the tools, pin the sources, remove the clock"
+title: "Відтворювані збірки: зафіксуйте інструменти, зафіксуйте вихідний код, приберіть годинник"
 slug: reproducible-builds-embedded
 date: 2026-10-07T14:00:00
 authors: [Mr.Nobody]
 tags: [embedded, cmake, architecture]
 ---
 
-A customer calls about a firmware that you delivered fourteen months ago. You check out the tag, build it, flash it and the bug is not there. Is the bug gone, or is it a different firmware? If your build is not **reproducible**, you cannot tell. Nobody can tell, because the binary that you have just built differs from the delivered one in ways that you can neither see nor explain: another version of the compiler, a library that was updated on the PC, the path of the folder, the time of the day.
+Замовник телефонує щодо firmware, яке ви поставили чотирнадцять місяців тому. Ви завантажуєте тег, збираєте, прошиваєте — і помилки немає. Помилку виправлено чи це інше firmware? Якщо ваша збірка не **відтворювана**, ви не можете цього сказати. Цього не може сказати ніхто, бо бінарний файл, який ви щойно зібрали, відрізняється від поставленого так, що ви не можете ні побачити, ні пояснити: інша версія компілятора, бібліотека, оновлена на ПК, шлях до теки, час доби.
 
-A reproducible build has a simple definition: **the same inputs give the same bytes**. This article shows what the inputs of a firmware build are, how the Embedbits platform pins them (the Artifacts Handler), and an experiment that I did: two builds of the same source, in two folders at two different times, give two different binaries. Then three changes later they give the same one, to the last bit.
+Відтворювана збірка має просте визначення: **ті самі вхідні дані дають ті самі байти**. Ця стаття показує, які вхідні дані має збірка firmware, як платформа Embedbits їх фіксує (Artifacts Handler), і експеримент, який я провів: дві збірки того самого коду в двох теках у два різні моменти дають два різні бінарні файли. А потім, після трьох змін, вони дають той самий — до останнього біта.
 
 <!-- truncate -->
 
-## The inputs of a build
+## Вхідні дані збірки
 
-A build is a function. What goes into it?
+Збірка — це функція. Що в неї входить?
 
-| Input | Where it comes from | How to pin it |
+| Вхід | Звідки береться | Як зафіксувати |
 |---|---|---|
-| **The source** | Git | a tag or a commit, the submodules pinned by their commits |
-| **The tools** (compiler, linker, Ninja, Doxygen) | installed on the PC, or fetched | exact versions, from one source |
-| **The build description** (flags, linker script) | CMake files | in the repository, nothing set by hand |
-| **The platform scripts** | the EmBi_Platform submodule | the submodule commit, updated by the Updater, deliberately |
-| **The environment** | the PC | nothing in the output should depend on it: the path, the time, the user name |
+| **Вихідний код** | Git | тег або коміт, підмодулі зафіксовано їхніми комітами |
+| **Інструменти** (компілятор, лінкер, Ninja, Doxygen) | встановлені на ПК або завантажені | точні версії, з одного джерела |
+| **Опис збірки** (прапорці, linker script) | файли CMake | у репозиторії, нічого не задається вручну |
+| **Скрипти платформи** | підмодуль EmBi_Platform | коміт підмодуля, оновлюється Updater свідомо |
+| **Середовище** | ПК | ніщо у виході не повинно від нього залежати: шлях, час, ім'я користувача |
 
-The first, third and fourth are in Git, so they are pinned by design. The tools and the environment are where a build usually breaks, and each of them has its own answer.
+Перше, третє й четверте лежать у Git, тож зафіксовані за дизайном. Інструменти та середовище — це місця, де збірка зазвичай ламається, і кожне має власну відповідь.
 
-## The tools: the Artifacts Handler
+## Інструменти: Artifacts Handler
 
-"Install GCC 13.2 and Ninja 1.12" in a README is a sentence that nobody follows to the letter. The platform solves it by making the tools a part of the project. The Artifacts Handler is a CMake script that reads a list of the tools and their versions from a file, `ArtifactsConfig.txt`, and prepares them. Its documentation says that the only software that the user needs is Git and CMake, and that every other component of the build is delivered by the handler. In steps:
+«Встановіть GCC 13.2 і Ninja 1.12» у README — це речення, якого ніхто не виконує буквально. Платформа розв'язує це, роблячи інструменти частиною проєкту. Artifacts Handler — це скрипт CMake, який читає перелік інструментів та їхніх версій із файлу `ArtifactsConfig.txt` і готує їх. Його документація каже, що єдине програмне забезпечення, потрібне користувачеві, — це Git і CMake, а кожен інший компонент збірки постачає handler. По кроках:
 
-1. **Clone** the root repository of the artifacts (without the submodules, to save the traffic).
-2. **Locate** the artifact in it (every tool is a submodule, the names are compared without the case).
-3. **Check out** the requested version (a shallow clone, `--depth=1`). The releases are tagged by the version and the operating system (`Win`, `Unix`, `DarwinARM`).
-4. **Install** it: unpack the archive into the cache folder.
-5. **Initialize** it: in most cases it puts the folder of the tool at the *beginning* of the `PATH`, so the project tool wins over any tool installed in the system.
+1. **Клонувати** кореневий репозиторій артефактів (без підмодулів, щоб заощадити трафік).
+2. **Знайти** в ньому артефакт (кожен інструмент — підмодуль, назви порівнюються без урахування регістру).
+3. **Перейти** на запитану версію (shallow clone, `--depth=1`). Релізи позначені версією та операційною системою (`Win`, `Unix`, `DarwinARM`).
+4. **Встановити** його: розпакувати архів у теку кешу.
+5. **Ініціалізувати** його: здебільшого він ставить теку інструмента на *початок* `PATH`, тож інструмент проєкту перемагає будь-який інструмент, встановлений у системі.
 
-The configuration has one line for each tool, `name;version;handler version`, for example the lines from the platform documentation:
+Конфігурація має один рядок на інструмент, `name;version;handler version`, наприклад рядки з документації платформи:
 
 ```text
 ninja;1.12.1;1
 gcc-arm-none-eabi;13.2.rel1;2
 ```
 
-The first number is the version of the tool itself (the *binary*), the second one is the version of the handler script of that artifact (it can change independently, for example when the way of setting the `PATH` is fixed). The cache has one folder per tool and per version, so several versions live side by side and a project that needs the older one does not disturb the project that needs the newer.
+Перше число — версія самого інструмента (*бінарного файлу*), друге — версія скрипта handler цього артефакту (вона може змінюватися незалежно, наприклад, коли виправляють спосіб встановлення `PATH`). Кеш має одну теку на інструмент і на версію, тож кілька версій співіснують поруч, а проєкт, якому потрібна старіша, не заважає проєкту, якому потрібна новіша.
 
-### Why not `latest`
+### Чому не `latest`
 
-The handler also accepts `latest` instead of a number. It is comfortable and it breaks the whole idea. I ran the handler with the line `ninja;latest;latest`, and it printed what it resolved it to on 5 October 2026:
+Handler також приймає `latest` замість числа. Це зручно й руйнує всю ідею. Я запустив handler з рядком `ninja;latest;latest`, і він надрукував, у що це перетворилося 5 жовтня 2026 року:
 
 ```text
 -- Processing artifact ninja with Bin version latest and Core version latest.
@@ -55,26 +55,26 @@ The handler also accepts `latest` instead of a number. It is comfortable and it 
 -- The version 1.13.2 of artifacts Bin part will be used.
 ```
 
-(The run stopped at the download of the release, because my environment cannot reach the GitHub API, but the resolution happened.) `latest` is a **moving target**: with the documentation saying that the list of the versions is downloaded once a day, the same file gives the 1.13.2 today and something else after the next release. A build that is correct today can be a different build tomorrow, and nothing in your repository says so. The rule is therefore simple: **`latest` is for trying a new version, and a released project pins every number.**
+(Запуск зупинився на завантаженні релізу, бо моє середовище не може дістатися GitHub API, але визначення версії відбулося.) `latest` — це **рухома ціль**: за документацією, перелік версій завантажується раз на добу, тож той самий файл сьогодні дає 1.13.2, а після наступного релізу — щось інше. Збірка, правильна сьогодні, завтра може бути іншою збіркою, і ніщо у вашому репозиторії про це не скаже. Тому правило просте: **`latest` — для спроби нової версії, а випущений проєкт фіксує кожне число.**
 
-### The other settings that help
+### Інші налаштування, що допомагають
 
-- **An offline mode** (`-DOFFLINE_MODE=true`): only the local cache is checked and nothing is downloaded. It is the way to prove that the build does not depend on the network, and the way to build in a place where the network is not.
-- **The location of the cache** (`ARTIFACTS_HANDLER_CACHE_PATH`) and **of the root repository** (`ARTIFACTS_HANDLER_ROOT_REPO_URL`) can be set in the configuration file, in the environment or on the command line. A company can run its own mirror of the artifacts, so the build does not depend on a public server either.
-- **A checksum.** Each release of an artifact is published with a SHA-256 file next to the archive, so a corrupted or exchanged file is not accepted silently.
+- **Офлайн-режим** (`-DOFFLINE_MODE=true`): перевіряється лише локальний кеш, нічого не завантажується. Це спосіб довести, що збірка не залежить від мережі, і спосіб збирати там, де мережі немає.
+- **Розташування кешу** (`ARTIFACTS_HANDLER_CACHE_PATH`) і **кореневого репозиторію** (`ARTIFACTS_HANDLER_ROOT_REPO_URL`) можна задати у файлі конфігурації, в середовищі або в командному рядку. Компанія може тримати власне дзеркало артефактів, тож збірка не залежить і від публічного сервера.
+- **Контрольна сума.** Кожен реліз артефакту публікується з файлом SHA-256 поруч з архівом, тож пошкоджений або підмінений файл не приймається мовчки.
 
-The tools are the first half of the answer. The second half is something that you can check yourself, with the command below.
+Інструменти — перша половина відповіді. Друга половина — те, що ви можете перевірити самі, наведеною нижче командою.
 
-## The environment: an experiment
+## Середовище: експеримент
 
-I took the example project from the article about [CMake](/blog/cmake-for-embedded-firmware) and added a file that most firmwares have in some form: the **build information**. It stores the time of the build and the path of the source file, because someone once wanted to see "when was this built" in the debugger:
+Я взяв приклад проєкту зі статті про [CMake](/blog/cmake-for-embedded-firmware) і додав файл, який більшість firmware мають у тій чи іншій формі: **інформацію про збірку**. Він зберігає час збірки та шлях до вихідного файлу, бо колись комусь захотілося бачити у відлагоднику «коли це зібрано»:
 
 ```c
 const char buildFile[] = __FILE__;
 const char buildTime[] = __DATE__ " " __TIME__;
 ```
 
-Then I built the same source twice: in two different folders (`a` and `b`), the second one three seconds later. The `strings` command applied to the two binaries shows what is inside:
+Потім я зібрав той самий код двічі: у двох різних теках (`a` і `b`), другу — на три секунди пізніше. Команда `strings`, застосована до двох бінарних файлів, показує, що всередині:
 
 ```text
 Oct  5 2026 15:46:02
@@ -84,25 +84,25 @@ Oct  5 2026 15:46:05
 /tmp/.../repro/b/Application/BuildInfo.c
 ```
 
-and the SHA-256 of the two `firmware.bin` files differ:
+і SHA-256 двох файлів `firmware.bin` відрізняються:
 
 ```text
 f2366319462b6fee...
 d634c24c3c431799...
 ```
 
-Two builds of one source, two different binaries. The time is obvious, but the **path** is the one that people forget: `__FILE__` (and also `assert()` and the debug information) writes the full path of the file into the program, and the path is different on the PC of every developer and in every CI job. A binary built in `/home/anna/project` and the same one built in `/builds/job-4711/project` are two different files.
+Дві збірки одного коду, два різні бінарні файли. Час очевидний, але **шлях** — це те, що люди забувають: `__FILE__` (а також `assert()` і налагоджувальна інформація) записує в програму повний шлях до файлу, а шлях різний на ПК кожного розробника і в кожному завданні CI. Бінарний файл, зібраний у `/home/anna/project`, і той самий, зібраний у `/builds/job-4711/project`, — це два різні файли.
 
-### Three changes
+### Три зміни
 
-**1. Remove the clock.** The macros `__DATE__` and `__TIME__` have no place in a firmware that has to be reproducible. The compiler can enforce it, so nobody adds them back by accident:
+**1. Приберіть годинник.** Макросам `__DATE__` і `__TIME__` немає місця у firmware, яке має бути відтворюваним. Компілятор може це забезпечити, щоб ніхто не додав їх назад випадково:
 
 ```text
 BuildInfo.c:5:26: error: macro "__DATE__" might prevent reproducible builds [-Werror=date-time]
 BuildInfo.c:5:39: error: macro "__TIME__" might prevent reproducible builds [-Werror=date-time]
 ```
 
-**2. The version is an input.** If you want to know "what is this firmware", the build gets the answer from the outside: a version, a tag or a commit hash that the build system passes as a definition. The same source has the same version, so the same bytes:
+**2. Версія — це вхід.** Якщо ви хочете знати «що це за firmware», збірка отримує відповідь ззовні: версію, тег або хеш коміту, який система збірки передає як визначення. Той самий код має ту саму версію, отже, ті самі байти:
 
 ```c
 #ifndef BUILD_VERSION
@@ -112,7 +112,7 @@ BuildInfo.c:5:39: error: macro "__TIME__" might prevent reproducible builds [-We
 const char buildVersion[] = BUILD_VERSION;
 ```
 
-**3. Remove the paths.** The option `-ffile-prefix-map=OLD=NEW` replaces the prefix of every path that GCC puts into the output (`__FILE__`, the debug information, the assertions). The source folder of the project is replaced by a dot:
+**3. Приберіть шляхи.** Опція `-ffile-prefix-map=OLD=NEW` замінює префікс кожного шляху, який GCC записує у вивід (`__FILE__`, налагоджувальна інформація, assertions). Тека з вихідним кодом проєкту замінюється крапкою:
 
 ```cmake title="CMakeLists.txt (a part)"
 # The version of the firmware is an input of the build, not the time of the build.
@@ -125,7 +125,7 @@ add_compile_options(${MCU_FLAGS} ${WARNING_FLAGS} ${BUILD_OPTIONS}
                     -ffile-prefix-map=${CMAKE_SOURCE_DIR}=.)
 ```
 
-With these three, the same check gives:
+З цими трьома змінами та сама перевірка дає:
 
 ```text
 first : 1bedc9d2b1d78452a77fa3440851d5ed3d9f6568d96edd4c4a18be3b828dc313
@@ -133,11 +133,11 @@ second: 1bedc9d2b1d78452a77fa3440851d5ed3d9f6568d96edd4c4a18be3b828dc313
 REPRODUCIBLE
 ```
 
-The `.bin` is identical, and so is the `.elf`, in the release (`-Os -g0`) and also in the debug build (`-Og -g3`), whose debug information is full of paths. With `-ffile-prefix-map` the `strings` of the binary shows `./Application/BuildInfo.c` and the version `1.2.3`, and nothing about the PC that built it.
+`.bin` ідентичний, як і `.elf`, у release (`-Os -g0`) і також у debug-збірці (`-Og -g3`), чия налагоджувальна інформація повна шляхів. З `-ffile-prefix-map` `strings` бінарного файлу показує `./Application/BuildInfo.c` і версію `1.2.3`, і нічого про ПК, що його зібрав.
 
-## A test that never gets old
+## Тест, який не старіє
 
-It is not enough to make a build reproducible once, because the first `__TIME__` that somebody adds destroys it. So make it a **test**: build the source twice and compare. This is the script that I used for the numbers above; it copies the project into two folders, builds both with a pause between and compares the SHA-256:
+Недостатньо зробити збірку відтворюваною один раз, бо перший же `__TIME__`, який хтось додасть, її зруйнує. Тож зробіть із цього **тест**: зберіть код двічі й порівняйте. Це скрипт, яким я отримав числа вище; він копіює проєкт у дві теки, збирає обидві з паузою між ними та порівнює SHA-256:
 
 ```bash title="check-reproducible.sh"
 #!/usr/bin/env bash
@@ -165,25 +165,25 @@ echo "second: $second"
 if [ "$first" = "$second" ]; then echo "REPRODUCIBLE"; else echo "NOT REPRODUCIBLE"; exit 1; fi
 ```
 
-Run in the CI on every merge, it is the guard. I used it on the broken version of the build information too, to be sure that it can fail, and it did (`NOT REPRODUCIBLE`, exit code 1, two different hashes). A test that has never failed is a test that you do not know.
+Запущений у CI при кожному злитті, він є вартовим. Я використав його й на зламаній версії інформації про збірку, щоб переконатися, що він може впасти, і він упав (`NOT REPRODUCIBLE`, код виходу 1, два різні хеші). Тест, який ніколи не падав, — це тест, якого ви не знаєте.
 
-## What else breaks a reproducible build
+## Що ще ламає відтворювану збірку
 
-I tested the three things above. The following are the other well-known sources of the trouble that you should keep in mind (I did not need them in the example, so I only name them):
+Я перевірив три речі вище. Далі йдуть інші добре відомі джерела проблем, про які варто пам'ятати (у прикладі вони мені не знадобилися, тож я їх лише називаю):
 
-- **The order of files** that comes from a `file(GLOB ...)` or from a directory listing. The sources should be listed explicitly, as in the CMake files of the platform modules.
-- **A timestamp in an archive** (a static library made by `ar`). The modern versions of the tools have a deterministic mode, but an old toolchain may not.
-- **Generated code.** The mocks and the runners of the unit tests, or the linker script generated for an MCU, have to be generated the same way from the same inputs. Sorting and no timestamps in the output are the rules.
-- **The compiler itself.** The same version of the same compiler from two sources (a distribution package and an archive of the vendor) can differ in the libraries it links. That is the reason to take the compiler from one place, which is the whole point of the artifacts.
-- **The build with a different number of threads.** A correct build system gives the same result with `-j1` and `-j16`, and a test of that is a cheap addition to the one above.
+- **Порядок файлів,** що походить від `file(GLOB ...)` або зі списку теки. Вихідні файли слід перелічувати явно, як у файлах CMake модулів платформи.
+- **Позначка часу в архіві** (статична бібліотека, створена `ar`). Сучасні версії інструментів мають детермінований режим, але старий toolchain може його не мати.
+- **Згенерований код.** Моки й раннери unit-тестів або linker script, згенерований для MCU, мають генеруватися однаково з тих самих вхідних даних. Правила — сортування та жодних позначок часу у виході.
+- **Сам компілятор.** Та сама версія того самого компілятора з двох джерел (пакет дистрибутива та архів вендора) може відрізнятися бібліотеками, які підключає. Це причина брати компілятор з одного місця, у чому й полягає вся суть артефактів.
+- **Збірка з різною кількістю потоків.** Коректна система збірки дає той самий результат з `-j1` і `-j16`, і тест на це — дешеве доповнення до наведеного вище.
 
-## A checklist
+## Чекліст
 
-1. Every tool is pinned to an exact version in `ArtifactsConfig.txt`. No `latest` in a release.
-2. The submodules (the BSP, the platform) are pinned by commits, and the update is a visible commit.
-3. Nothing in the firmware depends on the time or the path: `-Werror=date-time`, `-ffile-prefix-map`.
-4. The version is a parameter of the build, derived from a tag, and is stored in the firmware.
-5. The CI builds twice and compares. It also builds offline, from the cache, once in a while.
-6. The delivered binary is stored together with its SHA-256 and the tag, so "is it the same file" has an answer without a rebuild.
+1. Кожен інструмент зафіксований на точній версії в `ArtifactsConfig.txt`. Жодного `latest` у релізі.
+2. Підмодулі (BSP, платформа) зафіксовано комітами, а оновлення — це видимий коміт.
+3. Ніщо у firmware не залежить від часу чи шляху: `-Werror=date-time`, `-ffile-prefix-map`.
+4. Версія — параметр збірки, виведений з тега, і зберігається у firmware.
+5. CI збирає двічі й порівнює. Також час від часу збирає офлайн, із кешу.
+6. Поставлений бінарний файл зберігається разом із його SHA-256 і тегом, тож на запитання «чи це той самий файл» є відповідь без перезбирання.
 
-The reward is a sentence that you will use at the telephone with the customer: *"I have built exactly your firmware, and the bug is (not) in it."*
+Нагорода — речення, яке ви скажете по телефону замовнику: *«Я зібрав саме ваше firmware, і помилка в ньому (не) є».*
