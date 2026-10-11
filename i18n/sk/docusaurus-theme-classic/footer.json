@@ -1,6 +1,6 @@
 {
   "link.title.Documentation": {
-    "message": "Documentation",
+    "message": "Dokumentácia",
     "description": "The title of the footer links column with title=Documentation in the footer"
   },
   "link.title.Embedbits": {
@@ -8,15 +8,15 @@
     "description": "The title of the footer links column with title=Embedbits in the footer"
   },
   "link.title.Community": {
-    "message": "Community",
+    "message": "Komunita",
     "description": "The title of the footer links column with title=Community in the footer"
   },
   "link.item.label.Introduction": {
-    "message": "Introduction",
+    "message": "Úvod",
     "description": "The label of footer link with label=Introduction linking to /docs/intro"
   },
   "link.item.label.Platform": {
-    "message": "Platform",
+    "message": "Platforma",
     "description": "The label of footer link with label=Platform linking to /docs/platform/embi-platform"
   },
   "link.item.label.BSP": {
@@ -28,19 +28,19 @@
     "description": "The label of footer link with label=Artifacts linking to /docs/artifacts"
   },
   "link.item.label.Projects": {
-    "message": "Projects",
+    "message": "Projekty",
     "description": "The label of footer link with label=Projects linking to /projects"
   },
   "link.item.label.Articles": {
-    "message": "Articles",
+    "message": "Články",
     "description": "The label of footer link with label=Articles linking to /blog"
   },
   "link.item.label.About": {
-    "message": "About",
+    "message": "O nás",
     "description": "The label of footer link with label=About linking to /about"
   },
   "link.item.label.Contact": {
-    "message": "Contact",
+    "message": "Kontakt",
     "description": "The label of footer link with label=Contact linking to /contact"
   },
   "link.item.label.GitHub": {
@@ -48,11 +48,11 @@
     "description": "The label of footer link with label=GitHub linking to https://github.com/Embedbits"
   },
   "link.item.label.This website": {
-    "message": "This website",
+    "message": "Tento web",
     "description": "The label of footer link with label=This website linking to https://github.com/Embedbits/Web"
   },
   "copyright": {
-    "message": "Copyright © 2026 Embedbits. Built with Docusaurus.",
+    "message": "Copyright © 2026 Embedbits. Vytvorené pomocou Docusaurus.",
     "description": "The footer copyright"
   }
 }

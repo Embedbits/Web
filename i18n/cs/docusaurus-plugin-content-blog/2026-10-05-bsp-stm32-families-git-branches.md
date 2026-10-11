@@ -47,7 +47,7 @@ Balík ovladačů výrobce se řídí stejným schématem. RAL má větve `STM32
 Chtěl jsem vědět, kolik kódu se mezi rodinami skutečně liší, a tak jsem porovnal větve. Tady je modul GPIO, `Bsp-Mcal-Gpio`, s vydanou STM32F4 jako referencí. Čísla jsou změněné řádky (přidané plus odebrané) v každém souboru:
 
 ```text
-soubor             STM32F4 vs STM32G4   STM32F4 vs STM32H5   STM32F4 vs STM32U5
+file               STM32F4 vs STM32G4   STM32F4 vs STM32H5   STM32F4 vs STM32U5
 Gpio.c             306                  142                  303
 Gpio.h             5                    0                    0
 Gpio_Port.h        3                    0                    0
@@ -117,8 +117,8 @@ V tuto chvíli se kód napsaný proti rozhraní F4 přeloží na H5 a nepřelož
 
 ```sh title="branch-drift.sh"
 #!/usr/bin/env bash
-# Ukáže, jak moc se modul liší mezi větvemi rodin.
-# Použití: branch-drift.sh <repository-url> <branch> <branch> [<branch>...]
+# Shows how much a module differs between its family branches.
+# Usage: branch-drift.sh <repository-url> <branch> <branch> [<branch>...]
 set -euo pipefail
 
 repo="$1"; shift
@@ -148,13 +148,13 @@ done
 rm -rf "$work"
 ```
 
-Used on the branches of the GPIO module (the table above is its output):
+Použití na větvích modulu GPIO (tabulka výše je jeho výstup):
 
 ```bash
 ./branch-drift.sh https://github.com/Embedbits/Bsp-Mcal-Gpio STM32F4 STM32G4 STM32H5 STM32U5
 ```
 
-For the other modules the picture is different, and that is useful to know before you plan the work:
+U ostatních modulů je obraz jiný a je užitečné to vědět dříve, než začnete plánovat práci:
 
 ```text
 file             F4 vs G4   F4 vs H5   F4 vs U5
@@ -164,12 +164,12 @@ Usart_Port.h     55         2          28
 Usart.c          3734       2301       3927
 ```
 
-The EXTI has an unchanged public header on all the branches and a different implementation (the peripherals differ, the interface does not). The USART differs in the interface of the G4 and the U5 and in a big part of the implementation, which is a measure of how much work the release of those two is.
+EXTI má veřejnou hlavičku beze změny na všech větvích a jinou implementaci (periferie se liší, rozhraní ne). USART se liší v rozhraní G4 a U5 a ve velké části implementace, což je měřítko toho, kolik práce vydání těchto dvou obnáší.
 
-## Which approach to choose
+## Který přístup zvolit
 
-- **Branches per family** fit when the families differ in the *set* of peripherals and in the vendor drivers, when the product is built for several families and when you can afford to maintain the interface (the drift is manageable with a few families and a tool).
-- **`#ifdef` in one tree** is acceptable when the differences are small: one family with a few MCU variants, a single register that is named differently.
-- **Neither of them** helps without the **abstraction at the bottom**. The branch only decides which implementation of the interface is in the tree. If the application includes the vendor headers, a branch per family does not save you from anything.
+- **Větve pro každou rodinu** se hodí, když se rodiny liší v *sadě* periferií a v ovladačích výrobce, když se produkt staví pro několik rodin a když si můžete dovolit udržovat rozhraní (drift je zvládnutelný s několika rodinami a nástrojem).
+- **`#ifdef` v jednom stromu** je přijatelný, když jsou rozdíly malé: jedna rodina s několika variantami MCU, jediný registr, který se jmenuje jinak.
+- **Ani jeden z nich** nepomůže bez **abstrakce na spodku**. Větev jen rozhoduje, která implementace rozhraní je ve stromu. Pokud aplikace vkládá hlavičky výrobce, větev pro každou rodinu vás před ničím nezachrání.
 
-And whatever you choose, write down which family is the reference one and keep one number in a CI job: how far the others are.
+A ať zvolíte cokoli, zapište si, která rodina je referenční, a udržujte v CI jobu jedno číslo: jak daleko jsou ostatní.

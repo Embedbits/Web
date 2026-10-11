@@ -4,22 +4,22 @@ sidebar_position: 1
 
 # Embedbits
 
-Embedbits is a collection of embedded software projects, tools, documentation and articles
-focused on maintainable STM32 development.
+Embedbits je soubor projektů embedded softwaru, nástrojů, dokumentace a článků
+zaměřených na udržitelný vývoj pro STM32.
 
-The platform is split into independent repositories that are combined into a project as Git submodules.
+Platforma je rozdělena do nezávislých repozitářů, které se do projektu skládají jako Git submoduly.
 
-## Building blocks
+## Stavební bloky
 
-| Area | What it provides |
+| Oblast | Co poskytuje |
 |---|---|
-| [Platform](./platform/embi-platform/index.md) | `EmBi_Platform` setup scripts, CMake helpers and project templates. |
-| [Coding Style](./platform/embi-platform/coding-style.md) | Naming, formatting and documentation rules used across all Embedbits code. |
-| [Design & Architecture](/blog/design-architecture) | How to split embedded software into modules and abstraction layers (RAL, MCAL, HAL, BSP). |
-| [BSP](./bsp/index.md) | Board Support Package: linker, startup, RAL and MCAL for each STM32 family. |
-| [Artifacts](./artifacts/index.md) | Versioned build tools (GCC, Ninja, Doxygen, Unity, CMock, Renode, ...) downloaded by the Artifacts Handler. |
+| [Platform](./platform/embi-platform/index.md) | Instalační skripty `EmBi_Platform`, pomocné nástroje pro CMake a šablony projektů. |
+| [Coding Style](./platform/embi-platform/coding-style.md) | Pravidla pro pojmenování, formátování a dokumentaci používaná v celém kódu Embedbits. |
+| [Design & Architecture](/blog/design-architecture) | Jak rozdělit embedded software na moduly a abstrakční vrstvy (RAL, MCAL, HAL, BSP). |
+| [BSP](./bsp/index.md) | Board Support Package: linker, startup, RAL a MCAL pro každou rodinu STM32. |
+| [Artifacts](./artifacts/index.md) | Verzované build nástroje (GCC, Ninja, Doxygen, Unity, CMock, Renode, ...) stahované nástrojem Artifacts Handler. |
 
-## Layers
+## Vrstvy
 
 ```text
 Application
@@ -31,9 +31,9 @@ BSP
 └── Linker    linker script generation
 ```
 
-## Where the content comes from
+## Odkud obsah pochází
 
-The pages under Platform, BSP and Artifacts are generated from the `README.md` of the corresponding
-repository in the [Embedbits GitHub organization](https://github.com/Embedbits). They are synchronized
-automatically, so the repository README is always the source of truth. Use the **Edit this page**
-link on any of these pages to jump to the right README.
+Stránky v sekcích Platform, BSP a Artifacts jsou generovány z `README.md` příslušného
+repozitáře v [organizaci Embedbits na GitHubu](https://github.com/Embedbits). Synchronizují se
+automaticky, takže zdrojem pravdy je vždy README daného repozitáře. Pomocí odkazu **Edit this page**
+na kterékoli z těchto stránek se dostanete přímo na správné README.

@@ -1,17 +1,17 @@
 embedded:
   label: Embedded
   permalink: /embedded
-  description: Embedded software engineering
+  description: Vývoj embedded softvéru
 
 stm32:
   label: STM32
   permalink: /stm32
-  description: STM32 microcontrollers
+  description: Mikrokontroléry STM32
 
 architecture:
-  label: Architecture
+  label: Architektúra
   permalink: /architecture
-  description: Software architecture and design
+  description: Architektúra a návrh softvéru
 
 c:
   label: C
@@ -21,19 +21,19 @@ c:
 cpp:
   label: C++
   permalink: /cpp
-  description: C++ for embedded systems
+  description: C++ pre embedded systémy
 
 misra:
   label: MISRA
   permalink: /misra
-  description: MISRA C coding guidelines
+  description: Pravidlá kódovania MISRA C
 
 testing:
-  label: Testing
+  label: Testovanie
   permalink: /testing
-  description: Testing of embedded software
+  description: Testovanie embedded softvéru
 
 cmake:
   label: CMake
   permalink: /cmake
-  description: CMake build systems for embedded software
+  description: Build systémy CMake pre embedded softvér

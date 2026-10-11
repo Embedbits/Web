@@ -8,19 +8,19 @@
     "description": "The alt text of navbar logo"
   },
   "item.label.Projects": {
-    "message": "Projects",
+    "message": "Projekty",
     "description": "Navbar item with label Projects"
   },
   "item.label.Documentation": {
-    "message": "Documentation",
+    "message": "Dokumentácia",
     "description": "Navbar item with label Documentation"
   },
   "item.label.Articles": {
-    "message": "Articles",
+    "message": "Články",
     "description": "Navbar item with label Articles"
   },
   "item.label.About": {
-    "message": "About",
+    "message": "O nás",
     "description": "Navbar item with label About"
   },
   "item.label.GitHub": {

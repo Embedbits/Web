@@ -1,10 +1,10 @@
 {
   "version.label": {
-    "message": "Next",
+    "message": "Nasledujúca",
     "description": "The label for version current"
   },
   "sidebar.docs.category.Platform": {
-    "message": "Platform",
+    "message": "Platforma",
     "description": "The label for category 'Platform' in sidebar 'docs'"
   },
   "sidebar.docs.category.EmBi Platform": {
