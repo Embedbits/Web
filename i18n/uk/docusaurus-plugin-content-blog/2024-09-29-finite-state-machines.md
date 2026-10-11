@@ -1,5 +1,5 @@
 ---
-title: "Finite state machines"
+title: "Скінченні автомати"
 slug: finite-state-machines
 date: 2024-09-29T16:24:40
 authors: [Mr.Nobody]
@@ -7,19 +7,19 @@ tags: [embedded]
 image: /img/blog/fsm-state-machine.png
 ---
 
-For embedded software development is propper design necessary. Microcontroller has to handle processing of application itself and communication with plenty of connected circuits through internal or external peripherals. The execution of application shall be as fast as possible. But that is really terrible explanation for anyone. In real world, the developer has to ensure optimal short logical path of code execution. Which means, that developer shall not check all the conditions during each main cycle. The one way of this optimization, is to correct nesting of conditions. This can be really difficult with increasing complexity of project. A lot of nested conditional statements can lead to unstability of code and making code less readable. The code readability is cruel necessary for future updates, or for maintenance of existing code. One of my beloved quote says:
+Для розробки embedded-програмного забезпечення необхідний належний дизайн. Мікроконтролер має обробляти сам застосунок і спілкуватися з безліччю підключених схем через внутрішню або зовнішню периферію. Виконання застосунку має бути якомога швидшим. Але це справді жахливе пояснення для будь-кого. У реальному світі розробник має забезпечити оптимально короткий логічний шлях виконання коду. Це означає, що розробник не повинен перевіряти всі умови в кожному головному циклі. Один зі способів такої оптимізації — правильне вкладення умов. З ростом складності проєкту це може бути справді непросто. Велика кількість вкладених умовних операторів може призвести до нестабільності коду та погіршити його читабельність. Читабельність коду жорстоко необхідна для майбутніх оновлень або супроводу наявного коду. Одна з моїх улюблених цитат каже:
 
 <!-- truncate -->
 
-![Excerpt of a state machine routine table in C](/img/blog/fsm-state-machine.png)
+![Фрагмент таблиці підпрограм автомата станів на C](/img/blog/fsm-state-machine.png)
 
-> **Always code as if the guy, who end up maintaining your code will be a violent psychopath who knows where you live.**
+> **Завжди пишіть код так, ніби той, хто в підсумку супроводжуватиме ваш код, — агресивний психопат, який знає, де ви живете.**
 
-So we should better think before writing actual code. This process is called “design” and i really like it. Because if you do it right, the amount of new code and subsequent editation of this new code is really reduced. Sometimes you could think it take so much time, but in reality, is this time summed with time of writing code shorter than writing code which will be continuously rewritten. But how to make it easier? Here we can start to talk about Finite State Machines also known as FSM.
+Тож нам краще подумати, перш ніж писати власне код. Цей процес називається «дизайн», і він мені дуже подобається. Бо якщо робити його правильно, обсяг нового коду та подальшого редагування цього нового коду справді скорочується. Іноді може здаватися, що це забирає багато часу, але насправді цей час разом із часом написання коду коротший, ніж написання коду, який доведеться постійно переписувати. Але як це полегшити? Тут можна почати говорити про скінченні автомати (Finite State Machines), також відомі як FSM.
 
-So lets start with AI generated meaningless description:
+Тож почнімо з безглуздого опису, згенерованого ШІ:
 
-> State machines, particularly Mealy and Moore machines, are fundamental models in the design of digital systems and computational theory. Both of these machines are used to represent systems that transition between different states based on inputs and produce outputs as a result. However, the way they handle output generation is what sets them apart.
+> Автомати станів, зокрема автомати Мілі та Мура, є фундаментальними моделями в проєктуванні цифрових систем і теорії обчислень. Обидва ці автомати використовуються для представлення систем, які переходять між різними станами залежно від вхідних даних і в результаті видають вихідні дані. Проте саме спосіб формування виходу відрізняє їх одне від одного.
 >
 >
 >
@@ -27,7 +27,7 @@ So lets start with AI generated meaningless description:
 >
 >
 >
-> A **Mealy machine** produces outputs based on both the **current state** and the **current input**. This makes Mealy machines more responsive, as the output can change dynamically with each input signal.
+> **Автомат Мілі** формує вихід залежно і від **поточного стану**, і від **поточного входу**. Це робить автомати Мілі чутливішими, адже вихід може динамічно змінюватися з кожним вхідним сигналом.
 >
 >
 >
@@ -35,7 +35,7 @@ So lets start with AI generated meaningless description:
 >
 >
 >
-> On the other hand, a **Moore machine** generates outputs solely based on its **current state**, independent of the input. This makes Moore machines simpler and more predictable, as the output remains constant until the state changes.
+> З іншого боку, **автомат Мура** формує вихід виключно залежно від свого **поточного стану**, незалежно від входу. Це робить автомати Мура простішими та передбачуванішими, адже вихід залишається незмінним, доки не зміниться стан.
 >
 >
 >
@@ -43,38 +43,38 @@ So lets start with AI generated meaningless description:
 >
 >
 >
-> These state machines are widely used in embedded systems, control systems, and digital circuits where precise state transitions and outputs are critical. In this blog, we’ll explore how Mealy and Moore machines function, their key differences, and how they can be applied in practical system design.
+> Ці автомати станів широко застосовуються у вбудованих системах, системах керування та цифрових схемах, де критичні точні переходи між станами та виходи. У цьому блозі ми розглянемо, як працюють автомати Мілі та Мура, їхні ключові відмінності та як їх можна застосувати в практичному проєктуванні систем.
 
-But what does it mean? In simple way, the Mealy finite stae machine is checking the conditions for required state ***before*** the actual state execution. The Moore state machine is checking the conditions ***after*** the actual state execution.
+Але що це означає? Простими словами, скінченний автомат Мілі перевіряє умови для потрібного стану ***перед*** виконанням поточного стану. Автомат Мура перевіряє умови ***після*** виконання поточного стану.
 
-But what the state represent? Imagine a light bulb which can be turned on and off by pressing a button. For handling of this behavior, our state machine would need only two states. One state which activates the actuator, and another state which this actuator deactivates.Really simple, isnt it? But what in complex systems? Well, you need a simple implementation which is applicable for various situations. That is what the template below does.
+Але що таке стан? Уявіть лампочку, яку можна вмикати й вимикати натисканням кнопки. Для обробки такої поведінки нашому автомату потрібні лише два стани. Один стан, що активує виконавчий пристрій, і другий стан, що цей пристрій деактивує. Справді просто, чи не так? А що в складних системах? Що ж, вам потрібна проста реалізація, придатна для різних ситуацій. Саме це робить шаблон нижче.
 
-During my work at automotive industry, we have faced with my colleague [Jan Sima](https://www.linkedin.com/in/jano-sima/) the problems with Finite State Machines designs. There has been plenty of different styles but none of them had sufficient functionality to reach stability and clean design. So we decided to design own template. With permission of Jan, i am publishing the template of our Finite State Machine under MIT license.
+Під час роботи в автомобільній галузі ми з моїм колегою [Яном Сімою](https://www.linkedin.com/in/jano-sima/) зіткнулися з проблемами в дизайні скінченних автоматів. Було безліч різних стилів, але жоден не мав достатньої функціональності, щоб досягти стабільності та чистого дизайну. Тож ми вирішили розробити власний шаблон. З дозволу Яна я публікую шаблон нашого скінченного автомата під ліцензією MIT.
 
 
-## Download the template
+## Завантажте шаблон
 
-The template is published under the MIT license. Everything is plain text, so you can read it before you download it:
+Шаблон опубліковано під ліцензією MIT. Усе є звичайним текстом, тож ви можете прочитати його перед завантаженням:
 
-| File | What it is |
+| Файл | Що це |
 | --- | --- |
-| [FsmTemplate.c](pathname:///downloads/fsm/FsmTemplate.c) | The template in **C** (C99), one file with the states, the table of the routines and the stubs |
-| [FsmTemplate.hpp](pathname:///downloads/fsm/FsmTemplate.hpp) and [FsmTemplate.cpp](pathname:///downloads/fsm/FsmTemplate.cpp) | The template in **C++** (C++17), a class with one state machine inside |
-| [Fsm.hpp](pathname:///downloads/fsm/Fsm.hpp) | The header-only engine for the C++ version (no heap, no exceptions, no RTTI) |
-| [fsm-instantiate.sh](pathname:///downloads/fsm/fsm-instantiate.sh) | A small script that replaces the names, `fsm-instantiate.sh Button FsmTemplate.c src/` creates `src/Button.c` |
+| [FsmTemplate.c](pathname:///downloads/fsm/FsmTemplate.c) | Шаблон на **C** (C99), один файл зі станами, таблицею підпрограм і заглушками |
+| [FsmTemplate.hpp](pathname:///downloads/fsm/FsmTemplate.hpp) і [FsmTemplate.cpp](pathname:///downloads/fsm/FsmTemplate.cpp) | Шаблон на **C++** (C++17), клас з одним автоматом станів усередині |
+| [Fsm.hpp](pathname:///downloads/fsm/Fsm.hpp) | Header-only рушій для версії на C++ (без heap, без винятків, без RTTI) |
+| [fsm-instantiate.sh](pathname:///downloads/fsm/fsm-instantiate.sh) | Невеликий скрипт, що замінює назви, `fsm-instantiate.sh Button FsmTemplate.c src/` створює `src/Button.c` |
 
-The names in angle brackets are replaced by the name of your module: `<Module>` becomes `Button`, `<module>` becomes `button` and `<MODULE>` becomes `BUTTON`.
+Назви в кутових дужках замінюються назвою вашого модуля: `<Module>` стає `Button`, `<module>` стає `button`, а `<MODULE>` стає `BUTTON`.
 
-## How it works
+## Як це працює
 
-It is a Moore machine. Every state has four routines and the machine calls them in the same order on every run:
+Це автомат Мура. Кожен стан має чотири підпрограми, і автомат викликає їх в однаковому порядку при кожному запуску:
 
-1. **Entry**: called once, when the state is entered.
-2. **Execute**: called on every run, here is the work of the state.
-3. **CheckLeave**: called on every run after Execute. This is the **only** place where a new state is requested.
-4. **Leave**: called once, when the state is left.
+1. **Entry**: викликається один раз, коли стан входить в дію.
+2. **Execute**: викликається при кожному запуску, тут виконується робота стану.
+3. **CheckLeave**: викликається при кожному запуску після Execute. Це **єдине** місце, де запитується новий стан.
+4. **Leave**: викликається один раз, коли стан залишається.
 
-The whole engine is one function. This is the C version:
+Увесь рушій — це одна функція. Це версія на C:
 
 ```c
 static void <Module>_HandleStateTransition(void)
@@ -124,22 +124,22 @@ static void <Module>_HandleStateTransition(void)
 }
 ```
 
-Because a transition is requested only in `CheckLeave`, the entry and the leave of a state are executed always as a pair, in a known order, and the outputs depend only on the state. A routine that is not needed can be `NULL` (`nullptr` in C++) and it is skipped.
+Оскільки перехід запитується лише в `CheckLeave`, вхід у стан і вихід із нього виконуються завжди як пара, у відомому порядку, а виходи залежать лише від стану. Непотрібна підпрограма може бути `NULL` (`nullptr` у C++), і її буде пропущено.
 
-## What was fixed
+## Що було виправлено {#what-was-fixed}
 
-The first version of the template that I published here had a few mistakes. I went through it again, built it and ran it against a test that records the order of the calls. These are the changes:
+Перша версія шаблону, яку я тут опублікував, мала кілька помилок. Я пройшов по ній ще раз, зібрав її та запустив із тестом, що записує порядок викликів. Ось зміни:
 
-- The initial value of the state variables was a leftover name from another project (`APPCORE_HANDLER_STATE_1` instead of `<MODULE>_STATE_1`).
-- The last row of the table used `State_2_Leave` instead of `State_3_Leave`. The code compiled and called the wrong routine when the third state was left. The table is now indexed by the state (`[<MODULE>_STATE_3] = { ... }`), so the position of a row cannot be confused.
-- `Init` did not run the entry routine of the first state.
-- The state numbers were not checked. A corrupted actual state or a request of a nonexistent state indexed outside of the table. Both are checked now and the machine falls back to the first state, which is the safe one. The request is checked **after** `CheckLeave`, because that is the place where it is made. My first fix of this checked it before, and the test caught that, which is a nice proof of why such a test is worth it.
-- A routine with the `NULL` pointer is skipped instead of crashing.
-- A missing forward declaration, and a header comment that turned into nonsense after the names were replaced.
+- Початкове значення змінних стану було залишком назви з іншого проєкту (`APPCORE_HANDLER_STATE_1` замість `<MODULE>_STATE_1`).
+- В останньому рядку таблиці стояло `State_2_Leave` замість `State_3_Leave`. Код компілювався й викликав неправильну підпрограму при виході з третього стану. Тепер таблиця індексується станом (`[<MODULE>_STATE_3] = { ... }`), тож позицію рядка переплутати неможливо.
+- `Init` не запускав підпрограму entry першого стану.
+- Номери станів не перевірялися. Пошкоджений поточний стан або запит неіснуючого стану індексували за межами таблиці. Тепер перевіряються обидва, і автомат повертається до першого стану, який є безпечним. Запит перевіряється **після** `CheckLeave`, бо саме там він робиться. Моє перше виправлення перевіряло його до цього, і тест це виявив, що є гарним доказом того, чому такий тест вартий зусиль.
+- Підпрограма з вказівником `NULL` пропускається замість аварії.
+- Відсутнє попереднє оголошення (forward declaration) і коментар у заголовку, що після заміни назв перетворився на нісенітницю.
 
-## The C++ version
+## Версія на C++
 
-In C++ the same pattern is a class. The state is an `enum class`, the routines are private member functions and the table is `constexpr`:
+У C++ той самий шаблон — це клас. Стан — `enum class`, підпрограми — приватні функції-члени, а таблиця — `constexpr`:
 
 ```cpp
 class Button
@@ -163,11 +163,11 @@ private:
 };
 ```
 
-A request is `stateMachine.RequestState(State::Pressed)` in a `CheckLeave` routine. The row of the table has to belong to its state, and this is checked at **compile time** with a `static_assert`, so the mistake from the first version cannot even be built. There is no heap, no exception and no RTTI, so it fits the usual embedded and MISRA-like restrictions. The C++ version was compiled with `-Wall -Wextra -Wconversion -pedantic -fno-exceptions -fno-rtti` and ran under the address and undefined behavior sanitizers with the same scenarios as the C version: the order of the calls, a request, an invalid request, a corrupted state and the skipped `NULL` routines.
+Запит — це `stateMachine.RequestState(State::Pressed)` у підпрограмі `CheckLeave`. Рядок таблиці має належати своєму стану, і це перевіряється **під час компіляції** за допомогою `static_assert`, тож помилка з першої версії просто не збереться. Немає heap, винятків і RTTI, тож це відповідає звичним embedded- та MISRA-подібним обмеженням. Версію на C++ скомпільовано з `-Wall -Wextra -Wconversion -pedantic -fno-exceptions -fno-rtti` і запущено під санітайзерами address та undefined behavior з тими самими сценаріями, що й версію на C: порядок викликів, запит, недійсний запит, пошкоджений стан і пропущені підпрограми `NULL`.
 
-The second part of this series, [a button with debounce and long press](/blog/fsm-in-practice-button), shows the template in a real module.
+Друга частина цієї серії, [кнопка з debounce та довгим натисканням](/blog/fsm-in-practice-button), показує шаблон у реальному модулі.
 
-## License
+## Ліцензія
 
 ```text
 Copyright (c) 2024 Marek Petrinec, Jan Sima

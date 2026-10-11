@@ -1,31 +1,31 @@
 ---
-title: "What happens before main(): reset, startup code and linker script"
+title: "Що відбувається перед main(): скидання, startup-код і linker script"
 slug: before-main-startup-linker
 date: 2026-10-05T14:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, stm32]
 ---
 
-Every C tutorial starts with `int main(void)`. Nobody explains who calls it. And yet, when you write `uint32_t counter = 5;` as a global variable and the first line of `main()` reads 5, a lot of work already happened. When the work is not done, the symptom is a variable with a random value that "worked yesterday".
+Кожен підручник із C починається з `int main(void)`. Ніхто не пояснює, хто його викликає. А втім, коли ви пишете `uint32_t counter = 5;` як глобальну змінну і перший рядок `main()` зчитує 5, вже була виконана велика робота. Коли ця робота не виконана, симптом — змінна з випадковим значенням, яка «вчора працювала».
 
-In this article we follow the microcontroller from the reset to the first line of `main()`: what the hardware does by itself, what the linker script says and what the startup code has to do. It is the content of two modules of the Embedbits BSP ([Linker](/docs/bsp/linker) and [Startup](/docs/bsp/startup)), but the principle is the same on every Cortex-M. All code in the article was built with `arm-none-eabi-gcc` 13.2.1 and **run** in QEMU, on a model of an STM32F405 board, so the addresses and the outputs are real.
+У цій статті ми простежимо шлях мікроконтролера від скидання до першого рядка `main()`: що апаратна частина робить сама, що каже linker script і що має зробити startup-код. Це вміст двох модулів BSP Embedbits ([Linker](/docs/bsp/linker) і [Startup](/docs/bsp/startup)), але принцип той самий на кожному Cortex-M. Увесь код у статті зібрано за допомогою `arm-none-eabi-gcc` 13.2.1 і **запущено** в QEMU на моделі плати STM32F405, тож адреси та виводи справжні.
 
 <!-- truncate -->
 
-## What the C language expects
+## Чого очікує мова C
 
-The C standard promises a few things about a program that the hardware does not know about:
+Стандарт C обіцяє про програму кілька речей, про які апаратна частина не знає:
 
-- a global variable with an initializer (`uint32_t initializedValue = 0x12345678u;`) has this value at the start,
-- a global or `static` variable without an initializer is **zero**,
-- there is a stack and the function can use it,
-- the global C++ objects are constructed (and in C, the functions marked with `__attribute__((constructor))` run) before `main()`.
+- глобальна змінна з ініціалізатором (`uint32_t initializedValue = 0x12345678u;`) має це значення на старті,
+- глобальна або `static` змінна без ініціалізатора дорівнює **нулю**,
+- існує стек, і функція може ним користуватися,
+- глобальні об'єкти C++ конструюються (а в C виконуються функції, позначені `__attribute__((constructor))`) до `main()`.
 
-The hardware gives you very little. After the reset a Cortex-M core does only two things: it reads **the initial value of the stack pointer** from the first word of the vector table and **the address of the reset handler** from the second one, and jumps there. Everything else is a job of the startup code, which is a part of **your** firmware.
+Апаратна частина дає дуже мало. Після скидання ядро Cortex-M робить лише дві речі: зчитує **початкове значення вказівника стека** з першого слова таблиці векторів і **адресу обробника скидання** з другого та переходить туди. Усе інше — робота startup-коду, який є частиною **вашої** прошивки.
 
-## The vector table
+## Таблиця векторів
 
-The vector table is an array of addresses placed at the beginning of the flash (on an STM32 it is `0x08000000`, which is also visible at the address 0 after a boot from the flash). In the minimal form it has the stack pointer, the reset handler and the handlers of the exceptions:
+Таблиця векторів — це масив адрес на початку flash (у STM32 це `0x08000000`, що також видно за адресою 0 після завантаження з flash). У мінімальному вигляді вона містить вказівник стека, обробник скидання та обробники винятків:
 
 ```c
 __attribute__((section(".isr_vector"), used))
@@ -38,18 +38,18 @@ void (* const vectorTable[])(void) =
 };
 ```
 
-This is what the first 16 bytes of the built firmware contain:
+Ось що містять перші 16 байтів зібраної прошивки:
 
 ```text
 Contents of section .isr_vector:
  8000000 00000220 13000008 11000008 11000008
 ```
 
-The numbers are in the little-endian order. The first word is `0x20020000`, the end of the 128 kB of RAM that starts at `0x20000000`, which is where the stack begins (it grows down). The second one is `0x08000013`: the reset handler is at `0x08000012` and the lowest bit says "Thumb code", which is mandatory on a Cortex-M. The rest are the exceptions; I pointed all unused ones to the same handler.
+Числа записані в порядку little-endian. Перше слово — `0x20020000`, кінець 128 кБ RAM, що починається з `0x20000000`, тобто місце, де починається стек (він росте вниз). Друге — `0x08000013`: обробник скидання розташований за адресою `0x08000012`, а наймолодший біт означає «код Thumb», що обов'язково на Cortex-M. Решта — винятки; усі невикористані я спрямував на один і той самий обробник.
 
-## The linker script: a map of the memory
+## Linker script: карта пам'яті
 
-The compiler produces the object files with the sections (`.text` for the code, `.data`, `.bss` and so on) and has no idea where in the memory they will be. That is decided by the linker, and it needs a map. This is the whole script of the example, 59 lines:
+Компілятор створює об'єктні файли із секціями (`.text` для коду, `.data`, `.bss` тощо) і не має уявлення, де в пам'яті вони опиняться. Це вирішує лінкер, і йому потрібна карта. Ось увесь скрипт прикладу, 59 рядків:
 
 ```text title="link.ld"
 /* Entry point: the first instruction that runs after the reset */
@@ -113,18 +113,18 @@ SECTIONS
 }
 ```
 
-Let us read the important parts.
+Прочитаймо важливі частини.
 
-**`MEMORY`** describes the physical memories: where they start and how big they are. The attributes tell the linker what is allowed there (`rx`: read and execute, `xrw`: everything).
+**`MEMORY`** описує фізичні пам'яті: де вони починаються і який мають розмір. Атрибути повідомляють лінкеру, що там дозволено (`rx`: читання та виконання, `xrw`: усе).
 
-**`.isr_vector` goes first** into the flash, and `KEEP` prevents the linker from throwing it away: nothing in the code *calls* the table, so without `KEEP` it would look unused. `.text` follows with the code and the read-only data (`.rodata`, which means `const` variables stay in the flash and do not use any RAM).
+**`.isr_vector` іде першою** у flash, а `KEEP` не дає лінкеру її викинути: у коді ніщо не *викликає* таблицю, тож без `KEEP` вона виглядала б невикористаною. Далі йде `.text` з кодом і даними лише для читання (`.rodata`, що означає, що `const`-змінні залишаються у flash і не займають RAM).
 
-**`.data` is the interesting one.** Look at the line `} > RAM AT > FLASH`. Each section has two addresses:
+**`.data` — найцікавіша.** Подивіться на рядок `} > RAM AT > FLASH`. Кожна секція має дві адреси:
 
-- the **VMA** (virtual memory address), where the section is when the program *runs*: `.data` has to be in the RAM, because it is written,
-- the **LMA** (load address), where the section is *stored* in the firmware image: the RAM is empty after a power-up, so the initial values must be somewhere that survives, the flash.
+- **VMA** (virtual memory address) — де секція розташована, коли програма *виконується*: `.data` має бути в RAM, бо в неї пишуть,
+- **LMA** (load address) — де секція *зберігається* в образі прошивки: після подачі живлення RAM порожня, тож початкові значення мають лежати там, де вони виживають, — у flash.
 
-`arm-none-eabi-objdump -h` shows both:
+`arm-none-eabi-objdump -h` показує обидві:
 
 ```text
 Idx Name          Size      VMA       LMA       File off  Algn
@@ -135,7 +135,7 @@ Idx Name          Size      VMA       LMA       File off  Algn
   4 .bss          00000008  20000004  080001c8  00002004  2**2
 ```
 
-`.data` lives at `0x20000000`, but its initial values are in the flash at `0x080001C4`. Somebody has to copy them, and that is why the script defines the symbols `_sidata` (the source in the flash), `_sdata` and `_edata` (the begin and the end of the target in the RAM). These symbols have no memory behind them, they are only addresses that the C code reads with `&_sdata`:
+`.data` розташована за адресою `0x20000000`, але її початкові значення лежать у flash за адресою `0x080001C4`. Хтось має їх скопіювати, і саме тому скрипт визначає символи `_sidata` (джерело у flash), `_sdata` та `_edata` (початок і кінець призначення в RAM). За цими символами немає пам'яті, це лише адреси, які C-код зчитує через `&_sdata`:
 
 ```text
 080001c4 A _sidata
@@ -146,15 +146,15 @@ Idx Name          Size      VMA       LMA       File off  Algn
 20020000 R _estack
 ```
 
-**`.bss` is `NOLOAD`.** It has no content in the image, only a size (a variable without an initializer and its zero value would waste the flash). The startup code has to fill the area between `_sbss` and `_ebss` with zeros.
+**`.bss` має `NOLOAD`.** В образі вона не має вмісту, лише розмір (змінна без ініціалізатора з нульовим значенням марнувала б flash). Startup-код має заповнити нулями область між `_sbss` та `_ebss`.
 
-**`.init_array`** is a table of the pointers to the constructors. The startup code goes through it and calls them.
+**`.init_array`** — це таблиця вказівників на конструктори. Startup-код проходить по ній і викликає їх.
 
-The linker script of the Embedbits BSP is generated for each MCU by CMake from a template. It has the same symbols (`_sidata`, `_sdata`, `_edata`, `_sbss`, `_ebss`, `_stack_top`) and also describes optional regions, such as the CCMRAM of the STM32G4, where a section `.ccmram` can be placed.
+Linker script BSP Embedbits генерується для кожного MCU за допомогою CMake із шаблону. Він має ті самі символи (`_sidata`, `_sdata`, `_edata`, `_sbss`, `_ebss`, `_stack_top`), а також описує необов'язкові регіони, наприклад CCMRAM в STM32G4, куди можна помістити секцію `.ccmram`.
 
-## The startup code
+## Startup-код
 
-The script said where everything is, and now the code does what the C language expects:
+Скрипт сказав, де що лежить, а тепер код робить те, чого очікує мова C:
 
 ```c title="startup.c"
 #include <stdint.h>
@@ -226,18 +226,18 @@ void Default_Handler(void)
 }
 ```
 
-The `Reset_Handler` has four steps (the `#ifdef` parts are for the experiment below):
+`Reset_Handler` має чотири кроки (частини з `#ifdef` призначені для експерименту нижче):
 
-1. **Copy `.data`** from the flash (`_sidata`) to the RAM (`_sdata` to `_edata`).
-2. **Zero `.bss`** (`_sbss` to `_ebss`).
-3. **Call the constructors** from `.init_array`.
-4. **Call `main()`**. If it ever returns, the program stays in an infinite loop, because there is nobody to return to.
+1. **Скопіювати `.data`** з flash (`_sidata`) в RAM (`_sdata` до `_edata`).
+2. **Обнулити `.bss`** (`_sbss` до `_ebss`).
+3. **Викликати конструктори** з `.init_array`.
+4. **Викликати `main()`**. Якщо він колись повернеться, програма залишається в нескінченному циклі, бо повертатися нікуди.
 
-In the Embedbits BSP the startup module does a bit more according to its documentation: it also sets up the clocks (RCC through the MCAL) and then calls `AppMain()`. A rule that follows from the order: **anything that runs before the steps 1 and 2 must not touch a global variable**, because its content is not valid yet. The setup of the clocks is a function that uses only the registers, or the compiler keeps its state in locals.
+У BSP Embedbits модуль startup, згідно з його документацією, робить трохи більше: він також налаштовує тактування (RCC через MCAL), а потім викликає `AppMain()`. З цього порядку випливає правило: **усе, що виконується до кроків 1 і 2, не повинно торкатися глобальної змінної**, бо її вміст ще недійсний. Налаштування тактування — це функція, що використовує лише регістри, або компілятор тримає її стан у локальних змінних.
 
-## An experiment: what happens without it
+## Експеримент: що буде без цього
 
-The application of the example has four global variables of four kinds:
+Застосунок у прикладі має чотири глобальні змінні чотирьох видів:
 
 ```c title="main.c"
 uint32_t initializedValue = 0x12345678u;       /* .data: has a value in the flash */
@@ -263,9 +263,9 @@ int main(void)
 }
 ```
 
-(The part above this, with the functions that print through *semihosting*, is a few lines of code that ask QEMU to print a text and to quit. It is not important for the topic.)
+(Частина вище, з функціями, що друкують через *semihosting*, — це кілька рядків коду, які просять QEMU надрукувати текст і завершитися. Для теми вона неважлива.)
 
-First the normal build. The result:
+Спочатку звичайна збірка. Результат:
 
 ```text
 initializedValue 0x12345678
@@ -276,9 +276,9 @@ address of initializedValue 0x20000000
 address of constantValue    0x080001BC
 ```
 
-All four values are as the C language promises, and the addresses confirm the story: the variable in the RAM is at `0x2000...`, the constant in the flash at `0x0800...`.
+Усі чотири значення такі, як обіцяє мова C, а адреси підтверджують історію: змінна в RAM розташована за `0x2000...`, константа у flash — за `0x0800...`.
 
-Now the experiment. After a reset of a running system, the RAM is not empty: it contains whatever was there before. The cold start of an MCU is often "lucky", because the RAM happens to be zero, and then a bug in the startup code is hidden for a long time. For the test I made the RAM dirty (`-DDEMO_DIRTY_RAM` fills it with `0xA5A5A5A5` before everything else) and then I removed the steps 1 and 2 (`-DDEMO_SKIP_INIT`):
+Тепер експеримент. Після скидання працюючої системи RAM не порожня: вона містить те, що там було раніше. Холодний старт MCU часто «щасливий», бо RAM випадково нульова, і тоді помилка в startup-коді довго залишається прихованою. Для тесту я «забруднив» RAM (`-DDEMO_DIRTY_RAM` заповнює її `0xA5A5A5A5` перед усім іншим), а потім прибрав кроки 1 і 2 (`-DDEMO_SKIP_INIT`):
 
 ```bash
 arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -Os -ffreestanding -nostartfiles \
@@ -294,37 +294,37 @@ constantValue     0xC0FFEE00
 constructedValue  0xC0DE0001
 ```
 
-Look at what is wrong and what is not:
+Подивіться, що не так, а що так:
 
-- `initializedValue` and `zeroedValue` are garbage. The first one has no initial value, the second one is not zero, although both lines in the C file say otherwise.
-- `constantValue` is fine, because it is in the flash and nobody needs to copy it.
-- `constructedValue` is fine, because the constructor wrote it *after* the (missing) initialization. This is why this kind of the bug is so hard to find: one half of the program works, and the other half has random values.
+- `initializedValue` і `zeroedValue` — сміття. Перша не має початкового значення, друга не нульова, хоча обидва рядки в C-файлі стверджують інше.
+- `constantValue` у порядку, бо вона у flash, і її нікому не потрібно копіювати.
+- `constructedValue` у порядку, бо конструктор записав її *після* (відсутньої) ініціалізації. Ось чому цей вид помилок так важко знайти: одна половина програми працює, а друга має випадкові значення.
 
-With the dirty RAM and the complete startup code, the same program prints the correct values again.
+З брудною RAM і повним startup-кодом та сама програма знову друкує правильні значення.
 
-## How it looks in real life
+## Як це виглядає в реальному житті
 
-A few symptoms and what usually stands behind them:
+Кілька симптомів і те, що зазвичай за ними стоїть:
 
-| Symptom | Likely cause |
+| Симптом | Імовірна причина |
 |---|---|
-| The program hard-faults immediately after the reset | The first word of the vector table is not a valid stack address (wrong `_estack`, a wrong RAM size), or the table is not at the start of the flash |
-| A global with an initializer has a wrong value, one with `= 0` also | `.data` is not copied or `.bss` is not zeroed (a wrong symbol, a section that is missing in the script) |
-| It works after a power-up and fails after a reset | The same, the RAM was accidentally empty at the power-up |
-| A strange value, which changes with the size of the code | The stack grows down to `.bss` / `.data`, the stack overflow |
-| The first `printf` or a driver does not work | A code that runs before the steps 1 and 2 uses a global variable |
+| Програма потрапляє в hard fault одразу після скидання | Перше слово таблиці векторів не є дійсною адресою стека (неправильний `_estack`, неправильний розмір RAM) або таблиця не на початку flash |
+| Глобальна змінна з ініціалізатором має неправильне значення, і та, що з `= 0`, також | `.data` не скопійовано або `.bss` не обнулено (неправильний символ, секція, якої немає в скрипті) |
+| Працює після подачі живлення і ламається після скидання | Те саме, при подачі живлення RAM випадково була порожньою |
+| Дивне значення, що змінюється разом з розміром коду | Стек росте вниз до `.bss` / `.data`, переповнення стека |
+| Перший `printf` або драйвер не працює | Код, що виконується до кроків 1 і 2, використовує глобальну змінну |
 
-### What the numbers of the tool tell you
+### Що кажуть вам числа інструмента
 
 ```text
    text	   data	    bss	    dec	    hex	filename
     448	      8	      8	    464	    1d0	good.elf
 ```
 
-- **Flash** = `text` + `data`. The initial values of `.data` take space in the flash too, so a big initialized array costs you twice: in the flash and in the RAM. An array that does not change should be `const`, and then it is only in the flash.
-- **RAM** = `data` + `bss` (+ the stack and the heap).
+- **Flash** = `text` + `data`. Початкові значення `.data` також займають місце у flash, тож великий ініціалізований масив коштує вам вдвічі: у flash і в RAM. Масив, який не змінюється, має бути `const`, і тоді він лише у flash.
+- **RAM** = `data` + `bss` (+ стек і купа).
 
-The linker can also check it for you, `-Wl,--print-memory-usage` prints how much of each region is used:
+Лінкер також може перевірити це за вас: `-Wl,--print-memory-usage` друкує, скільки кожного регіону використано:
 
 ```text
 Memory region         Used Size  Region Size  %age Used
@@ -332,14 +332,14 @@ Memory region         Used Size  Region Size  %age Used
              RAM:          12 B       128 KB      0.01%
 ```
 
-Put this flag into your build, and read the `.map` file (`-Wl,-Map,out.map`) when something is in an unexpected place: it contains the address of every function and every variable.
+Додайте цей прапорець до своєї збірки й читайте файл `.map` (`-Wl,-Map,out.map`), коли щось опиняється в несподіваному місці: він містить адресу кожної функції та кожної змінної.
 
-## Summary
+## Підсумок
 
-1. After the reset the core reads two words: the stack pointer and the address of the reset handler. Everything else is your code.
-2. The **linker script** is the map: where the memories are, in what order the sections lie and which symbols mark their boundaries.
-3. The **startup code** is what makes the language promises true: it copies `.data`, zeroes `.bss`, runs the constructors and calls `main()`.
-4. A variable that has a value in the flash and lives in the RAM has two addresses, the load address and the run address. This is the key to the whole topic.
-5. Keep `-Wl,--print-memory-usage` on, and read `arm-none-eabi-size` and the map file. They tell you more than the debugger about where your memory went.
+1. Після скидання ядро зчитує два слова: вказівник стека й адресу обробника скидання. Усе інше — ваш код.
+2. **Linker script** — це карта: де пам'яті, в якому порядку лежать секції та які символи позначають їхні межі.
+3. **Startup-код** робить обіцянки мови правдою: він копіює `.data`, обнуляє `.bss`, запускає конструктори і викликає `main()`.
+4. Змінна, яка має значення у flash і живе в RAM, має дві адреси: адресу завантаження та адресу виконання. Це ключ до всієї теми.
+5. Тримайте `-Wl,--print-memory-usage` увімкненим і читайте `arm-none-eabi-size` та map-файл. Вони розкажуть вам про те, куди поділася ваша пам'ять, більше за налагоджувач.
 
-In the Embedbits BSP, you do not write these two files yourself: the linker script is generated for the selected MCU and the startup code comes with the BSP branch of the family. It is still worth understanding what they do, because when the firmware does not start, nobody else can help you.
+У BSP Embedbits ви не пишете ці два файли самі: linker script генерується для вибраного MCU, а startup-код постачається з гілкою BSP для сімейства. Але розуміти, що вони роблять, усе одно варто, бо коли прошивка не стартує, ніхто інший вам не допоможе.

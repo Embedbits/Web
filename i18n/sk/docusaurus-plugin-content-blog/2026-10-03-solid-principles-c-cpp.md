@@ -1,42 +1,42 @@
 ---
-title: "SOLID principles: from C++ classes to plain C"
+title: "Princípy SOLID: od tried v C++ po čisté C"
 slug: solid-principles-c-cpp
 date: 2026-10-03T21:00:00
 authors: [Mr.Nobody]
 tags: [embedded, architecture, c, cpp]
 ---
 
-Five letters that every job interview in software engineering seems to contain. S, O, L, I and D. The principles were described for object oriented languages, so the common conclusion is "SOLID is for C++ and Java, we write C, so we are done". That conclusion is wrong, and I will try to show why. For every principle you will find the original idea with a C++ example, and then the same idea in C, without classes, without inheritance and without a single `virtual`.
+Päť písmen, ktoré sa zrejme nachádzajú v každom pracovnom pohovore v softvérovom inžinierstve. S, O, L, I a D. Princípy boli opísané pre objektovo orientované jazyky, takže bežný záver znie „SOLID je pre C++ a Javu, my píšeme v C, takže sme z obliga“. Ten záver je nesprávny a pokúsim sa ukázať prečo. Pri každom princípe nájdete pôvodnú myšlienku s príkladom v C++ a potom tú istú myšlienku v C, bez tried, bez dedičnosti a bez jediného `virtual`.
 
 <!-- truncate -->
 
-## Where SOLID comes from
+## Odkiaľ SOLID pochádza
 
-The principles were collected by Robert C. Martin ("Uncle Bob") in the early 2000s, the acronym itself was coined by Michael Feathers. Some of the ideas are much older: the *open/closed principle* comes from Bertrand Meyer (1988) and the *Liskov substitution principle* from Barbara Liskov (1987).
+Princípy zhromaždil Robert C. Martin („Uncle Bob“) na začiatku 21. storočia, samotnú skratku vymyslel Michael Feathers. Niektoré myšlienky sú oveľa staršie: *open/closed principle* pochádza od Bertranda Meyera (1988) a *Liskov substitution principle* od Barbary Liskovovej (1987).
 
-All of them answer one question: **how do I write code that survives change?** Not code that works today, but code that can be extended, tested and maintained by the guy from the quote on the front page, who knows where you live.
+Všetky odpovedajú na jednu otázku: **ako napísať kód, ktorý prežije zmenu?** Nie kód, ktorý funguje dnes, ale kód, ktorý sa dá rozširovať, testovať a udržiavať chlapíkom z citátu na titulnej strane, ktorý vie, kde bývate.
 
-The C++ examples use classes and virtual functions because that is how the principles were originally explained. The C examples follow [my coding style](/docs/platform/embi-platform/coding-style): `Module_Function` names, `_t` types and variables with meaningful names. One exception for the sake of the length: I use the plain `uint8_t`, `uint32_t` and `float` where a real project would use its own typedefs (`temperature_t`, `voltage_t`), which the coding style requires. All examples in this article were compiled (`gcc -std=c11 -Wall -Wextra -pedantic` and `g++ -std=c++17`) and run with a small unit test, including the "bad" ones.
+Príklady v C++ používajú triedy a virtuálne funkcie, pretože tak boli princípy pôvodne vysvetlené. Príklady v C sledujú [môj coding style](/docs/platform/embi-platform/coding-style): názvy `Module_Function`, typy `_t` a premenné so zmysluplnými menami. Jedna výnimka kvôli dĺžke: používam obyčajné `uint8_t`, `uint32_t` a `float` tam, kde by skutočný projekt použil vlastné typedefy (`temperature_t`, `voltage_t`), čo coding style vyžaduje. Všetky príklady v tomto článku boli skompilované (`gcc -std=c11 -Wall -Wextra -pedantic` a `g++ -std=c++17`) a spustené s malým unit testom, vrátane tých „zlých“.
 
-### What a class really is
+### Čo je trieda v skutočnosti
 
-Before we start, a short reminder of what the compiler does behind the scenes. A C++ class with virtual functions is:
+Predtým, než začneme, krátka pripomienka toho, čo kompilátor robí v zákulisí. Trieda v C++ s virtuálnymi funkciami je:
 
-- a `struct` with the data of the object,
-- a hidden pointer in this struct to a table of function pointers (the *vtable*), one table per class,
-- a convention that every method gets the pointer to the object as the first parameter (`this`).
+- `struct` s dátami objektu,
+- skrytý ukazovateľ v tejto štruktúre na tabuľku ukazovateľov na funkcie (*vtable*), jedna tabuľka na triedu,
+- konvencia, že každá metóda dostane ukazovateľ na objekt ako prvý parameter (`this`).
 
-In C we can write exactly the same thing by hand: a `struct` with data, a `const struct` with function pointers, and a `void *context` as the replacement for `this`. Keep this in mind, the whole article is built on it. C++ does not give you a new ability here, it only writes the boilerplate for you and checks it at compile time.
+V C môžeme presne to isté napísať ručne: `struct` s dátami, `const struct` s ukazovateľmi na funkcie a `void *context` ako náhradu za `this`. Zapamätajte si to, celý článok je na tom postavený. C++ vám tu nedáva novú schopnosť, iba za vás píše boilerplate a kontroluje ho pri kompilácii.
 
 ## S - Single Responsibility Principle
 
-> A module should have one, and only one, reason to change.
+> Modul by mal mať jeden, a iba jeden, dôvod na zmenu.
 
-The "reason to change" is the important part. It does not mean "a class has one method". It means that each part of the code answers to one source of changes: when the sensor is replaced, only the conversion changes, when the customer wants another log format, only the formatting changes.
+Dôležitá je časť „dôvod na zmenu“. Neznamená „trieda má jednu metódu“. Znamená, že každá časť kódu zodpovedá jednému zdroju zmien: keď sa vymení senzor, zmení sa iba prepočet, keď zákazník chce iný formát logu, zmení sa iba formátovanie.
 
-### In C++
+### V C++
 
-The following class does everything: it reads the ADC, converts the value, formats the text and sends it. Four reasons to change in one place:
+Nasledujúca trieda robí všetko: číta ADC, prepočíta hodnotu, naformátuje text a odošle ho. Štyri dôvody na zmenu na jednom mieste:
 
 ```cpp
 class TemperatureMonitor
@@ -53,7 +53,7 @@ public:
 };
 ```
 
-Every change (a new sensor, a CAN log instead of UART, a different text format) edits the same class, and nothing of it can be tested without the hardware. The fix is to separate the responsibilities and let the monitor only connect them:
+Každá zmena (nový senzor, log cez CAN namiesto UART, iný formát textu) upravuje tú istú triedu a nič z toho sa nedá otestovať bez hardvéru. Oprava je oddeliť zodpovednosti a nechať monitor, aby ich iba prepájal:
 
 ```cpp
 class AdcChannel
@@ -94,9 +94,9 @@ private:
 };
 ```
 
-### In C
+### V C
 
-Exactly the same mistake is possible, and common, in plain C, where it usually looks like one long function in `main.c`:
+Presne tá istá chyba je možná, a bežná, aj v čistom C, kde zvyčajne vyzerá ako jedna dlhá funkcia v `main.c`:
 
 ```c
 void Monitor_Run(void)
@@ -109,7 +109,7 @@ void Monitor_Run(void)
 }
 ```
 
-The tool for separation in C is the **module**: a pair of files `.h`/`.c` with a common prefix, where the header is the public interface and everything else is `static`. One module, one responsibility:
+Nástrojom na oddelenie v C je **modul**: dvojica súborov `.h`/`.c` so spoločným prefixom, kde hlavička je verejné rozhranie a všetko ostatné je `static`. Jeden modul, jedna zodpovednosť:
 
 ```c title="Tmp36.h"
 #ifndef TMP36_H
@@ -147,7 +147,7 @@ void Logger_Print_Temperature(float celsius)
 }
 ```
 
-The ADC module (`Adc.h`) is the same idea and the monitor only wires the modules together:
+Modul ADC (`Adc.h`) je rovnaká myšlienka a monitor iba prepája moduly:
 
 ```c title="Monitor.c"
 #include "Adc.h"
@@ -160,17 +160,17 @@ void Monitor_Run(void)
 }
 ```
 
-If the TMP36 is replaced by an NTC, only `Tmp36.c` is exchanged. If the log goes to CAN instead of UART, only `Logger.c` changes. And `Tmp36_Get_Celsius()` can be tested on your PC with a plain `assert`, because it does not touch any register.
+Ak sa TMP36 nahradí NTC, vymení sa iba `Tmp36.c`. Ak log ide cez CAN namiesto UART, zmení sa iba `Logger.c`. A `Tmp36_Get_Celsius()` sa dá otestovať na vašom PC obyčajným `assert`, pretože sa nedotýka žiadneho registra.
 
 ## O - Open/Closed Principle
 
-> Software entities should be open for extension, but closed for modification.
+> Softvérové entity by mali byť otvorené na rozširovanie, ale uzavreté na modifikáciu.
 
-You shall be able to add new behaviour without editing code that already works and is tested. The typical smell is a `switch` over a type that grows with every new feature.
+Mali by ste vedieť pridať nové správanie bez úpravy kódu, ktorý už funguje a je otestovaný. Typický zápach je `switch` nad typom, ktorý rastie s každou novou funkciou.
 
-### In C++
+### V C++
 
-The pipeline below has to be modified for every new filter, including the `enum` and the `switch`:
+Pipeline nižšie sa musí upraviť pri každom novom filtri, vrátane `enum` a `switch`:
 
 ```cpp
 enum class FilterType { MovingAverage, Median };
@@ -197,7 +197,7 @@ private:
 };
 ```
 
-The solution is an abstraction (interface) that the pipeline knows and new filters implement:
+Riešením je abstrakcia (rozhranie), ktorú pipeline pozná a nové filtre ju implementujú:
 
 ```cpp
 class IFilter
@@ -252,11 +252,11 @@ private:
 };
 ```
 
-A new filter is a new class. `SamplePipeline` is closed for modification and the system is open for extension.
+Nový filter je nová trieda. `SamplePipeline` je uzavretá na modifikáciu a systém je otvorený na rozširovanie.
 
-### In C
+### V C
 
-The same `switch` problem in C:
+Ten istý problém so `switch` v C:
 
 ```c
 typedef enum { FILTER_MOVING_AVERAGE, FILTER_MEDIAN } filterType_t;
@@ -272,7 +272,7 @@ float Pipeline_Feed(filterType_t type, float sample)
 }
 ```
 
-The C replacement for the virtual table is a **table of function pointers** and a `void *context` for the data of the instance. The abstraction is defined once:
+Náhradou virtuálnej tabuľky v C je **tabuľka ukazovateľov na funkcie** a `void *context` pre dáta inštancie. Abstrakcia sa definuje raz:
 
 ```c title="Filter.h"
 #ifndef FILTER_H
@@ -298,7 +298,7 @@ static inline float Filter_Process(const filter_t *filter, float sample)
 #endif
 ```
 
-Every filter is a pair of the data (`context`) and a constant table with the behaviour:
+Každý filter je dvojica dát (`context`) a konštantnej tabuľky so správaním:
 
 ```c title="MovingAverage.h"
 #ifndef MOVING_AVERAGE_H
@@ -335,7 +335,7 @@ static float MovingAverage_Process(void *context, float sample)
 const filterOps_t movingAverageOps = { .Process = MovingAverage_Process };
 ```
 
-The second filter is a completely separate module, the first one was not touched:
+Druhý filter je úplne samostatný modul, prvého sa nikto nedotkol:
 
 ```c title="Median3.h"
 #ifndef MEDIAN3_H
@@ -372,7 +372,7 @@ static float Median3_Process(void *context, float sample)
 const filterOps_t median3Ops = { .Process = Median3_Process };
 ```
 
-The pipeline knows only `filter_t`, so it never needs to change again:
+Pipeline pozná iba `filter_t`, takže sa už nikdy nemusí meniť:
 
 ```c title="Pipeline.c"
 #include "Filter.h"
@@ -383,7 +383,7 @@ float Pipeline_Feed(const filter_t *filter, float sample)
 }
 ```
 
-And this is how it is used. Both filters work with the same pipeline:
+A takto sa používa. Oba filtre fungujú s rovnakou pipeline:
 
 ```c
 movingAverage_t average = {0};
@@ -395,17 +395,17 @@ const filter_t medianFilter = { &median3Ops, &median };
 float output = Pipeline_Feed(&medianFilter, sample);
 ```
 
-The tables are `const`, so they live in flash and cost no RAM. What the C++ compiler generates for `virtual` is exactly this.
+Tabuľky sú `const`, takže žijú vo flash a nestoja žiadnu RAM. To, čo kompilátor C++ generuje pre `virtual`, je presne toto.
 
 ## L - Liskov Substitution Principle
 
-> Objects of a subtype must be usable wherever the base type is expected, without the caller noticing the difference.
+> Objekty podtypu musia byť použiteľné všade, kde sa očakáva základný typ, bez toho, aby volajúci spozoroval rozdiel.
 
-This is the least understood principle. It is not about the syntax (the compiler checks that for you), it is about the **contract**. A derived class must not require more than the base class promises and must not deliver less. If the caller needs an `if (typeid(...))`, the principle is broken.
+Toto je najmenej pochopený princíp. Nejde o syntax (tú za vás skontroluje kompilátor), ide o **kontrakt**. Odvodená trieda nesmie vyžadovať viac, než základná trieda sľubuje, a nesmie dodať menej. Ak volajúci potrebuje `if (typeid(...))`, princíp je porušený.
 
-### In C++
+### V C++
 
-Three storage devices behind one interface. Which of them violates the contract?
+Tri úložné zariadenia za jedným rozhraním. Ktoré z nich porušuje kontrakt?
 
 ```cpp
 class IStorage
@@ -444,9 +444,9 @@ public:
 };
 ```
 
-`Flash` requires aligned addresses and lengths, which the base class never mentioned, so code that stores five bytes works with `Eeprom` and silently fails with `Flash`. `RomImage` throws an exception in a system that probably builds with `-fno-exceptions`. All three compile, and only one behaves.
+`Flash` vyžaduje zarovnané adresy a dĺžky, o čom základná trieda nikdy nehovorila, takže kód, ktorý ukladá päť bajtov, funguje s `Eeprom` a ticho zlyhá s `Flash`. `RomImage` vyhadzuje výnimku v systéme, ktorý sa pravdepodobne zostavuje s `-fno-exceptions`. Všetky tri sa skompilujú a správa sa iba jedno.
 
-The fix is to honour the contract in the implementation, and to not inherit when the capability is not there:
+Oprava je dodržať kontrakt v implementácii a nedediť, keď schopnosť chýba:
 
 ```cpp
 class IReadable
@@ -482,9 +482,9 @@ public:
 };
 ```
 
-### In C
+### V C
 
-C has no inheritance, so is the principle irrelevant? On the contrary, a table of function pointers is an interface exactly like in C++ and the substitution problem is the same. In C it is even more dangerous, because the typical violations are a `NULL` in the table or an `assert` in the implementation:
+C nemá dedičnosť, je teda princíp irelevantný? Naopak, tabuľka ukazovateľov na funkcie je rozhranie presne ako v C++ a problém substitúcie je rovnaký. V C je to ešte nebezpečnejšie, pretože typické porušenia sú `NULL` v tabuľke alebo `assert` v implementácii:
 
 ```c
 typedef struct
@@ -508,7 +508,7 @@ bool Settings_Save(const storageOps_t *storage, const uint8_t *data, size_t leng
 }
 ```
 
-The cure is the same as in C++, plus one habit: **write the contract down in the header** and make all implementations obey it. No `NULL` in the table, no assert for a caller's mistake, no hidden precondition:
+Liek je rovnaký ako v C++, plus jeden zvyk: **kontrakt si zapíšte do hlavičky** a prinúťte všetky implementácie, aby ho dodržiavali. Žiadne `NULL` v tabuľke, žiadny assert pre chybu volajúceho, žiadny skrytý predpoklad:
 
 ```c title="Storage.h"
 #ifndef STORAGE_H
@@ -564,17 +564,17 @@ storageStatus_t Settings_Save(const storageOps_t *storage, const uint8_t *data, 
 }
 ```
 
-`Settings_Save()` works with the flash, the ROM image (it gets a normal error code) and with any implementation that appears later.
+`Settings_Save()` funguje s flash, s obrazom ROM (dostane normálny chybový kód) aj s každou implementáciou, ktorá sa objaví neskôr.
 
 ## I - Interface Segregation Principle
 
-> Clients should not be forced to depend on methods they do not use.
+> Klienti by nemali byť nútení závisieť od metód, ktoré nepoužívajú.
 
-A "fat" interface couples everyone to everything. When the UART gets a new method, every client and every mock has to be recompiled and reviewed, even though they only wanted to send bytes.
+„Tučné“ rozhranie viaže každého na všetko. Keď UART dostane novú metódu, musí sa prekompilovať a skontrolovať každý klient a každý mock, hoci chceli iba posielať bajty.
 
-### In C++
+### V C++
 
-The logger needs one method, but depends on five:
+Logger potrebuje jednu metódu, ale závisí od piatich:
 
 ```cpp
 class IUart
@@ -599,7 +599,7 @@ private:
 };
 ```
 
-The interface is split by the role of the client. Configuration stays on the concrete class, and the logger asks only for the ability to write bytes:
+Rozhranie sa rozdelí podľa úlohy klienta. Konfigurácia ostáva na konkrétnej triede a logger žiada iba schopnosť zapisovať bajty:
 
 ```cpp
 class IByteSink
@@ -637,11 +637,11 @@ private:
 };
 ```
 
-A mock for the logger test has now one method instead of five.
+Mock pre test loggeru má teraz jednu metódu namiesto piatich.
 
-### In C
+### V C
 
-The fat interface exists in C as a huge struct of function pointers or, more often, as one giant header file `Uart.h` that everybody includes:
+Tučné rozhranie existuje aj v C, ako obrovská štruktúra ukazovateľov na funkcie alebo, častejšie, ako jeden gigantický hlavičkový súbor `Uart.h`, ktorý includuje každý:
 
 ```c
 typedef struct
@@ -656,7 +656,7 @@ typedef struct
 void Log_Init(const uartDriver_t *uart);   /* needs Send, receives five functions */
 ```
 
-There are two tools. The first is the same as in C++: a small interface (`byteSink_t`) that carries only what the client needs:
+Existujú dva nástroje. Prvý je rovnaký ako v C++: malé rozhranie (`byteSink_t`), ktoré nesie iba to, čo klient potrebuje:
 
 ```c title="ByteSink.h"
 #ifndef BYTE_SINK_H
@@ -701,7 +701,7 @@ void Log_Print(const char *text)
 }
 ```
 
-The second one is specific for C: **split the header**. Everyone who only sends bytes includes `Uart_Tx.h` and nobody else sees the configuration:
+Druhý je špecifický pre C: **rozdeľte hlavičku**. Každý, kto iba posiela bajty, includuje `Uart_Tx.h` a nikto iný nevidí konfiguráciu:
 
 ```c
 /* Uart_Config.h  - used by the code that sets the peripheral up */
@@ -715,17 +715,17 @@ void Uart_Send(uart_t *uart, const uint8_t *data, size_t length);
 size_t Uart_Receive(uart_t *uart, uint8_t *data, size_t maxLength);
 ```
 
-The logger can be tested with a three-line function that captures the bytes. It does not know that a UART exists.
+Logger sa dá otestovať trojriadkovou funkciou, ktorá zachytáva bajty. Nevie, že UART existuje.
 
 ## D - Dependency Inversion Principle
 
-> High-level modules should not depend on low-level modules. Both should depend on abstractions. Abstractions should not depend on details.
+> Moduly vyššej úrovne by nemali závisieť od modulov nižšej úrovne. Obe by mali závisieť od abstrakcií. Abstrakcie by nemali závisieť od detailov.
 
-This is the principle that connects the other four. It is the one behind the layers from the article about [design and architecture](/blog/design-architecture): the application must not know which register toggles a LED.
+Toto je princíp, ktorý spája ostatné štyri. Stojí za vrstvami z článku o [dizajne a architektúre](/blog/design-architecture): aplikácia nesmie vedieť, ktorý register prepína LED.
 
-### In C++
+### V C++
 
-The thermostat (a high-level policy) contains the ADC and GPIO classes (low-level details). It cannot be compiled without the hardware, cannot be tested on a PC and cannot be moved to another board:
+Termostat (politika vysokej úrovne) obsahuje triedy ADC a GPIO (detaily nízkej úrovne). Nedá sa skompilovať bez hardvéru, nedá sa testovať na PC a nedá sa preniesť na inú dosku:
 
 ```cpp
 class Thermostat
@@ -744,7 +744,7 @@ private:
 };
 ```
 
-After the inversion, the policy owns the interfaces and the drivers implement them. The arrow of the dependency points to the policy:
+Po inverzii vlastní politika rozhrania a ovládače ich implementujú. Šípka závislosti ukazuje na politiku:
 
 ```text
 before:   Thermostat ───▶ AdcSensor, GpioHeater
@@ -792,11 +792,11 @@ class AdcSensor  : public ITemperatureSensor { public: float ReadCelsius() overr
 class GpioHeater : public IHeater            { public: void  Set(bool on) override; };
 ```
 
-### In C
+### V C
 
-C offers two ways, and the second one is unique for C and cheaper than any virtual call.
+C ponúka dva spôsoby a ten druhý je jedinečný pre C a lacnejší než akékoľvek virtuálne volanie.
 
-**1. Runtime injection** with function pointers, exactly like in the open/closed example. The interface belongs to the thermostat (it is in `Thermostat.h`), the drivers fill it:
+**1. Injektovanie za behu** pomocou ukazovateľov na funkcie, presne ako v príklade open/closed. Rozhranie patrí termostatu (je v `Thermostat.h`), ovládače ho vypĺňajú:
 
 ```c title="Thermostat.h"
 #ifndef THERMOSTAT_H
@@ -828,9 +828,9 @@ void Thermostat_Update(const thermostatPorts_t *ports)
 }
 ```
 
-In the unit test you pass functions that return a number and remember the heater state. On the target you pass `Adc_Get_Celsius` and `Gpio_Set_Heater`, and `Thermostat.c` stays untouched.
+V unit teste odovzdáte funkcie, ktoré vrátia číslo a zapamätajú si stav ohrievača. Na cieľovom zariadení odovzdáte `Adc_Get_Celsius` a `Gpio_Set_Heater` a `Thermostat.c` zostane nedotknutý.
 
-**2. Link-time injection.** Sometimes you do not need to switch implementations at runtime, you only need to make a decision once, in the build system. Then the abstraction is a **header with declarations** and the implementation is a source file that CMake picks for the target:
+**2. Injektovanie pri linkovaní.** Niekedy nepotrebujete prepínať implementácie za behu, stačí urobiť rozhodnutie raz, v build systéme. Potom je abstrakciou **hlavička s deklaráciami** a implementáciou zdrojový súbor, ktorý CMake vyberie pre cieľ:
 
 ```c title="Bsp_Thermostat.h"
 #ifndef BSP_THERMOSTAT_H
@@ -856,26 +856,26 @@ void Thermostat_Update(void)
 }
 ```
 
-For the board, `Bsp_Thermostat_Stm32.c` is linked and implements both functions with the real peripherals. In the unit test on the PC, `Bsp_Thermostat_Fake.c` is linked instead. No function pointers, no indirection, no RAM, and the thermostat is still completely independent of the hardware. This is, by the way, exactly what the BSP of Embedbits does: the application calls an interface of the BSP and does not care which family or which board is behind it.
+Pre dosku sa zlinkuje `Bsp_Thermostat_Stm32.c`, ktorý implementuje obe funkcie so skutočnými perifériami. V unit teste na PC sa namiesto toho zlinkuje `Bsp_Thermostat_Fake.c`. Žiadne ukazovatele na funkcie, žiadna nepriama adresácia, žiadna RAM a termostat je stále úplne nezávislý od hardvéru. Mimochodom, presne toto robí BSP Embedbits: aplikácia volá rozhranie BSP a je jej jedno, aká rodina alebo doska je za ním.
 
-## The same ideas in two languages
+## Tie isté myšlienky v dvoch jazykoch
 
-| Principle | C++ | C |
+| Princíp | C++ | C |
 |---|---|---|
-| **S** | class | module (`.h`/`.c` pair, prefix, `static`) |
-| **O** | abstract class, `virtual`, `override` | `const` table of function pointers + `void *context` |
-| **L** | contract of the base class | contract written in the header, no `NULL` in the table |
-| **I** | several small interfaces | small structs of pointers, split headers |
-| **D** | constructor injection of an interface | function pointers in a `struct`, or link-time injection |
+| **S** | trieda | modul (dvojica `.h`/`.c`, prefix, `static`) |
+| **O** | abstraktná trieda, `virtual`, `override` | `const` tabuľka ukazovateľov na funkcie + `void *context` |
+| **L** | kontrakt základnej triedy | kontrakt zapísaný v hlavičke, žiadne `NULL` v tabuľke |
+| **I** | niekoľko malých rozhraní | malé štruktúry ukazovateľov, rozdelené hlavičky |
+| **D** | konštruktorové injektovanie rozhrania | ukazovatele na funkcie v `struct` alebo injektovanie pri linkovaní |
 
-## What the compiler does not do for you
+## Čo kompilátor za vás neurobí
 
-Honesty is due. C++ has advantages that you have to replace by discipline in C:
+Treba byť úprimný. C++ má výhody, ktoré musíte v C nahradiť disciplínou:
 
-- **No compile-time check.** If a field of the function table is forgotten, the compiler stays silent (designated initializers at least name the fields, and in C a missing one becomes `NULL`). Use `.Process = ...` initializers, never positional ones, and have a unit test that calls every function of each implementation.
-- **`void *context` is not type safe.** A wrong cast will not be found by the compiler. Keep the cast in one line at the beginning of each function (`movingAverage_t *self = context;`) and nowhere else.
-- **Costs.** An indirect call is a few cycles and the tables cost flash. On a Cortex-M this is usually irrelevant, but not in an interrupt that runs every 10 microseconds. There, the link-time variant is free.
+- **Žiadna kontrola pri kompilácii.** Ak sa zabudne pole tabuľky funkcií, kompilátor mlčí (designated initializers aspoň pomenúvajú polia a v C sa chýbajúce stane `NULL`). Používajte inicializátory `.Process = ...`, nikdy poziciové, a majte unit test, ktorý volá každú funkciu každej implementácie.
+- **`void *context` nie je typovo bezpečný.** Zlé pretypovanie kompilátor nenájde. Držte pretypovanie v jednom riadku na začiatku každej funkcie (`movingAverage_t *self = context;`) a nikde inde.
+- **Náklady.** Nepriame volanie je pár cyklov a tabuľky stoja flash. Na Cortex-M to zvyčajne nevadí, ale nie v prerušení, ktoré beží každých 10 mikrosekúnd. Tam je variant pri linkovaní zadarmo.
 
-And the biggest trap: **SOLID is a set of guidelines, not a law**. Splitting a 30 line function into five modules with function pointer tables because "the principle says so" is its own kind of spaghetti. Apply a principle when there is a real reason to change, a second implementation, or a unit test that cannot be written without it. Not before.
+A najväčšia pasca: **SOLID je súbor odporúčaní, nie zákon**. Rozdeliť 30-riadkovú funkciu na päť modulov s tabuľkami ukazovateľov na funkcie, lebo „to hovorí princíp“, je vlastný druh špagetového kódu. Uplatnite princíp, keď existuje skutočný dôvod na zmenu, druhá implementácia alebo unit test, ktorý sa bez neho nedá napísať. Nie skôr.
 
-If you remember one sentence from this article, let it be this one: **the principles are about the direction of dependencies and the size of the pieces, not about classes.** C++ gives you classes, C gives you modules and function pointers. The good design needs neither of them to be fancy.
+Ak si z tohto článku zapamätáte jednu vetu, nech je to táto: **princípy sú o smere závislostí a veľkosti kúskov, nie o triedach.** C++ vám dáva triedy, C vám dáva moduly a ukazovatele na funkcie. Dobrý dizajn nepotrebuje ani jedno z nich, aby bol efektný.
