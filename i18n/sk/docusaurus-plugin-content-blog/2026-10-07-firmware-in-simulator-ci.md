@@ -1,32 +1,32 @@
 ---
-title: "Running the real firmware without the hardware: a simulator in the CI"
+title: "Spustenie skutočného firmvéru bez hardvéru: simulátor v CI"
 slug: firmware-in-simulator-ci
 date: 2026-10-07T18:00:00
 authors: [Mr.Nobody]
 tags: [embedded, c, testing]
 ---
 
-In the article about [unit testing with Unity and CMock](/blog/unit-testing-unity-cmock) I said that the tests on the PC do not find "the differences between the PC and the MCU". This article is about those differences, and about the tool that finds them: a **simulator that runs the real binary**. Not the logic compiled for the PC, but the very `.elf` that the ARM compiler made, with the real startup code and the real linker script, on a model of a processor and its peripherals.
+V článku o [unit testovaní s Unity a CMock](/blog/unit-testing-unity-cmock) som napísal, že testy na PC nenájdu „rozdiely medzi PC a MCU". Tento článok je o týchto rozdieloch a o nástroji, ktorý ich nájde: o **simulátore, ktorý spúšťa skutočný binárny súbor**. Nie logiku skompilovanú pre PC, ale ten istý `.elf`, ktorý vyrobil kompilátor ARM, so skutočným startup kódom a skutočným linker scriptom, na modeli procesora a jeho periférií.
 
-I will show two experiments that I ran: the same test source that passes on the PC and fails on the Cortex-M4, and a firmware that writes to the registers of a USART at the real addresses of an STM32F4 and whose text appears in the terminal. At the end there is an honest list of what a simulator will not tell you.
+Ukážem dva experimenty, ktoré som spustil: ten istý zdrojový kód testu, ktorý prejde na PC a zlyhá na Cortex-M4, a firmvér, ktorý zapisuje do registrov USART na skutočných adresách STM32F4 a ktorého text sa objaví v termináli. Na konci je úprimný zoznam toho, čo vám simulátor nepovie.
 
 <!-- truncate -->
 
-## Where it fits
+## Kde to zapadá
 
-| Level | What runs | What it finds | Speed |
+| Úroveň | Čo beží | Čo nájde | Rýchlosť |
 |---|---|---|---|
-| **Unit test on the PC** | the logic, compiled for the PC, the layers below mocked | logic errors | milliseconds |
-| **Simulator** | the real firmware binary, on a model of the MCU | the target-specific errors, the startup, the drivers against a register model | seconds |
-| **Hardware in the loop** | the real firmware on the real MCU with real signals | timing, the electrical behavior, the real peripherals | minutes, a lab |
+| **Unit test na PC** | logika skompilovaná pre PC, vrstvy pod ňou namockované | chyby v logike | milisekundy |
+| **Simulátor** | skutočný binárny súbor firmvéru na modeli MCU | chyby špecifické pre cieľové zariadenie, startup, ovládače voči modelu registrov | sekundy |
+| **Hardware in the loop** | skutočný firmvér na skutočnom MCU so skutočnými signálmi | časovanie, elektrické správanie, skutočné periférie | minúty, laboratórium |
 
-The middle level is the one that is skipped most often, and it is the cheapest to add to a CI that already builds the firmware: a simulator is an executable that you start with the file that your build has produced.
+Stredná úroveň je tá, ktorá sa vynecháva najčastejšie, a pritom je najlacnejšia na pridanie do CI, ktoré už firmvér zostavuje: simulátor je spustiteľný súbor, ktorému odovzdáte súbor, ktorý vyprodukoval váš build.
 
-The tool in my experiments is QEMU 8.2.2 with the machine `netduinoplus2`, a model of a board with an **STM32F405** (a Cortex-M4 with the memory map of the real chip: the flash at `0x08000000`, the RAM at `0x20000000`, the peripherals at their real addresses). The platform has an artifact for another simulator, **Renode**, and I come back to it at the end.
+Nástrojom v mojich experimentoch je QEMU 8.2.2 so strojom `netduinoplus2`, modelom dosky s **STM32F405** (Cortex-M4 s pamäťovou mapou skutočného čipu: flash na `0x08000000`, RAM na `0x20000000`, periférie na ich skutočných adresách). Platforma má artefakt pre iný simulátor, **Renode**, a vrátim sa k nemu na konci.
 
-## Experiment 1: the test that passes on the PC and fails on the MCU
+## Experiment 1: test, ktorý prejde na PC a zlyhá na MCU
 
-A small module with two functions that every firmware has: the conversion of the time and the check of a received byte.
+Malý modul s dvoma funkciami, ktoré má každý firmvér: prevod času a kontrola prijatého bajtu.
 
 ```c title="Conversions.c"
 #include "Conversions.h"
@@ -42,7 +42,7 @@ bool Conversions_Is_HighBitSet(char receivedByte)
 }
 ```
 
-Both functions look right, and both are tested on the PC. The test source is the same for both targets: only the output is different. The file `Platform.h` prints through `printf` on the PC and through *semihosting* (a request to the simulator or to the debugger) on the target, and the exit code of the test says whether it passed:
+Obe funkcie vyzerajú správne a obe sú otestované na PC. Zdrojový kód testu je pre oba ciele rovnaký: líši sa len výstup. Súbor `Platform.h` tlačí cez `printf` na PC a cez *semihosting* (požiadavku na simulátor alebo debugger) na cieľovom zariadení a návratový kód testu hovorí, či prešiel:
 
 ```c title="Platform.h"
 #ifndef PLATFORM_H
@@ -103,7 +103,7 @@ int main(void)
 }
 ```
 
-On the PC:
+Na PC:
 
 ```text
 PASS  50 minutes in microseconds
@@ -113,7 +113,7 @@ PASS  'A' has not the high bit set
 exit code: 0
 ```
 
-The same source, compiled with `arm-none-eabi-gcc` for the Cortex-M4 and started in QEMU:
+Ten istý zdrojový kód, skompilovaný pomocou `arm-none-eabi-gcc` pre Cortex-M4 a spustený v QEMU:
 
 ```text
 FAIL  50 minutes in microseconds
@@ -123,16 +123,16 @@ PASS  'A' has not the high bit set
 exit code: 1
 ```
 
-Two bugs, and both are invisible on the PC:
+Dve chyby, obe na PC neviditeľné:
 
-- **`long` has a different width.** On a 64-bit Linux PC a `long` has 64 bits, on a Cortex-M it has 32. `3 000 000 ms * 1000` is `3 000 000 000`, which does not fit into a signed 32-bit number (the biggest is 2 147 483 647), so the result is wrong, and in C it is also an undefined behavior.
-- **`char` has a different signedness.** The C standard leaves it open whether a plain `char` is signed. On x86 it is, so `(char)0xFF` is `-1` and the check `receivedByte < 0` works. On the ARM it is *unsigned*, so `(char)0xFF` is `255` and the comparison is never true. The ARM compiler even says it, and only there:
+- **`long` má inú šírku.** Na 64-bitovom Linuxe na PC má `long` 64 bitov, na Cortex-M má 32. `3 000 000 ms * 1000` je `3 000 000 000`, čo sa nezmestí do 32-bitového čísla so znamienkom (najväčšie je 2 147 483 647), takže výsledok je nesprávny a v C ide navyše o nedefinované správanie.
+- **`char` má iné znamienko.** Norma C nechráva otvorené, či je obyčajný `char` so znamienkom. Na x86 je, takže `(char)0xFF` je `-1` a kontrola `receivedByte < 0` funguje. Na ARM je *bez znamienka*, takže `(char)0xFF` je `255` a porovnanie nikdy nie je pravdivé. Kompilátor ARM to dokonca povie, a len tam:
 
 ```text
 Conversions.c:10:26: warning: comparison is always false due to limited range of data type [-Wtype-limits]
 ```
 
-Both are the question of the portable types, which is the topic of the rule 4.6 in the article about [MISRA](/blog/misra-c-rules-in-practice): use the types with a size and a signedness. The fixed version uses `uint64_t` for the time and `uint8_t` for the byte:
+Obe sú otázkou prenosných typov, čo je téma pravidla 4.6 v článku o [MISRA](/blog/misra-c-rules-in-practice): používajte typy s veľkosťou a znamienkom. Opravená verzia používa `uint64_t` pre čas a `uint8_t` pre bajt:
 
 ```c
 uint64_t Conversions_Get_Microseconds_Fixed(uint32_t milliseconds)
@@ -146,9 +146,9 @@ bool Conversions_Is_HighBitSet_Fixed(uint8_t receivedByte)
 }
 ```
 
-and the same four checks now pass **on both targets**, with exit code 0 on both. The first version was not a bug of the test, and the test on the PC was not wrong: it simply tested a different program.
+a tie isté štyri kontroly teraz prejdú **na oboch cieľoch**, s návratovým kódom 0 na oboch. Prvá verzia nebola chybou testu a test na PC nebol nesprávny: jednoducho testoval iný program.
 
-The exit code is the whole integration with the CI. The simulator terminates with the code that the firmware gives to the semihosting call, so the `add_test` of CMake (see the article about [CMake for firmware](/blog/cmake-for-embedded-firmware)) fails when the test on the target fails:
+Návratový kód je celá integrácia s CI. Simulátor skončí s kódom, ktorý firmvér odovzdá volaniu semihostingu, takže `add_test` v CMake (pozrite článok o [CMake pre firmvér](/blog/cmake-for-embedded-firmware)) zlyhá, keď zlyhá test na cieľovom zariadení:
 
 ```cmake
 add_test(NAME conversions_on_target
@@ -156,9 +156,9 @@ add_test(NAME conversions_on_target
             -semihosting-config enable=on,target=native -kernel conversions_test.elf)
 ```
 
-## Experiment 2: the registers of a peripheral
+## Experiment 2: registre periférie
 
-A simulator also models the peripherals, and then the code that is closest to the hardware can run too. This is a firmware that sends a text through the USART1 of an STM32F4, written on the register level with the real addresses (no library, no startup beyond the code from the article about [what happens before `main()`](/blog/before-main-startup-linker)):
+Simulátor modeluje aj periférie, a tak môže bežať aj kód najbližší k hardvéru. Toto je firmvér, ktorý posiela text cez USART1 na STM32F4, napísaný na úrovni registrov so skutočnými adresami (žiadna knižnica, žiadny startup nad rámec kódu z článku o tom, [čo sa stane pred `main()`](/blog/before-main-startup-linker)):
 
 ```c title="uart.c"
 #include <stdint.h>
@@ -198,27 +198,27 @@ int main(void)
 hello from the register level
 ```
 
-The text is in the terminal of the simulator: the firmware switched on the clock of the peripheral in the RCC, enabled the USART and its transmitter, waited for the flag `TXE` and wrote the data register, exactly as it would on the board, and the model of the USART passed the byte to the serial port. It is a test of a driver against a model of the register interface. If a driver waits for a flag that never comes, the test finds it by a timeout, and not at the desk with an oscilloscope.
+Text je v termináli simulátora: firmvér zapol hodiny periférie v RCC, povolil USART a jeho vysielač, počkal na príznak `TXE` a zapísal do dátového registra, presne tak, ako by to urobil na doske, a model USART odovzdal bajt sériovému portu. Je to test ovládača voči modelu registrového rozhrania. Ak ovládač čaká na príznak, ktorý nikdy nepríde, test to nájde pomocou timeoutu, a nie pri stole s osciloskopom.
 
-## What the simulator does not tell you
+## Čo vám simulátor nepovie
 
-A simulator is a *model*, and every model has a boundary. A few that I met in the experiments of this series:
+Simulátor je *model* a každý model má hranicu. Niekoľko, na ktoré som narazil v experimentoch tejto série:
 
-- **The timing is not real.** QEMU runs the instructions as fast as the PC allows and does not count the cycles of the real core. A test that must prove "the interrupt is served within 5 microseconds" cannot be done in it.
-- **The interrupts arrive in other places than on the MCU.** In the article about [interrupts](/blog/interrupts-and-main-shared-data) the lost update of a shared counter did not appear in QEMU in 200 000 tries, because QEMU delivers an interrupt between blocks of the translated code. The real MCU can interrupt after every instruction. A simulator does not prove the absence of a race.
-- **Only the modeled peripherals exist.** The model of the STM32F405 has a USART, but another chip may have a peripheral that the model does not have, or has it in a simplified form: the registers are there, the analog part is not.
-- **The electrical world is missing:** a bounce of a contact, the noise on an ADC input, a voltage drop. Everything that comes from the outside is what you put into the model.
+- **Časovanie nie je skutočné.** QEMU vykonáva inštrukcie tak rýchlo, ako dovolí PC, a nepočíta cykly skutočného jadra. Test, ktorý má dokázať „prerušenie sa obslúži do 5 mikrosekúnd", sa v ňom urobiť nedá.
+- **Prerušenia prichádzajú na iných miestach než na MCU.** V článku o [prerušeniach](/blog/interrupts-and-main-shared-data) sa stratená aktualizácia zdieľaného počítadla v QEMU neobjavila ani v 200 000 pokusoch, pretože QEMU doručuje prerušenie medzi blokmi preloženého kódu. Skutočné MCU môže prerušiť po každej inštrukcii. Simulátor nedokazuje neprítomnosť race condition.
+- **Existujú len namodelované periférie.** Model STM32F405 má USART, ale iný čip môže mať perifériu, ktorú model nemá, alebo ju má v zjednodušenej podobe: registre tam sú, analógová časť nie.
+- **Chýba elektrický svet:** zákmity kontaktu, šum na vstupe ADC, pokles napätia. Všetko, čo prichádza zvonku, je to, čo do modelu vložíte.
 
-So the simulator replaces neither the unit tests (they are faster and test the logic in isolation) nor the hardware tests (they test the reality). It finds the things between: the compiler of the target, the types, the startup, the memory map, the driver against a register model, and it does it in a few seconds on every commit.
+Simulátor teda nenahrádza ani unit testy (sú rýchlejšie a testujú logiku izolovane), ani hardvérové testy (testujú realitu). Nájde veci medzi nimi: kompilátor cieľového zariadenia, typy, startup, pamäťovú mapu, ovládač voči modelu registrov, a robí to za pár sekúnd pri každom commite.
 
 ## Renode
 
-The platform has an artifact for **Renode**, Antmicro's open-source simulation and virtual development framework, shipped together with `renode-test`, its Robot Framework based test runner, which is used for the integration tests of simulated firmware. I did not run it for this article (the release could not be downloaded in my environment), so I only repeat what its documentation says, and I do not compare it with QEMU. The structure of such a test is the same as above: the real ELF, a model of the hardware, a verdict and an exit code for the CI.
+Platforma má artefakt pre **Renode**, open-source simulačný a virtuálny vývojový framework od Antmicro, dodávaný spolu s `renode-test`, jeho testovacím runnerom založeným na Robot Framework, ktorý sa používa na integračné testy simulovaného firmvéru. Pre tento článok som ho nespúšťal (vydanie sa v mojom prostredí nedalo stiahnuť), takže iba opakujem, čo hovorí jeho dokumentácia, a neporovnávam ho s QEMU. Štruktúra takéhoto testu je rovnaká ako vyššie: skutočný ELF, model hardvéru, verdikt a návratový kód pre CI.
 
-## A checklist
+## Kontrolný zoznam
 
-1. Build the test for the **target**, with the compiler of the target, and run it in a simulator, in addition to the PC.
-2. Use one test source for both, with a thin layer (`Platform.h`) for the output and the exit.
-3. The exit code of the simulator is the result of the test, so the CI needs nothing more.
-4. Use the types with a size and a signedness (`uint32_t`, `uint8_t`) and the warnings of the target compiler: the second bug above (the `char`) would be found by `-Wtype-limits`, if anyone looked at the output of the ARM build.
-5. Write down what the simulator cannot prove (the timing, the races, the analog world) and leave it to the hardware tests.
+1. Zostavte test pre **cieľové zariadenie**, kompilátorom cieľového zariadenia, a spustite ho v simulátore, popri PC.
+2. Použite jeden zdrojový kód testu pre oba, s tenkou vrstvou (`Platform.h`) pre výstup a ukončenie.
+3. Návratový kód simulátora je výsledok testu, takže CI nepotrebuje nič viac.
+4. Používajte typy s veľkosťou a znamienkom (`uint32_t`, `uint8_t`) a varovania kompilátora cieľového zariadenia: druhú chybu vyššie (`char`) by našlo `-Wtype-limits`, keby sa niekto pozrel na výstup buildu pre ARM.
+5. Zapíšte si, čo simulátor nevie dokázať (časovanie, race condition, analógový svet), a nechajte to na hardvérové testy.

@@ -1,42 +1,42 @@
 ---
-title: "SOLID principles: from C++ classes to plain C"
+title: "Принципи SOLID: від класів C++ до звичайного C"
 slug: solid-principles-c-cpp
 date: 2026-10-03T21:00:00
 authors: [Mr.Nobody]
 tags: [embedded, architecture, c, cpp]
 ---
 
-Five letters that every job interview in software engineering seems to contain. S, O, L, I and D. The principles were described for object oriented languages, so the common conclusion is "SOLID is for C++ and Java, we write C, so we are done". That conclusion is wrong, and I will try to show why. For every principle you will find the original idea with a C++ example, and then the same idea in C, without classes, without inheritance and without a single `virtual`.
+П'ять літер, які, здається, є на кожній співбесіді з розробки програмного забезпечення. S, O, L, I та D. Принципи описано для об'єктно-орієнтованих мов, тож поширений висновок такий: «SOLID - для C++ та Java, ми пишемо на C, отже, нас це не стосується». Цей висновок хибний, і я спробую показати чому. Для кожного принципу ви знайдете оригінальну ідею з прикладом на C++, а потім ту саму ідею на C, без класів, без наслідування і без жодного `virtual`.
 
 <!-- truncate -->
 
-## Where SOLID comes from
+## Звідки береться SOLID
 
-The principles were collected by Robert C. Martin ("Uncle Bob") in the early 2000s, the acronym itself was coined by Michael Feathers. Some of the ideas are much older: the *open/closed principle* comes from Bertrand Meyer (1988) and the *Liskov substitution principle* from Barbara Liskov (1987).
+Принципи зібрав Роберт К. Мартін («дядько Боб») на початку 2000-х, а саму абревіатуру вигадав Майкл Фезерс. Деякі ідеї значно старші: *принцип відкритості/закритості* походить від Бертрана Мейєра (1988), а *принцип підстановки Барбари Ліскоу* - від Барбари Ліскоу (1987).
 
-All of them answer one question: **how do I write code that survives change?** Not code that works today, but code that can be extended, tested and maintained by the guy from the quote on the front page, who knows where you live.
+Усі вони відповідають на одне запитання: **як писати код, що переживає зміни?** Не код, який працює сьогодні, а код, який можна розширювати, тестувати й підтримувати хлопцеві з цитати на першій сторінці, який знає, де ви живете.
 
-The C++ examples use classes and virtual functions because that is how the principles were originally explained. The C examples follow [my coding style](/docs/platform/embi-platform/coding-style): `Module_Function` names, `_t` types and variables with meaningful names. One exception for the sake of the length: I use the plain `uint8_t`, `uint32_t` and `float` where a real project would use its own typedefs (`temperature_t`, `voltage_t`), which the coding style requires. All examples in this article were compiled (`gcc -std=c11 -Wall -Wextra -pedantic` and `g++ -std=c++17`) and run with a small unit test, including the "bad" ones.
+Приклади на C++ використовують класи та віртуальні функції, бо саме так принципи пояснювали спочатку. Приклади на C дотримуються [мого стилю кодування](/docs/platform/embi-platform/coding-style): імена `Module_Function`, типи `_t` і змінні зі змістовними іменами. Один виняток заради довжини: я використовую прості `uint8_t`, `uint32_t` і `float` там, де справжній проєкт мав би власні typedef (`temperature_t`, `voltage_t`), чого вимагає стиль кодування. Усі приклади в цій статті було скомпільовано (`gcc -std=c11 -Wall -Wextra -pedantic` та `g++ -std=c++17`) і запущено з невеликим модульним тестом, включно з «поганими».
 
-### What a class really is
+### Чим насправді є клас
 
-Before we start, a short reminder of what the compiler does behind the scenes. A C++ class with virtual functions is:
+Перш ніж почати, коротке нагадування, що компілятор робить за лаштунками. Клас C++ з віртуальними функціями - це:
 
-- a `struct` with the data of the object,
-- a hidden pointer in this struct to a table of function pointers (the *vtable*), one table per class,
-- a convention that every method gets the pointer to the object as the first parameter (`this`).
+- `struct` з даними об'єкта,
+- прихований вказівник у цій структурі на таблицю вказівників на функції (*vtable*), по одній таблиці на клас,
+- домовленість, що кожен метод отримує вказівник на об'єкт першим параметром (`this`).
 
-In C we can write exactly the same thing by hand: a `struct` with data, a `const struct` with function pointers, and a `void *context` as the replacement for `this`. Keep this in mind, the whole article is built on it. C++ does not give you a new ability here, it only writes the boilerplate for you and checks it at compile time.
+У C ми можемо написати точнісінько те саме вручну: `struct` з даними, `const struct` з вказівниками на функції та `void *context` як заміну `this`. Пам'ятайте про це, уся стаття на цьому побудована. C++ не дає тут нової можливості, він лише пише за вас шаблонний код і перевіряє його під час компіляції.
 
-## S - Single Responsibility Principle
+## S - Single Responsibility Principle (принцип єдиної відповідальності)
 
-> A module should have one, and only one, reason to change.
+> Модуль повинен мати одну, і лише одну, причину для змін.
 
-The "reason to change" is the important part. It does not mean "a class has one method". It means that each part of the code answers to one source of changes: when the sensor is replaced, only the conversion changes, when the customer wants another log format, only the formatting changes.
+Важлива тут «причина для змін». Це не означає «клас має один метод». Це означає, що кожна частина коду відповідає перед одним джерелом змін: коли замінюють датчик, змінюється лише перетворення, коли замовник хоче інший формат журналу, змінюється лише форматування.
 
-### In C++
+### На C++
 
-The following class does everything: it reads the ADC, converts the value, formats the text and sends it. Four reasons to change in one place:
+Наступний клас робить усе: читає АЦП, перетворює значення, форматує текст і надсилає його. Чотири причини для змін в одному місці:
 
 ```cpp
 class TemperatureMonitor
@@ -53,7 +53,7 @@ public:
 };
 ```
 
-Every change (a new sensor, a CAN log instead of UART, a different text format) edits the same class, and nothing of it can be tested without the hardware. The fix is to separate the responsibilities and let the monitor only connect them:
+Кожна зміна (новий датчик, журнал у CAN замість UART, інший формат тексту) править той самий клас, і нічого з цього не можна протестувати без hardware. Розв'язок - розділити відповідальності й дозволити монітору лише з'єднувати їх:
 
 ```cpp
 class AdcChannel
@@ -94,9 +94,9 @@ private:
 };
 ```
 
-### In C
+### На C
 
-Exactly the same mistake is possible, and common, in plain C, where it usually looks like one long function in `main.c`:
+Точно така сама помилка можлива, і поширена, у звичайному C, де зазвичай виглядає як одна довга функція в `main.c`:
 
 ```c
 void Monitor_Run(void)
@@ -109,7 +109,7 @@ void Monitor_Run(void)
 }
 ```
 
-The tool for separation in C is the **module**: a pair of files `.h`/`.c` with a common prefix, where the header is the public interface and everything else is `static`. One module, one responsibility:
+Інструмент розділення в C - це **модуль**: пара файлів `.h`/`.c` зі спільним префіксом, де заголовок - публічний інтерфейс, а все інше - `static`. Один модуль, одна відповідальність:
 
 ```c title="Tmp36.h"
 #ifndef TMP36_H
@@ -147,7 +147,7 @@ void Logger_Print_Temperature(float celsius)
 }
 ```
 
-The ADC module (`Adc.h`) is the same idea and the monitor only wires the modules together:
+Модуль АЦП (`Adc.h`) - та сама ідея, а монітор лише з'єднує модулі між собою:
 
 ```c title="Monitor.c"
 #include "Adc.h"
@@ -160,17 +160,17 @@ void Monitor_Run(void)
 }
 ```
 
-If the TMP36 is replaced by an NTC, only `Tmp36.c` is exchanged. If the log goes to CAN instead of UART, only `Logger.c` changes. And `Tmp36_Get_Celsius()` can be tested on your PC with a plain `assert`, because it does not touch any register.
+Якщо TMP36 замінюють на NTC, міняється лише `Tmp36.c`. Якщо журнал іде в CAN замість UART, змінюється лише `Logger.c`. А `Tmp36_Get_Celsius()` можна протестувати на вашому PC звичайним `assert`, бо вона не торкається жодного регістра.
 
-## O - Open/Closed Principle
+## O - Open/Closed Principle (принцип відкритості/закритості)
 
-> Software entities should be open for extension, but closed for modification.
+> Програмні сутності повинні бути відкритими для розширення, але закритими для модифікації.
 
-You shall be able to add new behaviour without editing code that already works and is tested. The typical smell is a `switch` over a type that grows with every new feature.
+Ви повинні мати можливість додавати нову поведінку, не редагуючи код, який уже працює й протестований. Типовий запах - `switch` за типом, який росте з кожною новою функцією.
 
-### In C++
+### На C++
 
-The pipeline below has to be modified for every new filter, including the `enum` and the `switch`:
+Конвеєр нижче доводиться змінювати для кожного нового фільтра, включно з `enum` і `switch`:
 
 ```cpp
 enum class FilterType { MovingAverage, Median };
@@ -197,7 +197,7 @@ private:
 };
 ```
 
-The solution is an abstraction (interface) that the pipeline knows and new filters implement:
+Рішення - абстракція (інтерфейс), яку знає конвеєр і яку реалізують нові фільтри:
 
 ```cpp
 class IFilter
@@ -252,11 +252,11 @@ private:
 };
 ```
 
-A new filter is a new class. `SamplePipeline` is closed for modification and the system is open for extension.
+Новий фільтр - це новий клас. `SamplePipeline` закритий для модифікації, а система відкрита для розширення.
 
-### In C
+### На C
 
-The same `switch` problem in C:
+Та сама проблема з `switch` у C:
 
 ```c
 typedef enum { FILTER_MOVING_AVERAGE, FILTER_MEDIAN } filterType_t;
@@ -272,7 +272,7 @@ float Pipeline_Feed(filterType_t type, float sample)
 }
 ```
 
-The C replacement for the virtual table is a **table of function pointers** and a `void *context` for the data of the instance. The abstraction is defined once:
+Замінник віртуальної таблиці в C - це **таблиця вказівників на функції** та `void *context` для даних екземпляра. Абстракція визначається один раз:
 
 ```c title="Filter.h"
 #ifndef FILTER_H
@@ -298,7 +298,7 @@ static inline float Filter_Process(const filter_t *filter, float sample)
 #endif
 ```
 
-Every filter is a pair of the data (`context`) and a constant table with the behaviour:
+Кожен фільтр - це пара з даних (`context`) і константної таблиці з поведінкою:
 
 ```c title="MovingAverage.h"
 #ifndef MOVING_AVERAGE_H
@@ -335,7 +335,7 @@ static float MovingAverage_Process(void *context, float sample)
 const filterOps_t movingAverageOps = { .Process = MovingAverage_Process };
 ```
 
-The second filter is a completely separate module, the first one was not touched:
+Другий фільтр - це цілком окремий модуль, перший не чіпали:
 
 ```c title="Median3.h"
 #ifndef MEDIAN3_H
@@ -372,7 +372,7 @@ static float Median3_Process(void *context, float sample)
 const filterOps_t median3Ops = { .Process = Median3_Process };
 ```
 
-The pipeline knows only `filter_t`, so it never needs to change again:
+Конвеєр знає лише `filter_t`, тож його більше ніколи не потрібно змінювати:
 
 ```c title="Pipeline.c"
 #include "Filter.h"
@@ -383,7 +383,7 @@ float Pipeline_Feed(const filter_t *filter, float sample)
 }
 ```
 
-And this is how it is used. Both filters work with the same pipeline:
+А ось як це використовується. Обидва фільтри працюють з тим самим конвеєром:
 
 ```c
 movingAverage_t average = {0};
@@ -395,17 +395,17 @@ const filter_t medianFilter = { &median3Ops, &median };
 float output = Pipeline_Feed(&medianFilter, sample);
 ```
 
-The tables are `const`, so they live in flash and cost no RAM. What the C++ compiler generates for `virtual` is exactly this.
+Таблиці `const`, тому живуть у flash і не коштують RAM. Те, що компілятор C++ генерує для `virtual`, - це саме воно.
 
-## L - Liskov Substitution Principle
+## L - Liskov Substitution Principle (принцип підстановки Ліскоу)
 
-> Objects of a subtype must be usable wherever the base type is expected, without the caller noticing the difference.
+> Об'єкти підтипу повинні бути придатними всюди, де очікується базовий тип, так, щоб викликач не помічав різниці.
 
-This is the least understood principle. It is not about the syntax (the compiler checks that for you), it is about the **contract**. A derived class must not require more than the base class promises and must not deliver less. If the caller needs an `if (typeid(...))`, the principle is broken.
+Це найменш зрозумілий принцип. Він не про синтаксис (його перевіряє компілятор), а про **контракт**. Похідний клас не повинен вимагати більше, ніж обіцяє базовий, і не повинен постачати менше. Якщо викликачу потрібен `if (typeid(...))`, принцип порушено.
 
-### In C++
+### На C++
 
-Three storage devices behind one interface. Which of them violates the contract?
+Три пристрої зберігання за одним інтерфейсом. Який із них порушує контракт?
 
 ```cpp
 class IStorage
@@ -444,9 +444,9 @@ public:
 };
 ```
 
-`Flash` requires aligned addresses and lengths, which the base class never mentioned, so code that stores five bytes works with `Eeprom` and silently fails with `Flash`. `RomImage` throws an exception in a system that probably builds with `-fno-exceptions`. All three compile, and only one behaves.
+`Flash` вимагає вирівняних адрес і довжин, чого базовий клас ніколи не згадував, тож код, який зберігає п'ять байтів, працює з `Eeprom` і мовчки провалюється з `Flash`. `RomImage` кидає виняток у системі, яка, імовірно, збирається з `-fno-exceptions`. Усі три компілюються, і лише один поводиться як слід.
 
-The fix is to honour the contract in the implementation, and to not inherit when the capability is not there:
+Виправлення - дотримуватися контракту в реалізації та не наслідувати, коли можливості немає:
 
 ```cpp
 class IReadable
@@ -482,9 +482,9 @@ public:
 };
 ```
 
-### In C
+### На C
 
-C has no inheritance, so is the principle irrelevant? On the contrary, a table of function pointers is an interface exactly like in C++ and the substitution problem is the same. In C it is even more dangerous, because the typical violations are a `NULL` in the table or an `assert` in the implementation:
+У C немає наслідування, тож принцип нерелевантний? Навпаки, таблиця вказівників на функції - це інтерфейс так само, як у C++, і проблема підстановки та сама. У C вона навіть небезпечніша, бо типові порушення - це `NULL` у таблиці або `assert` у реалізації:
 
 ```c
 typedef struct
@@ -508,7 +508,7 @@ bool Settings_Save(const storageOps_t *storage, const uint8_t *data, size_t leng
 }
 ```
 
-The cure is the same as in C++, plus one habit: **write the contract down in the header** and make all implementations obey it. No `NULL` in the table, no assert for a caller's mistake, no hidden precondition:
+Ліки ті самі, що й у C++, плюс одна звичка: **запишіть контракт у заголовку** і змусьте всі реалізації його виконувати. Жодного `NULL` у таблиці, жодного assert на помилку викликача, жодної прихованої передумови:
 
 ```c title="Storage.h"
 #ifndef STORAGE_H
@@ -564,17 +564,17 @@ storageStatus_t Settings_Save(const storageOps_t *storage, const uint8_t *data, 
 }
 ```
 
-`Settings_Save()` works with the flash, the ROM image (it gets a normal error code) and with any implementation that appears later.
+`Settings_Save()` працює з flash, з образом ROM (він отримує нормальний код помилки) і з будь-якою реалізацією, що з'явиться пізніше.
 
-## I - Interface Segregation Principle
+## I - Interface Segregation Principle (принцип розділення інтерфейсів)
 
-> Clients should not be forced to depend on methods they do not use.
+> Клієнтів не слід змушувати залежати від методів, якими вони не користуються.
 
-A "fat" interface couples everyone to everything. When the UART gets a new method, every client and every mock has to be recompiled and reviewed, even though they only wanted to send bytes.
+«Товстий» інтерфейс зв'язує всіх з усім. Коли UART отримує новий метод, кожен клієнт і кожен mock треба перекомпілювати й переглянути, хоча вони хотіли лише надсилати байти.
 
-### In C++
+### На C++
 
-The logger needs one method, but depends on five:
+Логеру потрібен один метод, але він залежить від п'яти:
 
 ```cpp
 class IUart
@@ -599,7 +599,7 @@ private:
 };
 ```
 
-The interface is split by the role of the client. Configuration stays on the concrete class, and the logger asks only for the ability to write bytes:
+Інтерфейс розділено за роллю клієнта. Конфігурація лишається на конкретному класі, а логер просить лише можливість записувати байти:
 
 ```cpp
 class IByteSink
@@ -637,11 +637,11 @@ private:
 };
 ```
 
-A mock for the logger test has now one method instead of five.
+Mock для тесту логера тепер має один метод замість п'яти.
 
-### In C
+### На C
 
-The fat interface exists in C as a huge struct of function pointers or, more often, as one giant header file `Uart.h` that everybody includes:
+Товстий інтерфейс існує і в C: як величезна структура вказівників на функції або, частіше, як один гігантський заголовний файл `Uart.h`, який включають усі:
 
 ```c
 typedef struct
@@ -656,7 +656,7 @@ typedef struct
 void Log_Init(const uartDriver_t *uart);   /* needs Send, receives five functions */
 ```
 
-There are two tools. The first is the same as in C++: a small interface (`byteSink_t`) that carries only what the client needs:
+Є два інструменти. Перший такий самий, як у C++: малий інтерфейс (`byteSink_t`), що несе лише те, що потрібно клієнтові:
 
 ```c title="ByteSink.h"
 #ifndef BYTE_SINK_H
@@ -701,7 +701,7 @@ void Log_Print(const char *text)
 }
 ```
 
-The second one is specific for C: **split the header**. Everyone who only sends bytes includes `Uart_Tx.h` and nobody else sees the configuration:
+Другий специфічний для C: **розділіть заголовок**. Усі, хто лише надсилає байти, включають `Uart_Tx.h`, і ніхто інший не бачить конфігурації:
 
 ```c
 /* Uart_Config.h  - used by the code that sets the peripheral up */
@@ -715,17 +715,17 @@ void Uart_Send(uart_t *uart, const uint8_t *data, size_t length);
 size_t Uart_Receive(uart_t *uart, uint8_t *data, size_t maxLength);
 ```
 
-The logger can be tested with a three-line function that captures the bytes. It does not know that a UART exists.
+Логер можна протестувати трирядковою функцією, що перехоплює байти. Він не знає, що UART існує.
 
-## D - Dependency Inversion Principle
+## D - Dependency Inversion Principle (принцип інверсії залежностей)
 
-> High-level modules should not depend on low-level modules. Both should depend on abstractions. Abstractions should not depend on details.
+> Модулі високого рівня не повинні залежати від модулів низького рівня. Обидва повинні залежати від абстракцій. Абстракції не повинні залежати від деталей.
 
-This is the principle that connects the other four. It is the one behind the layers from the article about [design and architecture](/blog/design-architecture): the application must not know which register toggles a LED.
+Це принцип, що пов'язує решту чотирьох. Саме він стоїть за шарами зі статті про [проєктування та архітектуру](/blog/design-architecture): застосунок не повинен знати, який регістр перемикає світлодіод.
 
-### In C++
+### На C++
 
-The thermostat (a high-level policy) contains the ADC and GPIO classes (low-level details). It cannot be compiled without the hardware, cannot be tested on a PC and cannot be moved to another board:
+Термостат (політика високого рівня) містить класи АЦП і GPIO (деталі низького рівня). Його не можна скомпілювати без hardware, не можна протестувати на PC і не можна перенести на іншу плату:
 
 ```cpp
 class Thermostat
@@ -744,7 +744,7 @@ private:
 };
 ```
 
-After the inversion, the policy owns the interfaces and the drivers implement them. The arrow of the dependency points to the policy:
+Після інверсії інтерфейси належать політиці, а драйвери їх реалізують. Стрілка залежності вказує на політику:
 
 ```text
 before:   Thermostat ───▶ AdcSensor, GpioHeater
@@ -792,11 +792,11 @@ class AdcSensor  : public ITemperatureSensor { public: float ReadCelsius() overr
 class GpioHeater : public IHeater            { public: void  Set(bool on) override; };
 ```
 
-### In C
+### На C
 
-C offers two ways, and the second one is unique for C and cheaper than any virtual call.
+C пропонує два способи, і другий унікальний для C та дешевший за будь-який віртуальний виклик.
 
-**1. Runtime injection** with function pointers, exactly like in the open/closed example. The interface belongs to the thermostat (it is in `Thermostat.h`), the drivers fill it:
+**1. Ін'єкція під час виконання** через вказівники на функції, точнісінько як у прикладі про відкритість/закритість. Інтерфейс належить термостату (він у `Thermostat.h`), драйвери його заповнюють:
 
 ```c title="Thermostat.h"
 #ifndef THERMOSTAT_H
@@ -828,9 +828,9 @@ void Thermostat_Update(const thermostatPorts_t *ports)
 }
 ```
 
-In the unit test you pass functions that return a number and remember the heater state. On the target you pass `Adc_Get_Celsius` and `Gpio_Set_Heater`, and `Thermostat.c` stays untouched.
+У модульному тесті ви передаєте функції, що повертають число й запам'ятовують стан нагрівача. На цільовій платформі ви передаєте `Adc_Get_Celsius` та `Gpio_Set_Heater`, а `Thermostat.c` лишається недоторканим.
 
-**2. Link-time injection.** Sometimes you do not need to switch implementations at runtime, you only need to make a decision once, in the build system. Then the abstraction is a **header with declarations** and the implementation is a source file that CMake picks for the target:
+**2. Ін'єкція під час лінкування.** Іноді реалізації не потрібно перемикати під час виконання, достатньо ухвалити рішення один раз, у системі збірки. Тоді абстракція - це **заголовок з оголошеннями**, а реалізація - вихідний файл, який CMake обирає для цілі:
 
 ```c title="Bsp_Thermostat.h"
 #ifndef BSP_THERMOSTAT_H
@@ -856,26 +856,26 @@ void Thermostat_Update(void)
 }
 ```
 
-For the board, `Bsp_Thermostat_Stm32.c` is linked and implements both functions with the real peripherals. In the unit test on the PC, `Bsp_Thermostat_Fake.c` is linked instead. No function pointers, no indirection, no RAM, and the thermostat is still completely independent of the hardware. This is, by the way, exactly what the BSP of Embedbits does: the application calls an interface of the BSP and does not care which family or which board is behind it.
+Для плати лінкується `Bsp_Thermostat_Stm32.c`, що реалізує обидві функції зі справжньою периферією. У модульному тесті на PC натомість лінкується `Bsp_Thermostat_Fake.c`. Жодних вказівників на функції, жодної непрямості, жодної RAM, а термостат і далі повністю незалежний від hardware. Це, до речі, саме те, що робить BSP від Embedbits: застосунок викликає інтерфейс BSP і не переймається, яка родина чи яка плата за ним стоїть.
 
-## The same ideas in two languages
+## Ті самі ідеї в двох мовах
 
-| Principle | C++ | C |
+| Принцип | C++ | C |
 |---|---|---|
-| **S** | class | module (`.h`/`.c` pair, prefix, `static`) |
-| **O** | abstract class, `virtual`, `override` | `const` table of function pointers + `void *context` |
-| **L** | contract of the base class | contract written in the header, no `NULL` in the table |
-| **I** | several small interfaces | small structs of pointers, split headers |
-| **D** | constructor injection of an interface | function pointers in a `struct`, or link-time injection |
+| **S** | клас | модуль (пара `.h`/`.c`, префікс, `static`) |
+| **O** | абстрактний клас, `virtual`, `override` | `const` таблиця вказівників на функції + `void *context` |
+| **L** | контракт базового класу | контракт, записаний у заголовку, без `NULL` у таблиці |
+| **I** | кілька малих інтерфейсів | малі структури вказівників, розділені заголовки |
+| **D** | ін'єкція інтерфейсу через конструктор | вказівники на функції в `struct` або ін'єкція під час лінкування |
 
-## What the compiler does not do for you
+## Чого компілятор за вас не зробить
 
-Honesty is due. C++ has advantages that you have to replace by discipline in C:
+Треба бути чесним. C++ має переваги, які в C доводиться замінювати дисципліною:
 
-- **No compile-time check.** If a field of the function table is forgotten, the compiler stays silent (designated initializers at least name the fields, and in C a missing one becomes `NULL`). Use `.Process = ...` initializers, never positional ones, and have a unit test that calls every function of each implementation.
-- **`void *context` is not type safe.** A wrong cast will not be found by the compiler. Keep the cast in one line at the beginning of each function (`movingAverage_t *self = context;`) and nowhere else.
-- **Costs.** An indirect call is a few cycles and the tables cost flash. On a Cortex-M this is usually irrelevant, but not in an interrupt that runs every 10 microseconds. There, the link-time variant is free.
+- **Немає перевірки під час компіляції.** Якщо забути поле таблиці функцій, компілятор мовчить (designated initializers принаймні називають поля, а в C пропущене стає `NULL`). Використовуйте ініціалізатори `.Process = ...`, ніколи позиційні, і майте модульний тест, що викликає кожну функцію кожної реалізації.
+- **`void *context` не є типобезпечним.** Неправильне приведення компілятор не знайде. Тримайте приведення в одному рядку на початку кожної функції (`movingAverage_t *self = context;`) і ніде більше.
+- **Вартість.** Непрямий виклик - це кілька тактів, а таблиці займають flash. На Cortex-M це зазвичай неістотно, але не в перериванні, що виконується кожні 10 мікросекунд. Там варіант із лінкуванням безкоштовний.
 
-And the biggest trap: **SOLID is a set of guidelines, not a law**. Splitting a 30 line function into five modules with function pointer tables because "the principle says so" is its own kind of spaghetti. Apply a principle when there is a real reason to change, a second implementation, or a unit test that cannot be written without it. Not before.
+І найбільша пастка: **SOLID - це набір настанов, а не закон**. Розбити функцію на 30 рядків на п'ять модулів із таблицями вказівників на функції, бо «так каже принцип», - це свій різновид спагеті. Застосовуйте принцип, коли є справжня причина для змін, друга реалізація або модульний тест, який неможливо написати без нього. Не раніше.
 
-If you remember one sentence from this article, let it be this one: **the principles are about the direction of dependencies and the size of the pieces, not about classes.** C++ gives you classes, C gives you modules and function pointers. The good design needs neither of them to be fancy.
+Якщо ви запам'ятаєте з цієї статті одне речення, нехай це буде таке: **принципи стосуються напрямку залежностей і розміру частин, а не класів.** C++ дає вам класи, C дає модулі й вказівники на функції. Для хорошого дизайну не потрібне ні те, ні інше, щоб бути вигадливим.

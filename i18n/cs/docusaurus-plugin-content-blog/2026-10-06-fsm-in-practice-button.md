@@ -287,7 +287,7 @@ Poslední dva řádky jsou případ, který příznaky vždycky pokazí. Držen�
 
 1. **Čas patří periodě tasku, ne zpoždění.** Automat počítá běhy, takže limity (50 ms, 1 s) jsou počty tiků. Nikdy ve stavu nevolejte delay, zablokuje všechny ostatní automaty.
 2. **Vzorkujte v tasku, ne v přerušení.** Přerušení od pinu by vidělo každé zakmitnutí. Task běžící každých 10 ms je dolní propust zdarma.
-3. **Jediný slot pro událost události ztrácí,** pokud je aplikace čte pomaleji, než je automat vyrábí. U tlačítka to nevadí, u protokolu ano: použijte frontu.
+3. **Jediný slot pro událost ztrácí události,** pokud je aplikace čte pomaleji, než je automat vyrábí. U tlačítka to nevadí, u protokolu ano: použijte frontu.
 4. **Neplatný stav je také stav.** Kontrola rozsahu v jádře pošle poškozenou proměnnou do bezpečného stavu místo čtení tabulky mimo její meze (platí zde pravidla MISRA o [nedefinovaném chování](/blog/misra-c-rules-in-practice)).
 5. **Automat s 30 stavy je znamením chybějící hierarchie.** Rozdělte ho na několik automatů, kde jeden je *stavem* druhého, a každý udržte tak malý, aby se tabulka vešla na jednu obrazovku.
 

@@ -343,7 +343,7 @@ frame_t *Frame_Acquire(void)
 }
 ```
 
-Funkce vrací `NULL`, jsou-li všechny rámce obsazené, takže případ „není paměť“ je v kódu ošetřen a dá se otestovat na PC. Úplně totéž se děje s `malloc`, jen to otestovat nemůžete, protože na vašem PC alokace nikdy nselže.
+Funkce vrací `NULL`, jsou-li všechny rámce obsazené, takže případ „není paměť“ je v kódu ošetřen a dá se otestovat na PC. Úplně totéž se děje s `malloc`, jen to otestovat nemůžete, protože na vašem PC alokace nikdy neselže.
 
 **Kdo to najde:** analyzátor, nebo prostě linker, který `malloc` vůbec nelinkuje.
 
