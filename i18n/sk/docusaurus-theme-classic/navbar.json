@@ -1,0 +1,30 @@
+{
+  "title": {
+    "message": "Embedbits",
+    "description": "The title in the navbar"
+  },
+  "logo.alt": {
+    "message": "Embedbits",
+    "description": "The alt text of navbar logo"
+  },
+  "item.label.Projects": {
+    "message": "Projekty",
+    "description": "Navbar item with label Projects"
+  },
+  "item.label.Documentation": {
+    "message": "Dokumentácia",
+    "description": "Navbar item with label Documentation"
+  },
+  "item.label.Articles": {
+    "message": "Články",
+    "description": "Navbar item with label Articles"
+  },
+  "item.label.About": {
+    "message": "O nás",
+    "description": "Navbar item with label About"
+  },
+  "item.label.GitHub": {
+    "message": "GitHub",
+    "description": "Navbar item with label GitHub"
+  }
+}

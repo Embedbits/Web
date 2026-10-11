@@ -1,0 +1,39 @@
+---
+sidebar_position: 1
+---
+
+# Embedbits
+
+Embedbits je zbierka projektov embedded softvéru, nástrojov, dokumentácie a článkov
+zameraných na udržateľný vývoj pre STM32.
+
+Platforma je rozdelená do nezávislých repozitárov, ktoré sa do projektu skladajú ako Git submoduly.
+
+## Stavebné bloky
+
+| Oblasť | Čo poskytuje |
+|---|---|
+| [Platforma](./platform/embi-platform/index.md) | Inštalačné skripty `EmBi_Platform`, pomocné nástroje pre CMake a šablóny projektov. |
+| [Štýl kódovania](./platform/embi-platform/coding-style.md) | Pravidlá pomenovania, formátovania a dokumentácie používané vo všetkom kóde Embedbits. |
+| [Dizajn a architektúra](/blog/design-architecture) | Ako rozdeliť embedded softvér na moduly a abstrakčné vrstvy (RAL, MCAL, HAL, BSP). |
+| [BSP](./bsp/index.md) | Board Support Package: linker, startup, RAL a MCAL pre každú rodinu STM32. |
+| [Artefakty](./artifacts/index.md) | Verzované build nástroje (GCC, Ninja, Doxygen, Unity, CMock, Renode, ...) sťahované nástrojom Artifacts Handler. |
+
+## Vrstvy
+
+```text
+Application
+Middlewares
+BSP
+├── MCAL      peripheral drivers (GPIO, USART, I2C, ...)
+├── RAL       unified access to CMSIS and STM32 LL
+├── Startup   reset handler, memory initialization
+└── Linker    linker script generation
+```
+
+## Odkiaľ pochádza obsah
+
+Stránky v sekciách Platforma, BSP a Artefakty sa generujú zo súboru `README.md` príslušného
+repozitára v [organizácii Embedbits na GitHube](https://github.com/Embedbits). Synchronizujú sa
+automaticky, takže zdrojom pravdy je vždy README repozitára. Pomocou odkazu **Upraviť túto stránku**
+na ktorejkoľvek z týchto stránok sa dostanete priamo na správne README.

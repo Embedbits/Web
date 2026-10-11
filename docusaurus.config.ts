@@ -41,7 +41,13 @@ const config: Config = {
   // may want to replace "en" with "zh-Hans".
   i18n: {
     defaultLocale: 'en',
-    locales: ['en'],
+    locales: ['en', 'sk', 'cs', 'uk'],
+    localeConfigs: {
+      en: {label: 'English', htmlLang: 'en'},
+      sk: {label: 'Slovenčina', htmlLang: 'sk-SK'},
+      cs: {label: 'Čeština', htmlLang: 'cs-CZ'},
+      uk: {label: 'Українська', htmlLang: 'uk-UA'},
+    },
   },
 
   presets: [
@@ -113,6 +119,10 @@ const config: Config = {
             {
                 href: 'https://github.com/Embedbits',
                 label: 'GitHub',
+                position: 'right',
+            },
+            {
+                type: 'localeDropdown',
                 position: 'right',
             },
         ],

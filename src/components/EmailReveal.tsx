@@ -1,6 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
 import type {ReactNode} from 'react';
 import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
+import Translate from '@docusaurus/Translate';
 
 type Turnstile = {
     render: (el: HTMLElement, options: {sitekey: string; callback: () => void}) => string;
@@ -49,17 +50,25 @@ export default function EmailReveal(): ReactNode {
     if (email) {
         return (
             <p>
-                Email: <a href={`mailto:${email}`}>{email}</a>
+                <Translate id="contact.emailLabel">Email:</Translate> <a href={`mailto:${email}`}>{email}</a>
             </p>
         );
     }
 
     return (
         <>
-            <p>Please confirm that you are human to see the e-mail address.</p>
+            <p>
+                <Translate id="contact.confirmHuman">
+                    Please confirm that you are human to see the e-mail address.
+                </Translate>
+            </p>
             <div ref={widget} />
             <noscript>
-                <p>JavaScript is required to show the e-mail address.</p>
+                <p>
+                    <Translate id="contact.noscript">
+                        JavaScript is required to show the e-mail address.
+                    </Translate>
+                </p>
             </noscript>
         </>
     );

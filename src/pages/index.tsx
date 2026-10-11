@@ -2,6 +2,7 @@ import type {ReactNode} from 'react';
 import clsx from 'clsx';
 import Link from '@docusaurus/Link';
 import Layout from '@theme/Layout';
+import Translate, {translate} from '@docusaurus/Translate';
 
 import styles from './index.module.css';
 
@@ -14,32 +15,47 @@ type Project = {
 const projects: Project[] = [
     {
         name: 'EmBi_Platform',
-        description:
-            'Setup scripts, CMake helpers, STM32CubeIDE templates and updater that tie a project together.',
+        description: translate({
+            id: 'projects.platform.description',
+            message:
+                'Setup scripts, CMake helpers, STM32CubeIDE templates and updater that tie a project together.',
+        }),
         href: '/docs/platform/embi-platform',
     },
     {
         name: 'BSP',
-        description:
-            'Board Support Package with one branch per STM32 family: linker, startup, RAL and MCAL.',
+        description: translate({
+            id: 'projects.bsp.description',
+            message:
+                'Board Support Package with one branch per STM32 family: linker, startup, RAL and MCAL.',
+        }),
         href: '/docs/bsp',
     },
     {
         name: 'RAL',
-        description:
-            'Register abstraction layer around CMSIS and STM32 LL for a unified low-level interface.',
+        description: translate({
+            id: 'projects.ral.description',
+            message:
+                'Register abstraction layer around CMSIS and STM32 LL for a unified low-level interface.',
+        }),
         href: '/docs/bsp/ral',
     },
     {
         name: 'MCAL',
-        description:
-            'Peripheral drivers with a consistent API: GPIO, USART, I2C, ADC, DMA, NVIC, TIM and more.',
+        description: translate({
+            id: 'projects.mcal.description',
+            message:
+                'Peripheral drivers with a consistent API: GPIO, USART, I2C, ADC, DMA, NVIC, TIM and more.',
+        }),
         href: '/docs/bsp/mcal',
     },
     {
         name: 'Artifacts',
-        description:
-            'Versioned build tools such as GCC, Ninja, Doxygen, Unity, CMock and Renode, fetched automatically.',
+        description: translate({
+            id: 'projects.artifacts.description',
+            message:
+                'Versioned build tools such as GCC, Ninja, Doxygen, Unity, CMock and Renode, fetched automatically.',
+        }),
         href: '/docs/artifacts',
     },
 ];
@@ -49,7 +65,7 @@ function ProjectCard({project}: {project: Project}): ReactNode {
         <Link className={styles.projectCard} to={project.href}>
             <h3>{project.name}</h3>
             <p>{project.description}</p>
-            <span>Explore project →</span>
+            <span><Translate id="home.exploreProject">Explore project →</Translate></span>
         </Link>
     );
 }
@@ -57,27 +73,40 @@ function ProjectCard({project}: {project: Project}): ReactNode {
 export default function Home(): ReactNode {
     return (
         <Layout
-            title="Embedded software engineering"
-            description="Embedded software engineering, projects, documentation and articles."
+            title={translate({id: 'home.title', message: 'Embedded software engineering'})}
+            description={translate({
+                id: 'home.metaDescription',
+                message: 'Embedded software engineering, projects, documentation and articles.',
+            })}
         >
             <main>
                 <section className={styles.hero}>
                     <div className={styles.heroInner}>
                         <div className={styles.eyebrow}>
-                            EMBEDDED SOFTWARE ENGINEERING
+                            <Translate id="home.eyebrow">
+                                EMBEDDED SOFTWARE ENGINEERING
+                            </Translate>
                         </div>
 
                         <h1>
-                            Building embedded software
+                            <Translate id="home.headline1">
+                                Building embedded software
+                            </Translate>
                             <br />
-                            <span>without unnecessary complexity.</span>
+                            <span>
+                                <Translate id="home.headline2">
+                                    without unnecessary complexity.
+                                </Translate>
+                            </span>
                         </h1>
 
                         <p className={styles.heroDescription}>
-                            Reusable embedded software projects, engineering
-                            documentation and practical articles covering
-                            architecture, STM32, tooling, testing and
-                            development infrastructure.
+                            <Translate id="home.description">
+                                Reusable embedded software projects, engineering
+                                documentation and practical articles covering
+                                architecture, STM32, tooling, testing and
+                                development infrastructure.
+                            </Translate>
                         </p>
 
                         <div className={styles.heroActions}>
@@ -89,7 +118,7 @@ export default function Home(): ReactNode {
                                 )}
                                 to="/projects"
                             >
-                                Explore projects
+                                <Translate id="home.exploreProjects">Explore projects</Translate>
                             </Link>
 
                             <Link
@@ -100,7 +129,7 @@ export default function Home(): ReactNode {
                                 )}
                                 to="/blog"
                             >
-                                Read articles
+                                <Translate id="home.readArticles">Read articles</Translate>
                             </Link>
                         </div>
                     </div>
@@ -109,12 +138,16 @@ export default function Home(): ReactNode {
                 <section className={styles.motto}>
                     <blockquote>
                         <span>
-                            Always write your code, as if the guy, who ends up
-                            maintaining your code,
+                            <Translate id="home.motto1">
+                                Always write your code, as if the guy, who ends
+                                up maintaining your code,
+                            </Translate>
                         </span>{' '}
                         <span>
-                            will be a violent psychopath who knows where you
-                            live.
+                            <Translate id="home.motto2">
+                                will be a violent psychopath who knows where you
+                                live.
+                            </Translate>
                         </span>
                     </blockquote>
                 </section>
@@ -123,13 +156,13 @@ export default function Home(): ReactNode {
                     <div className={styles.sectionHeader}>
                         <div>
                             <div className={styles.sectionEyebrow}>
-                                OPEN SOURCE & ENGINEERING
+                                <Translate id="home.sectionEyebrow">OPEN SOURCE & ENGINEERING</Translate>
                             </div>
-                            <h2>Projects</h2>
+                            <h2><Translate id="home.projects">Projects</Translate></h2>
                         </div>
 
                         <Link to="/projects" className={styles.viewAll}>
-                            View all →
+                            <Translate id="home.viewAll">View all →</Translate>
                         </Link>
                     </div>
 
@@ -147,13 +180,15 @@ export default function Home(): ReactNode {
                     <div className={styles.feature}>
                         <div className={styles.featureNumber}>01</div>
                         <div>
-                            <h3>Documentation</h3>
+                            <h3><Translate id="home.feature1.title">Documentation</Translate></h3>
                             <p>
-                                Architecture, configuration and practical
-                                guides for embedded software projects.
+                                <Translate id="home.feature1.text">
+                                    Architecture, configuration and practical
+                                    guides for embedded software projects.
+                                </Translate>
                             </p>
                             <Link to="/docs/intro">
-                                Browse documentation →
+                                <Translate id="home.feature1.link">Browse documentation →</Translate>
                             </Link>
                         </div>
                     </div>
@@ -161,25 +196,34 @@ export default function Home(): ReactNode {
                     <div className={styles.feature}>
                         <div className={styles.featureNumber}>02</div>
                         <div>
-                            <h3>Articles</h3>
+                            <h3><Translate id="home.feature2.title">Articles</Translate></h3>
                             <p>
-                                Practical notes about embedded C, STM32,
-                                software architecture, build systems and
-                                development tools.
+                                <Translate id="home.feature2.text">
+                                    Practical notes about embedded C, STM32,
+                                    software architecture, build systems and
+                                    development tools.
+                                </Translate>
                             </p>
-                            <Link to="/blog">Read articles →</Link>
+                            <Link to="/blog">
+                                <Translate id="home.feature2.link">Read articles →</Translate>
+                            </Link>
                         </div>
                     </div>
 
                     <div className={styles.feature}>
                         <div className={styles.featureNumber}>03</div>
                         <div>
-                            <h3>Engineering</h3>
+                            <h3><Translate id="home.feature3.title">Engineering</Translate></h3>
                             <p>
-                                Focused on maintainable software, reproducible
-                                builds, testing and reusable infrastructure.
+                                <Translate id="home.feature3.text">
+                                    Focused on maintainable software,
+                                    reproducible builds, testing and reusable
+                                    infrastructure.
+                                </Translate>
                             </p>
-                            <Link to="/about">About Embedbits →</Link>
+                            <Link to="/about">
+                                <Translate id="home.feature3.link">About Embedbits →</Translate>
+                            </Link>
                         </div>
                     </div>
                 </section>

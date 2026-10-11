@@ -1,0 +1,518 @@
+{
+  "contact.emailLabel": {
+    "message": "E-mail:"
+  },
+  "contact.confirmHuman": {
+    "message": "Potvrďte prosím, že ste človek, aby sa zobrazila e-mailová adresa."
+  },
+  "contact.noscript": {
+    "message": "Na zobrazenie e-mailovej adresy je potrebný JavaScript."
+  },
+  "about.title": {
+    "message": "O nás"
+  },
+  "about.metaDescription": {
+    "message": "O Embedbits: opakovane použiteľné, dobre zdokumentované stavebné bloky pre udržiavateľný vývoj na STM32."
+  },
+  "about.heading": {
+    "message": "O Embedbits"
+  },
+  "about.intro": {
+    "message": "Embedbits je zbierka projektov, nástrojov a článkov o embedded softvéri zameraných na udržiavateľný vývoj na STM32. Vznikol ako osobná odpoveď na známy problém: každý projekt nakoniec má vlastné build skripty, vlastné ovládače a vlastný spôsob práce. Embedbits sa snaží premeniť to na opakovane použiteľné, dobre zdokumentované stavebné bloky."
+  },
+  "about.who.heading": {
+    "message": "Kto za tým stojí"
+  },
+  "about.who.text": {
+    "message": "Som Mr.Nobody, softvérový inžinier pre embedded systémy so skúsenosťami z automobilového priemyslu. Coding style, šablóna stavového automatu a mnohé architektonické nápady pochádzajú z reálnych projektov, ktoré som zjednodušil a zverejnil ako open source. Licencia každého projektu je uvedená v jeho repozitári."
+  },
+  "about.find.heading": {
+    "message": "Čo tu nájdete"
+  },
+  "about.find.projects": {
+    "message": "Projekty"
+  },
+  "about.find.projects.text": {
+    "message": "EmBi_Platform, BSP (RAL a MCAL) a Artifacts, build nástroje sťahované automaticky."
+  },
+  "about.find.docs": {
+    "message": "Dokumentácia"
+  },
+  "about.find.docs.text": {
+    "message": "README všetkých repozitárov na jednom mieste vrátane informácie, ktoré rodiny STM32 jednotlivé moduly podporujú."
+  },
+  "about.find.articles": {
+    "message": "Články"
+  },
+  "about.find.articles.text": {
+    "message": "poznámky o architektúre softvéru, stavových automatoch a embedded C."
+  },
+  "about.principles.heading": {
+    "message": "Zásady"
+  },
+  "about.principles.1": {
+    "message": "Čitateľný kód je lepší než vychytralý kód."
+  },
+  "about.principles.2": {
+    "message": "Jeden modul, jedna zodpovednosť, jedno rozhranie."
+  },
+  "about.principles.3": {
+    "message": "Reprodukovateľné buildy: ten istý projekt sa na každom počítači zostaví rovnako."
+  },
+  "about.principles.4": {
+    "message": "Ak sa to dá testovať, malo by sa to testovať."
+  },
+  "about.contact.heading": {
+    "message": "Kontaktujte nás"
+  },
+  "about.contact.text": {
+    "message": "Pozrite si stránku {contact} alebo navštívte {github}."
+  },
+  "about.contact.link": {
+    "message": "Kontakt"
+  },
+  "contact.title": {
+    "message": "Kontakt"
+  },
+  "contact.metaDescription": {
+    "message": "Kontakt na Embedbits"
+  },
+  "contact.heading": {
+    "message": "Kontakt"
+  },
+  "contact.intro": {
+    "message": "Ozvite sa nám v súvislosti s projektmi, spoluprácou, komerčným licencovaním alebo vývojom embedded softvéru."
+  },
+  "contact.contributions": {
+    "message": "Príspevky sú vítané. Otvorte prosím pull request v príslušnom repozitári."
+  },
+  "projects.platform.description": {
+    "message": "Inštalačné skripty, CMake helpery, šablóny STM32CubeIDE a updater, ktoré spájajú projekt dokopy."
+  },
+  "projects.bsp.description": {
+    "message": "Board Support Package s jednou vetvou pre každú rodinu STM32: linker, startup, RAL a MCAL."
+  },
+  "projects.ral.description": {
+    "message": "Vrstva abstrakcie registrov nad CMSIS a STM32 LL pre jednotné nízkoúrovňové rozhranie."
+  },
+  "projects.mcal.description": {
+    "message": "Ovládače periférií s konzistentným API: GPIO, USART, I2C, ADC, DMA, NVIC, TIM a ďalšie."
+  },
+  "projects.artifacts.description": {
+    "message": "Verziované build nástroje ako GCC, Ninja, Doxygen, Unity, CMock a Renode, sťahované automaticky."
+  },
+  "home.exploreProject": {
+    "message": "Preskúmať projekt →"
+  },
+  "home.title": {
+    "message": "Vývoj embedded softvéru"
+  },
+  "home.metaDescription": {
+    "message": "Vývoj embedded softvéru, projekty, dokumentácia a články."
+  },
+  "home.eyebrow": {
+    "message": "VÝVOJ EMBEDDED SOFTVÉRU"
+  },
+  "home.headline1": {
+    "message": "Tvoríme embedded softvér"
+  },
+  "home.headline2": {
+    "message": "bez zbytočnej zložitosti."
+  },
+  "home.description": {
+    "message": "Opakovane použiteľné projekty embedded softvéru, inžinierska dokumentácia a praktické články o architektúre, STM32, nástrojoch, testovaní a vývojovej infraštruktúre."
+  },
+  "home.exploreProjects": {
+    "message": "Preskúmať projekty"
+  },
+  "home.readArticles": {
+    "message": "Čítať články"
+  },
+  "home.motto1": {
+    "message": "Svoj kód píš vždy tak, akoby ten, kto ho raz bude udržiavať,"
+  },
+  "home.motto2": {
+    "message": "mal byť násilný psychopat, ktorý vie, kde bývaš."
+  },
+  "home.sectionEyebrow": {
+    "message": "OPEN SOURCE A INŽINIERSTVO"
+  },
+  "home.projects": {
+    "message": "Projekty"
+  },
+  "home.viewAll": {
+    "message": "Zobraziť všetko →"
+  },
+  "home.feature1.title": {
+    "message": "Dokumentácia"
+  },
+  "home.feature1.text": {
+    "message": "Architektúra, konfigurácia a praktické návody pre projekty embedded softvéru."
+  },
+  "home.feature1.link": {
+    "message": "Prechádzať dokumentáciu →"
+  },
+  "home.feature2.title": {
+    "message": "Články"
+  },
+  "home.feature2.text": {
+    "message": "Praktické poznámky o embedded C, STM32, architektúre softvéru, build systémoch a vývojových nástrojoch."
+  },
+  "home.feature2.link": {
+    "message": "Čítať články →"
+  },
+  "home.feature3.title": {
+    "message": "Inžinierstvo"
+  },
+  "home.feature3.text": {
+    "message": "Zameranie na udržiavateľný softvér, reprodukovateľné buildy, testovanie a opakovane použiteľnú infraštruktúru."
+  },
+  "home.feature3.link": {
+    "message": "O Embedbits →"
+  },
+  "projects.title": {
+    "message": "Projekty"
+  },
+  "projects.metaDescription": {
+    "message": "Projekty embedded softvéru Embedbits."
+  },
+  "projects.eyebrow": {
+    "message": "PROJEKTY EMBEDBITS"
+  },
+  "projects.heading": {
+    "message": "Projekty"
+  },
+  "projects.intro": {
+    "message": "Opakovane použiteľné softvérové komponenty a vývojová infraštruktúra pre embedded systémy."
+  },
+  "projects.explore": {
+    "message": "Preskúmať →"
+  },
+  "theme.ErrorPageContent.title": {
+    "message": "Táto stránka zlyhala.",
+    "description": "The title of the fallback page when the page crashed"
+  },
+  "theme.BackToTopButton.buttonAriaLabel": {
+    "message": "Posunúť späť na začiatok",
+    "description": "The ARIA label for the back to top button"
+  },
+  "theme.blog.archive.title": {
+    "message": "Archív",
+    "description": "The page & hero title of the blog archive page"
+  },
+  "theme.blog.archive.description": {
+    "message": "Archív",
+    "description": "The page & hero description of the blog archive page"
+  },
+  "theme.blog.paginator.navAriaLabel": {
+    "message": "Navigácia zoznamu stránok blogu",
+    "description": "The ARIA label for the blog pagination"
+  },
+  "theme.blog.paginator.newerEntries": {
+    "message": "Novšie príspevky",
+    "description": "The label used to navigate to the newer blog posts page (previous page)"
+  },
+  "theme.blog.paginator.olderEntries": {
+    "message": "Staršie príspevky",
+    "description": "The label used to navigate to the older blog posts page (next page)"
+  },
+  "theme.blog.post.paginator.navAriaLabel": {
+    "message": "Navigácia stránok príspevkov blogu",
+    "description": "The ARIA label for the blog posts pagination"
+  },
+  "theme.blog.post.paginator.newerPost": {
+    "message": "Novší príspevok",
+    "description": "The blog post button label to navigate to the newer/previous post"
+  },
+  "theme.blog.post.paginator.olderPost": {
+    "message": "Starší príspevok",
+    "description": "The blog post button label to navigate to the older/next post"
+  },
+  "theme.tags.tagsPageLink": {
+    "message": "Zobraziť všetky štítky",
+    "description": "The label of the link targeting the tag list page"
+  },
+  "theme.colorToggle.ariaLabel.mode.system": {
+    "message": "systémový režim",
+    "description": "The name for the system color mode"
+  },
+  "theme.colorToggle.ariaLabel.mode.light": {
+    "message": "svetlý režim",
+    "description": "The name for the light color mode"
+  },
+  "theme.colorToggle.ariaLabel.mode.dark": {
+    "message": "tmavý režim",
+    "description": "The name for the dark color mode"
+  },
+  "theme.colorToggle.ariaLabel": {
+    "message": "Prepnúť medzi tmavým a svetlým režimom (aktuálne {mode})",
+    "description": "The ARIA label for the color mode toggle"
+  },
+  "theme.docs.breadcrumbs.navAriaLabel": {
+    "message": "Omrvinková navigácia",
+    "description": "The ARIA label for the breadcrumbs"
+  },
+  "theme.docs.paginator.navAriaLabel": {
+    "message": "Stránky dokumentácie",
+    "description": "The ARIA label for the docs pagination"
+  },
+  "theme.docs.paginator.previous": {
+    "message": "Predchádzajúca",
+    "description": "The label used to navigate to the previous doc"
+  },
+  "theme.docs.paginator.next": {
+    "message": "Nasledujúca",
+    "description": "The label used to navigate to the next doc"
+  },
+  "theme.docs.tagDocListPageTitle.nDocsTagged": {
+    "message": "Jeden dokument označený|{count} dokumenty označené|{count} dokumentu označeného|{count} dokumentov označených",
+    "description": "Pluralized label for \"{count} docs tagged\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+  },
+  "theme.docs.tagDocListPageTitle": {
+    "message": "{nDocsTagged} štítkom „{tagName}“",
+    "description": "The title of the page for a docs tag"
+  },
+  "theme.docs.versionBadge.label": {
+    "message": "Verzia: {versionLabel}"
+  },
+  "theme.docs.versions.unreleasedVersionLabel": {
+    "message": "Toto je nevydaná dokumentácia pre {siteTitle} verzie {versionLabel}.",
+    "description": "The label used to tell the user that he's browsing an unreleased doc version"
+  },
+  "theme.docs.versions.unmaintainedVersionLabel": {
+    "message": "Toto je dokumentácia pre {siteTitle} {versionLabel}, ktorá už nie je aktívne udržiavaná.",
+    "description": "The label used to tell the user that he's browsing an unmaintained doc version"
+  },
+  "theme.docs.versions.latestVersionSuggestionLabel": {
+    "message": "Aktuálnu dokumentáciu nájdete v {latestVersionLink} ({versionLabel}).",
+    "description": "The label used to tell the user to check the latest version"
+  },
+  "theme.docs.versions.latestVersionLinkLabel": {
+    "message": "najnovšej verzii",
+    "description": "The label used for the latest version suggestion link label"
+  },
+  "theme.common.editThisPage": {
+    "message": "Upraviť túto stránku",
+    "description": "The link label to edit the current page"
+  },
+  "theme.common.headingLinkTitle": {
+    "message": "Priamy odkaz na {heading}",
+    "description": "Title for link to heading"
+  },
+  "theme.lastUpdated.atDate": {
+    "message": " dňa {date}",
+    "description": "The words used to describe on which date a page has been last updated"
+  },
+  "theme.lastUpdated.byUser": {
+    "message": " používateľom {user}",
+    "description": "The words used to describe by who the page has been last updated"
+  },
+  "theme.lastUpdated.lastUpdatedAtBy": {
+    "message": "Naposledy aktualizované{atDate}{byUser}",
+    "description": "The sentence used to display when a page has been last updated, and by who"
+  },
+  "theme.navbar.mobileVersionsDropdown.label": {
+    "message": "Verzie",
+    "description": "The label for the navbar versions dropdown on mobile view"
+  },
+  "theme.NotFound.title": {
+    "message": "Stránka sa nenašla",
+    "description": "The title of the 404 page"
+  },
+  "theme.tags.tagsListLabel": {
+    "message": "Štítky:",
+    "description": "The label alongside a tag list"
+  },
+  "theme.admonition.caution": {
+    "message": "pozor",
+    "description": "The default label used for the Caution admonition (:::caution)"
+  },
+  "theme.admonition.danger": {
+    "message": "nebezpečenstvo",
+    "description": "The default label used for the Danger admonition (:::danger)"
+  },
+  "theme.admonition.info": {
+    "message": "informácia",
+    "description": "The default label used for the Info admonition (:::info)"
+  },
+  "theme.admonition.note": {
+    "message": "poznámka",
+    "description": "The default label used for the Note admonition (:::note)"
+  },
+  "theme.admonition.tip": {
+    "message": "tip",
+    "description": "The default label used for the Tip admonition (:::tip)"
+  },
+  "theme.admonition.warning": {
+    "message": "varovanie",
+    "description": "The default label used for the Warning admonition (:::warning)"
+  },
+  "theme.AnnouncementBar.closeButtonAriaLabel": {
+    "message": "Zavrieť",
+    "description": "The ARIA label for close button of announcement bar"
+  },
+  "theme.blog.sidebar.navAriaLabel": {
+    "message": "Navigácia najnovších príspevkov blogu",
+    "description": "The ARIA label for recent posts in the blog sidebar"
+  },
+  "theme.DocSidebarItem.expandCategoryAriaLabel": {
+    "message": "Rozbaliť kategóriu bočného panela „{label}“",
+    "description": "The ARIA label to expand the sidebar category"
+  },
+  "theme.DocSidebarItem.collapseCategoryAriaLabel": {
+    "message": "Zbaliť kategóriu bočného panela „{label}“",
+    "description": "The ARIA label to collapse the sidebar category"
+  },
+  "theme.IconExternalLink.ariaLabel": {
+    "message": "(otvorí sa na novej karte)",
+    "description": "The ARIA label for the external link icon"
+  },
+  "theme.NavBar.navAriaLabel": {
+    "message": "Hlavná",
+    "description": "The ARIA label for the main navigation"
+  },
+  "theme.navbar.mobileLanguageDropdown.label": {
+    "message": "Jazyky",
+    "description": "The label for the mobile language switcher dropdown"
+  },
+  "theme.NotFound.p1": {
+    "message": "Nepodarilo sa nám nájsť, čo ste hľadali.",
+    "description": "The first paragraph of the 404 page"
+  },
+  "theme.NotFound.p2": {
+    "message": "Kontaktujte prosím vlastníka stránky, ktorá vás odkázala na pôvodnú adresu URL, a dajte mu vedieť, že jeho odkaz je nefunkčný.",
+    "description": "The 2nd paragraph of the 404 page"
+  },
+  "theme.TOCCollapsible.toggleButtonLabel": {
+    "message": "Na tejto stránke",
+    "description": "The label used by the button on the collapsible TOC component"
+  },
+  "theme.blog.post.readMore": {
+    "message": "Čítať viac",
+    "description": "The label used in blog post item excerpts to link to full blog posts"
+  },
+  "theme.blog.post.readMoreLabel": {
+    "message": "Čítať viac o {title}",
+    "description": "The ARIA label for the link to full blog posts from excerpts"
+  },
+  "theme.blog.post.readingTime.plurals": {
+    "message": "Jedna minúta čítania|{readingTime} minúty čítania|{readingTime} minúty čítania|{readingTime} minút čítania",
+    "description": "Pluralized label for \"{readingTime} min read\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+  },
+  "theme.CodeBlock.copy": {
+    "message": "Kopírovať",
+    "description": "The copy button label on code blocks"
+  },
+  "theme.CodeBlock.copied": {
+    "message": "Skopírované",
+    "description": "The copied button label on code blocks"
+  },
+  "theme.CodeBlock.copyButtonAriaLabel": {
+    "message": "Skopírovať kód do schránky",
+    "description": "The ARIA label for copy code blocks button"
+  },
+  "theme.CodeBlock.wordWrapToggle": {
+    "message": "Prepnúť zalamovanie riadkov",
+    "description": "The title attribute for toggle word wrapping button of code block lines"
+  },
+  "theme.docs.breadcrumbs.home": {
+    "message": "Domovská stránka",
+    "description": "The ARIA label for the home page in the breadcrumbs"
+  },
+  "theme.docs.sidebar.collapseButtonTitle": {
+    "message": "Zbaliť bočný panel",
+    "description": "The title attribute for collapse button of doc sidebar"
+  },
+  "theme.docs.sidebar.collapseButtonAriaLabel": {
+    "message": "Zbaliť bočný panel",
+    "description": "The title attribute for collapse button of doc sidebar"
+  },
+  "theme.docs.sidebar.navAriaLabel": {
+    "message": "Bočný panel dokumentácie",
+    "description": "The ARIA label for the sidebar navigation"
+  },
+  "theme.docs.sidebar.closeSidebarButtonAriaLabel": {
+    "message": "Zavrieť navigačný panel",
+    "description": "The ARIA label for close button of mobile sidebar"
+  },
+  "theme.navbar.mobileSidebarSecondaryMenu.backButtonLabel": {
+    "message": "← Späť do hlavného menu",
+    "description": "The label of the back button to return to main menu, inside the mobile navbar sidebar secondary menu (notably used to display the docs sidebar)"
+  },
+  "theme.docs.sidebar.toggleSidebarButtonAriaLabel": {
+    "message": "Prepnúť navigačný panel",
+    "description": "The ARIA label for hamburger menu button of mobile navigation"
+  },
+  "theme.navbar.mobileDropdown.collapseButton.expandAriaLabel": {
+    "message": "Rozbaliť rozbaľovací zoznam",
+    "description": "The ARIA label of the button to expand the mobile dropdown navbar item"
+  },
+  "theme.navbar.mobileDropdown.collapseButton.collapseAriaLabel": {
+    "message": "Zbaliť rozbaľovací zoznam",
+    "description": "The ARIA label of the button to collapse the mobile dropdown navbar item"
+  },
+  "theme.docs.sidebar.expandButtonTitle": {
+    "message": "Rozbaliť bočný panel",
+    "description": "The ARIA label and title attribute for expand button of doc sidebar"
+  },
+  "theme.docs.sidebar.expandButtonAriaLabel": {
+    "message": "Rozbaliť bočný panel",
+    "description": "The ARIA label and title attribute for expand button of doc sidebar"
+  },
+  "theme.blog.post.plurals": {
+    "message": "Jeden príspevok|{count} príspevky|{count} príspevku|{count} príspevkov",
+    "description": "Pluralized label for \"{count} posts\". Use as much plural forms (separated by \"|\") as your language support (see https://www.unicode.org/cldr/cldr-aux/charts/34/supplemental/language_plural_rules.html)"
+  },
+  "theme.blog.tagTitle": {
+    "message": "{nPosts} so štítkom „{tagName}“",
+    "description": "The title of the page for a blog tag"
+  },
+  "theme.blog.author.pageTitle": {
+    "message": "{authorName} - {nPosts}",
+    "description": "The title of the page for a blog author"
+  },
+  "theme.blog.authorsList.pageTitle": {
+    "message": "Autori",
+    "description": "The title of the authors page"
+  },
+  "theme.blog.authorsList.viewAll": {
+    "message": "Zobraziť všetkých autorov",
+    "description": "The label of the link targeting the blog authors page"
+  },
+  "theme.blog.author.noPosts": {
+    "message": "Tento autor zatiaľ nenapísal žiadne príspevky.",
+    "description": "The text for authors with 0 blog post"
+  },
+  "theme.contentVisibility.unlistedBanner.title": {
+    "message": "Nezaradená stránka",
+    "description": "The unlisted content banner title"
+  },
+  "theme.contentVisibility.unlistedBanner.message": {
+    "message": "Táto stránka je nezaradená. Vyhľadávače ju nebudú indexovať a prístup k nej majú iba používatelia s priamym odkazom.",
+    "description": "The unlisted content banner message"
+  },
+  "theme.contentVisibility.draftBanner.title": {
+    "message": "Koncept stránky",
+    "description": "The draft content banner title"
+  },
+  "theme.contentVisibility.draftBanner.message": {
+    "message": "Táto stránka je koncept. Bude viditeľná iba vo vývojovom režime a bude vylúčená z produkčného buildu.",
+    "description": "The draft content banner message"
+  },
+  "theme.docs.DocCard.categoryDescription.plurals": {
+    "message": "1 položka|{count} položky|{count} položky|{count} položiek",
+    "description": "The default description for a category card in the generated index about how many items this category includes"
+  },
+  "theme.ErrorPageContent.tryAgain": {
+    "message": "Skúsiť znova",
+    "description": "The label of the button to try again rendering when the React error boundary captures an error"
+  },
+  "theme.common.skipToMainContent": {
+    "message": "Preskočiť na hlavný obsah",
+    "description": "The skip to content label used for accessibility, allowing to rapidly navigate to main content with keyboard tab/enter navigation"
+  },
+  "theme.tags.tagsPageTitle": {
+    "message": "Štítky",
+    "description": "The title of the tag list page"
+  }
+}
