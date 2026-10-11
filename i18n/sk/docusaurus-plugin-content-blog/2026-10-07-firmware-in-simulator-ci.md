@@ -126,7 +126,7 @@ exit code: 1
 Dve chyby, obe na PC neviditeľné:
 
 - **`long` má inú šírku.** Na 64-bitovom Linuxe na PC má `long` 64 bitov, na Cortex-M má 32. `3 000 000 ms * 1000` je `3 000 000 000`, čo sa nezmestí do 32-bitového čísla so znamienkom (najväčšie je 2 147 483 647), takže výsledok je nesprávny a v C ide navyše o nedefinované správanie.
-- **`char` má iné znamienko.** Norma C nechráva otvorené, či je obyčajný `char` so znamienkom. Na x86 je, takže `(char)0xFF` je `-1` a kontrola `receivedByte < 0` funguje. Na ARM je *bez znamienka*, takže `(char)0xFF` je `255` a porovnanie nikdy nie je pravdivé. Kompilátor ARM to dokonca povie, a len tam:
+- **`char` má iné znamienko.** Norma C necháva otvorené, či je obyčajný `char` so znamienkom. Na x86 je, takže `(char)0xFF` je `-1` a kontrola `receivedByte < 0` funguje. Na ARM je *bez znamienka*, takže `(char)0xFF` je `255` a porovnanie nikdy nie je pravdivé. Kompilátor ARM to dokonca povie, a len tam:
 
 ```text
 Conversions.c:10:26: warning: comparison is always false due to limited range of data type [-Wtype-limits]

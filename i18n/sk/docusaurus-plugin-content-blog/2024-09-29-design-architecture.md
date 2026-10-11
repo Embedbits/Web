@@ -1,5 +1,5 @@
 ---
-title: "Design & Architecture"
+title: "Návrh a architektúra"
 slug: design-architecture
 date: 2024-09-29T20:59:52
 authors: [Mr.Nobody]
@@ -7,21 +7,21 @@ tags: [embedded, architecture]
 image: /img/blog/architecture-layers.png
 ---
 
-OCD. Three great letters that force me to always think about software architecture. That can be really painful, especially if I have to deal with "Arduino" style architecture. You surely know it: the whole project in a few folders, the application in the *src* folder, the low level functionality in the *driver* folder and so on. But what to do in complex systems?
+OCD. Tri skvelé písmená, ktoré ma nútia stále myslieť na architektúru softvéru. Môže to byť naozaj bolestivé, najmä ak sa musím vyrovnať s architektúrou v štýle „Arduino". Určite ju poznáte: celý projekt v pár priečinkoch, aplikácia v priečinku *src*, nízkoúrovňová funkcionalita v priečinku *driver* a tak ďalej. Ale čo robiť v komplexných systémoch?
 
 <!-- truncate -->
 
-## Modularity
+## Modularita
 
-Every group of functionality shall be encapsulated in a package. By connecting such packages we get more and more complex systems. Imagine a project where you want to measure a temperature with a sensor connected to the ADC and send the actual data through the UART. We need a module that reads the raw data from the ADC, calculates the value in °C and provides it on its interface, and another module that handles the communication through the UART.
+Každá skupina funkcionality má byť zapuzdrená v balíku. Spájaním takýchto balíkov dostávame stále zložitejšie systémy. Predstavte si projekt, v ktorom chcete merať teplotu senzorom pripojeným na ADC a aktuálne dáta posielať cez UART. Potrebujeme modul, ktorý číta surové dáta z ADC, vypočíta hodnotu v °C a poskytne ju na svojom rozhraní, a ďalší modul, ktorý obsluhuje komunikáciu cez UART.
 
-If we combined all of this functionality in a single place, we would determine the position and the speed of an elementary particle at the same time. That would cause the collapse of the wave function and the destruction of the universe (sarcasm).
+Ak by sme všetku túto funkcionalitu skombinovali na jednom mieste, určovali by sme polohu a rýchlosť elementárnej častice súčasne. To by spôsobilo kolaps vlnovej funkcie a zničenie vesmíru (sarkazmus).
 
-## Abstraction layers
+## Abstrakčné vrstvy
 
-Imagine a tree. The top of the tree is a single point that handles or executes the needed functionality. In embedded systems it can be an infinite loop in the main function or some RTOS handler. The lower the tree goes, the wider it gets. This represents the connections and the hierarchy between the modules. The roots of the tree represent the connections to the hardware.
+Predstavte si strom. Vrchol stromu je jediný bod, ktorý obsluhuje alebo vykonáva potrebnú funkcionalitu. V embedded systémoch to môže byť nekonečná slučka vo funkcii main alebo nejaký handler RTOS. Čím nižšie strom ide, tým je širší. To predstavuje spojenia a hierarchiu medzi modulmi. Korene stromu predstavujú spojenia s hardvérom.
 
-The basic example is the "blinky": the LED connected to PA1 shall be active if the button connected to PA0 is pressed, and vice versa.
+Základným príkladom je „blinky": LED pripojená na PA1 sa má rozsvietiť, ak je stlačené tlačidlo pripojené na PA0, a naopak.
 
 ```c
 #include "stm32g4xx_ll_gpio.h"
@@ -42,17 +42,17 @@ void main(void)
 }
 ```
 
-We have mixed all the layers in this example. It can be acceptable for a primitive project, but in a complex system it leads to anarchy, mess, spaghetti code **and the end of the world**. To avoid a miserable, long and crucial armageddon, humans invented a few awesome things, like hierarchy and abstraction layers. In my projects I separate the functionality into three basic layers: Application, Middleware and Board Support Package (a.k.a. BSP). These are also split into multiple layers to achieve portability and modularity.
+V tomto príklade sme zmiešali všetky vrstvy. Pre primitívny projekt to môže byť prijateľné, ale v komplexnom systéme to vedie k anarchii, neporiadku, špagetovému kódu **a koncu sveta**. Aby sme sa vyhli mizernému, dlhému a rozhodujúcemu armagedonu, ľudia vynašli pár úžasných vecí, ako hierarchia a abstrakčné vrstvy. Vo svojich projektoch rozdeľujem funkcionalitu do troch základných vrstiev: Application, Middleware a Board Support Package (aka BSP). Tie sa ďalej členia na viacero vrstiev, aby sa dosiahla prenositeľnosť a modularita.
 
-![Folder structure of a project: Application, Artifacts, Bsp (Hal, LinkerFiles, Mcal, Ral, Startup), Docs and Middlewares](/img/blog/architecture-layers.png)
+![Štruktúra priečinkov projektu: Application, Artifacts, Bsp (Hal, LinkerFiles, Mcal, Ral, Startup), Docs a Middlewares](/img/blog/architecture-layers.png)
 
-The *Application* contains what the product does. The *Middleware* contains reusable software without hardware dependency, like a logger, a ModBus stack or a non-volatile memory manager. And what is the BSP? Easy. It contains everything needed for communication, configuration and handling of the hardware. From our example above, the GPIO operations belong to the BSP. The user shall not care about the exact connection of the button and the LED, so the interface between the BSP and the application can look like ***Bsp_Get_ButtonState()*** and ***Bsp_Set_LedState()***. If anything changes in the hardware, nobody has to edit multiple places and only the BSP is updated.
+*Application* obsahuje to, čo produkt robí. *Middleware* obsahuje opakovane použiteľný softvér bez závislosti od hardvéru, ako logger, zásobník ModBus alebo správca nevolatilnej pamäte. A čo je BSP? Jednoduché. Obsahuje všetko potrebné pre komunikáciu, konfiguráciu a obsluhu hardvéru. Z nášho príkladu vyššie patria operácie s GPIO do BSP. Používateľa nemá zaujímať presné zapojenie tlačidla a LED, takže rozhranie medzi BSP a aplikáciou môže vyzerať ako ***Bsp_Get_ButtonState()*** a ***Bsp_Set_LedState()***. Ak sa v hardvéri niečo zmení, nikto nemusí upravovať viacero miest a aktualizuje sa iba BSP.
 
-So the BSP contains at least one layer of encapsulation for these getters and setters. But what will they use? Will they write to the registers directly? I don't think so. STMicroelectronics has two sets of "drivers": the "HAL" and the "LL". Why the apostrophes? Because neither name is correct. Their "HAL" package is in reality a huge and slow spaghetti code which has nothing in common with its description, because HAL stands for Hardware Abstraction Layer. We will get to the real one at the end.
+BSP teda obsahuje aspoň jednu vrstvu zapuzdrenia pre tieto gettery a settery. Ale čo budú používať? Budú zapisovať priamo do registrov? Nemyslím si. STMicroelectronics má dve sady „ovládačov": „HAL" a „LL". Prečo úvodzovky? Pretože ani jeden názov nie je správny. Ich balík „HAL" je v skutočnosti obrovský a pomalý špagetový kód, ktorý nemá nič spoločné so svojím popisom, pretože HAL znamená Hardware Abstraction Layer. K tomu pravému sa dostaneme na konci.
 
 ## Register Abstraction Layer (RAL)
 
-The functions `LL_GPIO_xxx` from the example are an encapsulated access to the registers of the MCU. You can write register operations everywhere, but what if you change the MCU or make a mistake? You have to fix it in every single place. That would be painful, so we have just found the lowest abstraction layer, the *Register Abstraction Layer*. It represents only the abstraction of the registers, encapsulated in (usually inline) functions with meaningful names.
+Funkcie `LL_GPIO_xxx` z príkladu sú zapuzdrený prístup k registrom MCU. Operácie s registrami môžete písať všade, ale čo ak zmeníte MCU alebo urobíte chybu? Musíte to opraviť na každom jednom mieste. To by bolo bolestivé, takže sme práve našli najnižšiu abstrakčnú vrstvu, *Register Abstraction Layer*. Predstavuje iba abstrakciu registrov, zapuzdrenú vo (zvyčajne inline) funkciách so zmysluplnými názvami.
 
 ```c
 __STATIC_INLINE void LL_GPIO_SetOutputPin(GPIO_TypeDef *GPIOx, uint32_t PinMask)
@@ -61,31 +61,31 @@ __STATIC_INLINE void LL_GPIO_SetOutputPin(GPIO_TypeDef *GPIOx, uint32_t PinMask)
 }
 ```
 
-The name "LL" is from my point of view incorrect (same as their HAL, but who would use that?), but we get access to all registers with a meaningful description, so we can use it without difficult manual writing.
+Názov „LL" je z môjho pohľadu nesprávny (rovnako ako ich HAL, ale kto by ho používal?), ale dostávame prístup ku všetkým registrom so zmysluplným popisom, takže ho môžeme používať bez namáhavého ručného písania.
 
-In my projects the RAL consists of three parts:
+V mojich projektoch sa RAL skladá z troch častí:
 
-- **CMSIS** by ARM: the definitions of the Cortex-M core,
-- **CMSIS_ST** by STMicroelectronics: the device headers with the register definitions and the system initialization of the MCU family,
-- **RAL_ST**: the original LL drivers of ST together with my `Port` layer. The `Port` layer provides a unified naming that does not depend on the MCU family, so the code above the RAL does not change when the MCU does.
+- **CMSIS** od ARM: definície jadra Cortex-M,
+- **CMSIS_ST** od STMicroelectronics: headery zariadení s definíciami registrov a systémovou inicializáciou rodiny MCU,
+- **RAL_ST**: pôvodné ovládače LL od ST spolu s mojou vrstvou `Port`. Vrstva `Port` poskytuje jednotné pomenovanie nezávislé od rodiny MCU, takže kód nad RAL sa nemení, keď sa mení MCU.
 
-The RAL knows registers and nothing else. It does not know that something is connected to PA1.
+RAL pozná registre a nič iné. Nevie, že na PA1 je niečo pripojené.
 
 ## Microcontroller Abstraction Layer (MCAL)
 
-So we have easy access to the registers. But what shall be next? Accessing a GPIO is trivial, but what about the other peripherals? For a transfer through the UART we need multiple registers for every operation: activate the peripheral, set the baudrate, the bit length, the parity, the stop bits and so on. And because we already know that every functionality which is used more than once shall be encapsulated, we create functions for reading errors, starting a transfer, writing to the output data register, reading the input data register and many more.
+Máme teda jednoduchý prístup k registrom. Ale čo bude ďalej? Prístup ku GPIO je triviálny, ale čo ostatné periférie? Na prenos cez UART potrebujeme pri každej operácii viacero registrov: aktivovať perifériu, nastaviť baudrate, dĺžku bitov, paritu, stop bity a tak ďalej. A keďže už vieme, že každá funkcionalita, ktorá sa používa viac než raz, má byť zapuzdrená, vytvoríme funkcie na čítanie chýb, spustenie prenosu, zápis do výstupného dátového registra, čítanie zo vstupného dátového registra a mnohé ďalšie.
 
-This functionality cannot be the RAL, because it is hierarchically higher and calls the RAL. It takes care only of the peripherals of the microcontroller, so the name of this layer is *Microcontroller Abstraction Layer* (MCAL). The user sees `Gpio_Set_PinLevel()` or `Usart_Send()` and does not need to know a single register. One peripheral, one interface: if the I2C needs the DMA, the I2C module handles it internally.
+Táto funkcionalita nemôže byť RAL, pretože je hierarchicky vyššie a volá RAL. Stará sa iba o periférie mikrokontroléra, preto sa táto vrstva volá *Microcontroller Abstraction Layer* (MCAL). Používateľ vidí `Gpio_Set_PinLevel()` alebo `Usart_Send()` a nepotrebuje poznať ani jeden register. Jedna periféria, jedno rozhranie: ak I2C potrebuje DMA, modul I2C si ho obslúži interne.
 
 ## Hardware Abstraction Layer (HAL)
 
-Now we can initialize all peripherals of the MCU: RCC, DMA, USART/UART and so on. But the configuration has to be compatible with the devices connected on our PCB. So we are not focusing only on the MCU, but on the whole circuit. Thus we need another abstraction layer, the *Hardware Abstraction Layer* (HAL). Yes, this is the real meaning of the name, not like the "HAL" of ST.
+Teraz môžeme inicializovať všetky periférie MCU: RCC, DMA, USART/UART a tak ďalej. Ale konfigurácia musí byť kompatibilná so zariadeniami pripojenými na našej DPS. Nezameriavame sa teda iba na MCU, ale na celý obvod. Potrebujeme preto ďalšiu abstrakčnú vrstvu, *Hardware Abstraction Layer* (HAL). Áno, toto je skutočný význam tohto názvu, nie ako „HAL" od ST.
 
-The HAL is the only point of the interface between the application (or the middleware) and the hardware. It knows which pin is the LED, which UART is connected to the debug connector and how the peripherals are configured. To achieve the needed functionality it connects multiple modules from the MCAL. This is the last abstraction layer of the BSP.
+HAL je jediný bod rozhrania medzi aplikáciou (alebo middlewarom) a hardvérom. Vie, ktorý pin je LED, ktorý UART je pripojený na ladiaci konektor a ako sú periférie nakonfigurované. Na dosiahnutie potrebnej funkcionality prepája viacero modulov z MCAL. Je to posledná abstrakčná vrstva BSP.
 
 ## Board Support Package
 
-The BSP is the hardware oriented package which contains everything necessary for the initialization and the usage of all peripherals of the MCU and of the connected circuit. Besides the three layers above it also contains the **startup** code (initialization of the memory sections and the call of the application) and the generation of the **linker** script for the selected MCU. Each STM32 family has its own branch, so the interface of the BSP stays the same and only the content below it changes.
+BSP je hardvérovo orientovaný balík, ktorý obsahuje všetko potrebné na inicializáciu a používanie všetkých periférií MCU a pripojeného obvodu. Okrem troch vrstiev vyššie obsahuje aj **startup** kód (inicializácia pamäťových sekcií a volanie aplikácie) a generovanie **linker** scriptu pre vybraný MCU. Každá rodina STM32 má vlastnú vetvu, takže rozhranie BSP zostáva rovnaké a mení sa iba obsah pod ním.
 
 ```text
 Application / Middleware
@@ -97,11 +97,11 @@ Application / Middleware
          Hardware
 ```
 
-The rule is simple: **a layer calls only the layer directly below it.** The application never includes an ST header, the MCAL does not know which pin is the LED, and the RAL does not know which peripheral is used for what.
+Pravidlo je jednoduché: **vrstva volá iba vrstvu bezprostredne pod sebou.** Aplikácia nikdy neincluduje header od ST, MCAL nevie, ktorý pin je LED, a RAL nevie, ktorá periféria sa na čo používa.
 
-## The blinky again
+## Blinky znova
 
-Let's rewrite the example. The application does not know any hardware:
+Prepíšme príklad. Aplikácia nepozná žiadny hardvér:
 
 ```c
 void main(void)
@@ -115,7 +115,7 @@ void main(void)
 }
 ```
 
-The BSP knows the board and uses the MCAL. The pins are described in a single table, so a new revision of the PCB changes one line and nothing else (simplified, the error handling is omitted):
+BSP pozná dosku a používa MCAL. Piny sú popísané v jedinej tabuľke, takže nová revízia DPS zmení jeden riadok a nič iné (zjednodušene, ošetrenie chýb je vynechané):
 
 ```c
 typedef struct
@@ -142,20 +142,20 @@ void Bsp_Set_LedState(bool isActive)
 }
 ```
 
-And somewhere at the bottom, inside `Gpio_Set_PinLevel()`, the RAL function `LL_GPIO_SetOutputPin()` finally writes the `BSRR` register. Four layers for a blinking LED looks like a nonsense, and for the blinky it is. But the point is what happens when the product grows:
+A kdesi na dne, vo vnútri `Gpio_Set_PinLevel()`, funkcia RAL `LL_GPIO_SetOutputPin()` konečne zapíše register `BSRR`. Štyri vrstvy pre blikajúcu LED vyzerajú ako nezmysel a pre blinky aj sú. Ale podstatné je, čo sa stane, keď produkt rastie:
 
-- **A new MCU family:** another branch of the BSP is checked out, the application is not touched.
-- **A new revision of the PCB:** the LED moves to another pin, one line in the HAL changes.
-- **A unit test of the application:** the BSP is replaced by a fake one and the application runs on a PC, without any hardware.
-- **A bug in a register access:** it is in exactly one place.
+- **Nová rodina MCU:** stiahne sa iná vetva BSP, aplikácie sa to nedotkne.
+- **Nová revízia DPS:** LED sa presunie na iný pin, zmení sa jeden riadok v HAL.
+- **Unit test aplikácie:** BSP sa nahradí falošným a aplikácia beží na PC, bez akéhokoľvek hardvéru.
+- **Chyba v prístupe k registru:** je presne na jednom mieste.
 
-## Where to find it
+## Kde to nájdete
 
-All layers described here are open source and documented, each of them in its own repository of the [Embedbits](https://github.com/Embedbits) organization:
+Všetky tu popísané vrstvy sú open source a zdokumentované, každá vo vlastnom repozitári organizácie [Embedbits](https://github.com/Embedbits):
 
-- [BSP](/docs/bsp): the package with the startup, the linker script and the HAL,
-- [RAL](/docs/bsp/ral): CMSIS, CMSIS_ST and RAL_ST,
-- [MCAL](/docs/bsp/mcal): the peripheral modules together with the table of supported STM32 families,
-- the [coding style](/docs/platform/embi-platform/coding-style) that makes the names in these layers readable.
+- [BSP](/docs/bsp): balík so startupom, linker scriptom a HAL,
+- [RAL](/docs/bsp/ral): CMSIS, CMSIS_ST a RAL_ST,
+- [MCAL](/docs/bsp/mcal): moduly periférií spolu s tabuľkou podporovaných rodín STM32,
+- [coding style](/docs/platform/embi-platform/coding-style), vďaka ktorému sú názvy v týchto vrstvách čitateľné.
 
-If you want to see the same idea from the point of view of the language, read the article about the [SOLID principles in C++ and C](/blog/solid-principles-c-cpp). The layers above are nothing else than the *dependency inversion* applied to the whole firmware.
+Ak chcete vidieť rovnakú myšlienku z pohľadu jazyka, prečítajte si článok o [princípoch SOLID v C++ a C](/blog/solid-principles-c-cpp). Vrstvy vyššie nie sú nič iné než *dependency inversion* aplikovaná na celý firmvér.

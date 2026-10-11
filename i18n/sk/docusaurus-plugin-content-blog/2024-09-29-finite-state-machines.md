@@ -1,5 +1,5 @@
 ---
-title: "Finite state machines"
+title: "Konečné automaty"
 slug: finite-state-machines
 date: 2024-09-29T16:24:40
 authors: [Mr.Nobody]
@@ -7,19 +7,19 @@ tags: [embedded]
 image: /img/blog/fsm-state-machine.png
 ---
 
-For embedded software development is propper design necessary. Microcontroller has to handle processing of application itself and communication with plenty of connected circuits through internal or external peripherals. The execution of application shall be as fast as possible. But that is really terrible explanation for anyone. In real world, the developer has to ensure optimal short logical path of code execution. Which means, that developer shall not check all the conditions during each main cycle. The one way of this optimization, is to correct nesting of conditions. This can be really difficult with increasing complexity of project. A lot of nested conditional statements can lead to unstability of code and making code less readable. The code readability is cruel necessary for future updates, or for maintenance of existing code. One of my beloved quote says:
+Pre vývoj embedded softvéru je správny návrh nevyhnutný. Mikrokontrolér musí zvládať spracovanie samotnej aplikácie a komunikáciu s množstvom pripojených obvodov cez interné alebo externé periférie. Vykonávanie aplikácie má byť čo najrýchlejšie. To je však pre každého hrozne neurčité vysvetlenie. V reálnom svete musí vývojár zabezpečiť optimálne krátku logickú cestu vykonávania kódu. Čo znamená, že vývojár nemá v každom hlavnom cykle kontrolovať všetky podmienky. Jedným zo spôsobov takejto optimalizácie je správne vnáranie podmienok. S rastúcou zložitosťou projektu to môže byť naozaj ťažké. Veľa vnorených podmienených príkazov môže viesť k nestabilite kódu a znižuje jeho čitateľnosť. Čitateľnosť kódu je ukrutne potrebná pre budúce úpravy alebo údržbu existujúceho kódu. Jeden z mojich obľúbených citátov hovorí:
 
 <!-- truncate -->
 
-![Excerpt of a state machine routine table in C](/img/blog/fsm-state-machine.png)
+![Ukážka tabuľky rutín automatu v jazyku C](/img/blog/fsm-state-machine.png)
 
-> **Always code as if the guy, who end up maintaining your code will be a violent psychopath who knows where you live.**
+> **Vždy programuj tak, akoby ten, kto bude tvoj kód udržiavať, bol násilný psychopat, ktorý vie, kde bývaš.**
 
-So we should better think before writing actual code. This process is called “design” and i really like it. Because if you do it right, the amount of new code and subsequent editation of this new code is really reduced. Sometimes you could think it take so much time, but in reality, is this time summed with time of writing code shorter than writing code which will be continuously rewritten. But how to make it easier? Here we can start to talk about Finite State Machines also known as FSM.
+Takže by sme mali radšej premýšľať, než napíšeme samotný kód. Tento proces sa volá „návrh“ (design) a veľmi ho mám rád. Pretože ak ho urobíte správne, množstvo nového kódu a následných úprav tohto nového kódu sa výrazne zníži. Niekedy sa môže zdať, že to zaberie veľa času, ale v skutočnosti je tento čas spolu s časom písania kódu kratší než písanie kódu, ktorý sa bude neustále prepisovať. Ale ako si to uľahčiť? Tu môžeme začať hovoriť o konečných automatoch (Finite State Machines), známych aj ako FSM.
 
-So lets start with AI generated meaningless description:
+Začnime teda bezvýznamným popisom vygenerovaným AI:
 
-> State machines, particularly Mealy and Moore machines, are fundamental models in the design of digital systems and computational theory. Both of these machines are used to represent systems that transition between different states based on inputs and produce outputs as a result. However, the way they handle output generation is what sets them apart.
+> Stavové automaty, najmä automaty Mealy a Moore, sú základnými modelmi pri návrhu digitálnych systémov a v teórii vypočítateľnosti. Oba tieto automaty sa používajú na reprezentáciu systémov, ktoré prechádzajú medzi stavmi na základe vstupov a v dôsledku toho produkujú výstupy. Odlišuje ich však spôsob, akým generujú výstupy.
 >
 >
 >
@@ -27,7 +27,7 @@ So lets start with AI generated meaningless description:
 >
 >
 >
-> A **Mealy machine** produces outputs based on both the **current state** and the **current input**. This makes Mealy machines more responsive, as the output can change dynamically with each input signal.
+> **Mealyho automat** produkuje výstupy na základe **aktuálneho stavu** aj **aktuálneho vstupu**. Vďaka tomu sú Mealyho automaty citlivejšie, pretože výstup sa môže dynamicky meniť s každým vstupným signálom.
 >
 >
 >
@@ -35,7 +35,7 @@ So lets start with AI generated meaningless description:
 >
 >
 >
-> On the other hand, a **Moore machine** generates outputs solely based on its **current state**, independent of the input. This makes Moore machines simpler and more predictable, as the output remains constant until the state changes.
+> Naopak, **Mooreov automat** generuje výstupy výlučne na základe svojho **aktuálneho stavu**, nezávisle od vstupu. Vďaka tomu sú Mooreove automaty jednoduchšie a predvídateľnejšie, pretože výstup zostáva konštantný, kým sa nezmení stav.
 >
 >
 >
@@ -43,38 +43,38 @@ So lets start with AI generated meaningless description:
 >
 >
 >
-> These state machines are widely used in embedded systems, control systems, and digital circuits where precise state transitions and outputs are critical. In this blog, we’ll explore how Mealy and Moore machines function, their key differences, and how they can be applied in practical system design.
+> Tieto automaty sa široko používajú v embedded systémoch, riadiacich systémoch a digitálnych obvodoch, kde sú presné prechody stavov a výstupy kritické. V tomto blogu preskúmame, ako Mealyho a Mooreove automaty fungujú, aké sú ich kľúčové rozdiely a ako sa dajú uplatniť v praktickom návrhu systémov.
 
-But what does it mean? In simple way, the Mealy finite stae machine is checking the conditions for required state ***before*** the actual state execution. The Moore state machine is checking the conditions ***after*** the actual state execution.
+Ale čo to znamená? Jednoducho povedané, Mealyho konečný automat kontroluje podmienky pre požadovaný stav ***pred*** vykonaním aktuálneho stavu. Mooreov automat kontroluje podmienky ***po*** vykonaní aktuálneho stavu.
 
-But what the state represent? Imagine a light bulb which can be turned on and off by pressing a button. For handling of this behavior, our state machine would need only two states. One state which activates the actuator, and another state which this actuator deactivates.Really simple, isnt it? But what in complex systems? Well, you need a simple implementation which is applicable for various situations. That is what the template below does.
+Ale čo stav predstavuje? Predstavte si žiarovku, ktorú možno zapínať a vypínať tlačidlom. Na obsluhu tohto správania by náš automat potreboval iba dva stavy. Jeden stav, ktorý aktivuje akčný člen, a druhý stav, ktorý tento akčný člen deaktivuje. Naozaj jednoduché, nie? Ale čo v zložitých systémoch? No potrebujete jednoduchú implementáciu, ktorú možno použiť v rôznych situáciách. Presne to robí šablóna nižšie.
 
-During my work at automotive industry, we have faced with my colleague [Jan Sima](https://www.linkedin.com/in/jano-sima/) the problems with Finite State Machines designs. There has been plenty of different styles but none of them had sufficient functionality to reach stability and clean design. So we decided to design own template. With permission of Jan, i am publishing the template of our Finite State Machine under MIT license.
+Počas mojej práce v automobilovom priemysle sme sa s kolegom [Janom Šimom](https://www.linkedin.com/in/jano-sima/) stretli s problémami pri návrhu konečných automatov. Existovalo množstvo rôznych štýlov, ale žiadny z nich nemal dostatočnú funkcionalitu na dosiahnutie stability a čistého návrhu. Rozhodli sme sa teda navrhnúť vlastnú šablónu. S Janovým súhlasom publikujem šablónu nášho konečného automatu pod licenciou MIT.
 
 
-## Download the template
+## Stiahnite si šablónu
 
-The template is published under the MIT license. Everything is plain text, so you can read it before you download it:
+Šablóna je publikovaná pod licenciou MIT. Všetko je čistý text, takže si ju môžete prečítať ešte pred stiahnutím:
 
-| File | What it is |
+| Súbor | Čo to je |
 | --- | --- |
-| [FsmTemplate.c](pathname:///downloads/fsm/FsmTemplate.c) | The template in **C** (C99), one file with the states, the table of the routines and the stubs |
-| [FsmTemplate.hpp](pathname:///downloads/fsm/FsmTemplate.hpp) and [FsmTemplate.cpp](pathname:///downloads/fsm/FsmTemplate.cpp) | The template in **C++** (C++17), a class with one state machine inside |
-| [Fsm.hpp](pathname:///downloads/fsm/Fsm.hpp) | The header-only engine for the C++ version (no heap, no exceptions, no RTTI) |
-| [fsm-instantiate.sh](pathname:///downloads/fsm/fsm-instantiate.sh) | A small script that replaces the names, `fsm-instantiate.sh Button FsmTemplate.c src/` creates `src/Button.c` |
+| [FsmTemplate.c](pathname:///downloads/fsm/FsmTemplate.c) | Šablóna v jazyku **C** (C99), jeden súbor so stavmi, tabuľkou rutín a stubmi |
+| [FsmTemplate.hpp](pathname:///downloads/fsm/FsmTemplate.hpp) a [FsmTemplate.cpp](pathname:///downloads/fsm/FsmTemplate.cpp) | Šablóna v jazyku **C++** (C++17), trieda s jedným automatom vnútri |
+| [Fsm.hpp](pathname:///downloads/fsm/Fsm.hpp) | Header-only engine pre verziu v C++ (bez haldy, bez výnimiek, bez RTTI) |
+| [fsm-instantiate.sh](pathname:///downloads/fsm/fsm-instantiate.sh) | Malý skript, ktorý nahradí názvy, `fsm-instantiate.sh Button FsmTemplate.c src/` vytvorí `src/Button.c` |
 
-The names in angle brackets are replaced by the name of your module: `<Module>` becomes `Button`, `<module>` becomes `button` and `<MODULE>` becomes `BUTTON`.
+Názvy v lomených zátvorkách sa nahradia názvom vášho modulu: `<Module>` sa stane `Button`, `<module>` sa stane `button` a `<MODULE>` sa stane `BUTTON`.
 
-## How it works
+## Ako to funguje
 
-It is a Moore machine. Every state has four routines and the machine calls them in the same order on every run:
+Je to Mooreov automat. Každý stav má štyri rutiny a automat ich pri každom behu volá v tom istom poradí:
 
-1. **Entry**: called once, when the state is entered.
-2. **Execute**: called on every run, here is the work of the state.
-3. **CheckLeave**: called on every run after Execute. This is the **only** place where a new state is requested.
-4. **Leave**: called once, when the state is left.
+1. **Entry**: volá sa raz, pri vstupe do stavu.
+2. **Execute**: volá sa pri každom behu, tu je práca stavu.
+3. **CheckLeave**: volá sa pri každom behu po Execute. Je to **jediné** miesto, kde sa žiada nový stav.
+4. **Leave**: volá sa raz, pri opustení stavu.
 
-The whole engine is one function. This is the C version:
+Celý engine je jedna funkcia. Toto je verzia v C:
 
 ```c
 static void <Module>_HandleStateTransition(void)
@@ -124,22 +124,22 @@ static void <Module>_HandleStateTransition(void)
 }
 ```
 
-Because a transition is requested only in `CheckLeave`, the entry and the leave of a state are executed always as a pair, in a known order, and the outputs depend only on the state. A routine that is not needed can be `NULL` (`nullptr` in C++) and it is skipped.
+Keďže sa prechod žiada iba v `CheckLeave`, entry a leave stavu sa vždy vykonávajú ako dvojica, v známom poradí, a výstupy závisia iba od stavu. Rutina, ktorá nie je potrebná, môže byť `NULL` (`nullptr` v C++) a preskočí sa.
 
-## What was fixed
+## Čo sa opravilo {#what-was-fixed}
 
-The first version of the template that I published here had a few mistakes. I went through it again, built it and ran it against a test that records the order of the calls. These are the changes:
+Prvá verzia šablóny, ktorú som tu publikoval, mala niekoľko chýb. Prešiel som ju znova, zostavil ju a spustil proti testu, ktorý zaznamenáva poradie volaní. Toto sú zmeny:
 
-- The initial value of the state variables was a leftover name from another project (`APPCORE_HANDLER_STATE_1` instead of `<MODULE>_STATE_1`).
-- The last row of the table used `State_2_Leave` instead of `State_3_Leave`. The code compiled and called the wrong routine when the third state was left. The table is now indexed by the state (`[<MODULE>_STATE_3] = { ... }`), so the position of a row cannot be confused.
-- `Init` did not run the entry routine of the first state.
-- The state numbers were not checked. A corrupted actual state or a request of a nonexistent state indexed outside of the table. Both are checked now and the machine falls back to the first state, which is the safe one. The request is checked **after** `CheckLeave`, because that is the place where it is made. My first fix of this checked it before, and the test caught that, which is a nice proof of why such a test is worth it.
-- A routine with the `NULL` pointer is skipped instead of crashing.
-- A missing forward declaration, and a header comment that turned into nonsense after the names were replaced.
+- Počiatočná hodnota stavových premenných bola pozostatkom názvu z iného projektu (`APPCORE_HANDLER_STATE_1` namiesto `<MODULE>_STATE_1`).
+- Posledný riadok tabuľky používal `State_2_Leave` namiesto `State_3_Leave`. Kód sa skompiloval a pri opustení tretieho stavu volal zlú rutinu. Tabuľka je teraz indexovaná stavom (`[<MODULE>_STATE_3] = { ... }`), takže pozíciu riadku nemožno zameniť.
+- `Init` nespúšťal entry rutinu prvého stavu.
+- Čísla stavov sa nekontrolovali. Poškodený aktuálny stav alebo požiadavka na neexistujúci stav indexovali mimo tabuľky. Obe sa teraz kontrolujú a automat sa vráti do prvého stavu, ktorý je bezpečný. Požiadavka sa kontroluje **po** `CheckLeave`, pretože tam vzniká. Moja prvá oprava to kontrolovala pred, a test to zachytil, čo je pekný dôkaz, prečo sa takýto test oplatí.
+- Rutina s ukazovateľom `NULL` sa preskočí namiesto pádu.
+- Chýbajúca forward deklarácia a komentár v hlavičke, ktorý po nahradení názvov nedával zmysel.
 
-## The C++ version
+## Verzia v C++
 
-In C++ the same pattern is a class. The state is an `enum class`, the routines are private member functions and the table is `constexpr`:
+V C++ je ten istý vzor trieda. Stav je `enum class`, rutiny sú súkromné členské funkcie a tabuľka je `constexpr`:
 
 ```cpp
 class Button
@@ -163,11 +163,11 @@ private:
 };
 ```
 
-A request is `stateMachine.RequestState(State::Pressed)` in a `CheckLeave` routine. The row of the table has to belong to its state, and this is checked at **compile time** with a `static_assert`, so the mistake from the first version cannot even be built. There is no heap, no exception and no RTTI, so it fits the usual embedded and MISRA-like restrictions. The C++ version was compiled with `-Wall -Wextra -Wconversion -pedantic -fno-exceptions -fno-rtti` and ran under the address and undefined behavior sanitizers with the same scenarios as the C version: the order of the calls, a request, an invalid request, a corrupted state and the skipped `NULL` routines.
+Požiadavka je `stateMachine.RequestState(State::Pressed)` v rutine `CheckLeave`. Riadok tabuľky musí patriť svojmu stavu a to sa kontroluje v **čase kompilácie** pomocou `static_assert`, takže chyba z prvej verzie sa už nedá ani zostaviť. Nie je tu halda, výnimky ani RTTI, takže to zodpovedá obvyklým obmedzeniam embedded a štýlu MISRA. Verzia v C++ bola skompilovaná s `-Wall -Wextra -Wconversion -pedantic -fno-exceptions -fno-rtti` a bežala pod sanitizérmi adries a nedefinovaného správania s rovnakými scenármi ako verzia v C: poradie volaní, požiadavka, neplatná požiadavka, poškodený stav a preskočené rutiny `NULL`.
 
-The second part of this series, [a button with debounce and long press](/blog/fsm-in-practice-button), shows the template in a real module.
+Druhá časť tejto série, [tlačidlo s debounce a dlhým stlačením](/blog/fsm-in-practice-button), ukazuje šablónu v skutočnom module.
 
-## License
+## Licencia
 
 ```text
 Copyright (c) 2024 Marek Petrinec, Jan Sima
